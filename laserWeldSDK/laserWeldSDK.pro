@@ -1,9 +1,11 @@
 CONFIG -= qt
 
 TEMPLATE = lib
-DEFINES += LASERSDK_LIBRARY
+DEFINES += LASERWELDSDK_LIBRARY
 
 CONFIG += c++11
+# 声明源码使用UTF-8编码
+CONFIG += utf8_source
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -19,8 +21,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     cl_api.cpp \
     cl_craftscript.cpp \
-    lasersdk.cpp \
-    statusdisplay.cpp \
+    cl_luascript.cpp \
     cl_utils.cpp
 
 HEADERS += \
@@ -28,8 +29,7 @@ HEADERS += \
     cl_basedefine.h \
     cl_craftscript.h \
     cl_internaldatadefine.h \
-    lasersdk.h \
-    statusdisplay.h \
+    cl_luascript.h \
     cr_sdk/include/basestruct.h \
     cr_sdk/include/robotapi.h \
     cl_utils.h

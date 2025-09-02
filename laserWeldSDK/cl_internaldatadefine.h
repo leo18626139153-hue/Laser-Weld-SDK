@@ -17,6 +17,23 @@
 extern std::mt19937 engine;
 extern std::uniform_int_distribution<int> distribution;
 extern std::unordered_map<int, MachineResource> machineResourcesMap;
+// 写脚本参数-函数名-函数传参名-地址
+struct ParamConfig {
+    const char* scriptName;
+    const char* numName;
+    unsigned int addr;
+    double value;
+};
+
+//通讯变量寄存器类型
+enum CommuRegType
+{
+    boolReg = 0,
+    int16Reg = 1,
+    int32Reg = 2,
+    floatReg = 3
+
+};
 
 typedef struct
 {
@@ -57,19 +74,6 @@ typedef struct
     double rot[3]; // 姿态
     double coordSys[12]; // 参考坐标系
 }Waypoint_S;
-
-// Lua脚本参数结构体
-struct LuaScriptParams {
-    std::string functionName;      // 函数名
-    std::string functionDesc;      // 函数描述
-    std::string paramName;         // 参数名
-    std::string paramDesc;         // 参数描述
-    std::string registerAddress;   // 寄存器地址（十六进制）
-    int multiplier;           // 乘数系数
-    bool needByteSwap;        // 是否需要字节交换
-};
-
-
 
 
 //对指令列表通过各类数据结构进行抽象表示

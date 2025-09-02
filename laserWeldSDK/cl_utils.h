@@ -16,11 +16,16 @@
 #include <iomanip>  // 用于输出格式控制
 
 /**
- * 生成Lua脚本的函数
- * @param params 脚本参数结构体
- * @return 生成的Lua脚本字符串
+ * 生成写入参数类型的Lua脚本的函数
  */
-std::string generateLuaScript(const LuaScriptParams& params);
+std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regTypr);
+/**
+ * 生成读参数类型的Lua脚本的函数
+ */
+std::string readLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr);
+
+
+bool strToChar(char* script, int* scriptLen, std::string& generatedScript);
 
 //字符替换
 std::string strReplace(std::string srcStr, std::array<double,6> vecDouble);
@@ -30,7 +35,7 @@ std::string strReplace(std::string srcStr, std::string format, std::string repla
 std::string strReplace(std::string srcStr, std::string format, int replaceInt);
 std::string strReplace(std::string srcStr, std::string format, unsigned int replaceUInt);
 std::string strReplace(std::string srcStr, std::string format, double replaceDouble);
-std::string strReplace(std::string srcStr, std::string format, float replaceFloat);
+std::string strReplace(std::string srcStr, std::string format, float replacefloat);
 std::string strReplace(std::string srcStr, std::vector<std::string> vecStr);
 
 //各类数据结构转为字符串
@@ -73,11 +78,11 @@ std::string strReadModbusReplace(T returnStr, Y addrStr);
 
 //write_float_register
 template <typename T, typename Y>
-std::string strWriteFloatRegReplace(T srcStr, Y vecStr);
+std::string strWritefloatRegReplace(T srcStr, Y vecStr);
 
 //read_float_register
 template <typename T, typename Y>
-std::string strReadFloatRegReplace(T returnStr, Y addrStr);
+std::string strReadfloatRegReplace(T returnStr, Y addrStr);
 
 //write_bool_register
 template <typename T, typename Y>
@@ -99,6 +104,7 @@ std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6
 
 //对16位数据进行高低字节拆分
 std::tuple<int, int> splitHighLowByteValue(double value);
+
 //CRresult转LaserSdkResult
 LaserSdkResult crsdk_return_value_transfer(CRresult res);
 

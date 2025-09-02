@@ -542,3 +542,99 @@ std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6
 {
     return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4), "%5", data5), "%6", data6);
 }
+
+bool strToChar(char* script, int* scriptLen, std::string& generatedScript)
+{
+    if (script == nullptr || scriptLen == nullptr)
+    {
+        std::cerr << "Error: Null pointer passed to strToChar." << std::endl;
+        return false;
+    }
+
+    // 计算所需缓冲区大小（包括空终止符）
+    size_t requiredSize = generatedScript.size() + 1;
+    if (static_cast<size_t>(*scriptLen) < requiredSize)
+    {
+        *scriptLen = static_cast<int>(requiredSize); // 通知调用者所需大小
+        return false;
+    }
+
+    if (generatedScript.empty())
+    {
+        script[0] = '\0'; // 明确设置空字符串
+        *scriptLen = 1;   // 缓冲区使用大小为1
+        return true;
+    }
+
+    // 复制字符串内容
+    memcpy(script, generatedScript.c_str(), generatedScript.size());
+    script[generatedScript.size()] = '\0'; // 添加空终止符
+    *scriptLen = static_cast<int>(requiredSize); // 设置实际使用的长度
+    return true;
+}
+
+
+std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regType)
+{
+    // 扫描校正系数/中心偏移函数 需要乘以100的因子,0x0238 0x0239 0x023a 0x023b
+    bool needsFactor = addr >= 0x0238 && addr <= 0x023b;
+    // 计算交换后的地址（高低字节互换）
+    unsigned int swapped_addr = ((addr & 0xFF) << 8) | (addr >> 8);
+    // 创建字符串流用于构建Lua代码
+    std::ostringstream luaCode;
+    // 设置十六进制输出格式
+    luaCode << std::hex << std::setfill('0');
+    //定义写入 funcName 函数
+    luaCode << "function " << funcName << "(" << funcParam << ")\n"
+            << "    for i=62,69,1 do\n"
+            << "        write_int16_register(i,0)\n"
+            << "    end\n";
+    //---定义写入报文----
+    luaCode << "    mes_1 = Lua_get_message({0x0906, 0x"<< std::setw(4) << addr << ", "<< funcParam;
+    if (needsFactor)
+    {
+        luaCode << "*100})\n";
+    }
+    else
+    {
+        luaCode << "})\n";
+    }
+    luaCode << "    mes_2 = Lua_crc16(mes_1)\n";
+    luaCode << "    " << funcParam << " = swap_bytes_for_word(" << funcParam;
+    if (needsFactor) {
+        luaCode << "*100)\n";
+    } else {
+        luaCode << ")\n";
+    }
+    luaCode << "    mes_3 = {0x0609, 0x"<< std::setw(4) << swapped_addr << ", "<< funcParam << ", mes_2}\n";
+
+    luaCode << "    for i=1,4,1 do\n"
+            << "        write_int16_register(i+61, mes_3[i])\n"
+            << "    end\n";
+    luaCode << "    -- 发送报文\n";
+    switch (regType) {
+        case CommuRegType::boolReg:
+            luaCode << "    serial_send(3,4,0,62)  -- 使用bool类型\n";
+            break;
+        case CommuRegType::int16Reg:
+            luaCode << "    serial_send(3,4,1,62)  -- 使用int16类型\n";
+            break;
+        case CommuRegType::int32Reg:
+            luaCode << "    serial_send(3,4,1,62)  -- 使用int32类型\n";
+            break;
+        case CommuRegType::floatReg:
+            luaCode << "    serial_send(3,4,1,62)  -- 使用float类型\n";
+            break;
+        default:
+            luaCode << "    serial_send(3,4,1,62)  -- 默认使用int16类型\n";
+            break;
+    }
+    luaCode << "end\n";
+    return luaCode.str();
+}
+
+std::string readLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr)
+{
+
+    return funcName;
+}
