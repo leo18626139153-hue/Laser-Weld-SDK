@@ -10,13 +10,13 @@
 
 LaserSdkResult cl_sdk_version_get(char *version, int *versionLen)
 {
-    if(*versionLen < sizeof(LASERSDK_VERSION)+1)
+    if(*versionLen < sizeof(LASERWELDSDK_VERSION)+1)
     {
         return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
     }
-    memcpy(version, LASERSDK_VERSION, sizeof(LASERSDK_VERSION));
-    memcpy(version+sizeof(LASERSDK_VERSION), "\0", 1);
-    *versionLen = sizeof(LASERSDK_VERSION)+1;
+    memcpy(version, LASERWELDSDK_VERSION, sizeof(LASERWELDSDK_VERSION));
+    memcpy(version+sizeof(LASERWELDSDK_VERSION), "\0", 1);
+    *versionLen = sizeof(LASERWELDSDK_VERSION)+1;
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -81,16 +81,17 @@ LaserSdkResult cl_laser_head_params_read(const LaserMachineHandle laserMachineHa
     {
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
-
     //获取脚本
     std::string scriptGet;
     LaserSdkResult result = curCommuFunction->craft_laser_head_param_read_script_get(laserMachineHandle, scriptGet);
     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
     {
-        return result;
-    }
+        return result;    }
 
     //脚本赋值
+    std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+    scriptGet = mainFuncProgram + RobotProgram1 + scriptGet  +RobotProgram2;
+    scriptGet = funcScript + scriptGet ;
     if(strToChar(script, &scriptLen, scriptGet)){
         return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
     }
@@ -119,12 +120,18 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
     {
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
+
     //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
     std::vector<unsigned int> laserPowerVec = {
-        machineResource.laserPowerLoc,
-        machineResource.laserOnPowerLoc,
-        machineResource.laserOnRampTimeLoc,
-        };
+        machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
+        machineResource.laserOnPowerLoc,            ///<  开光功率地址 0x0231 561
+        machineResource.laserOnRampTimeLoc,         ///<  开光渐进时间地址 0x0232 562
+        machineResource.laserHeadYOffsetLoc,        ///<  Y轴偏移地址 0x0239 569
+        machineResource.laserHeadXOffsetLoc,        ///<  X轴偏移地址 0x023b 571
+        machineResource.laserHeadYScaleLoc,         ///<  Y轴放大地址 0x0238 568
+        machineResource.laserHeadXScaleLoc,         ///<  X轴放大地址 0x023a 570
+        machineResource.spotWeldTypeLoc             ///< 点焊类型地址 0x0242 578
+    };
     //需要设置的激光头地址参数 - 扫描速度 - 扫描宽 - 峰值功率 - 占空比 - 脉冲频率 - 扫描高度 - 旋转角度 - 图形切换
     std::vector<unsigned int> laserHeadVec = {
         machineResource.laserHeadScanSpeedLoc,
@@ -139,21 +146,24 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         };
     //送丝机地址参数 - 自动送丝速度
     std::vector<unsigned int> wireFeedVec = {
-        machineResource.autoWireFeedSpeedLoc,
+        machineResource.autoWireFeedSpeedLoc, //256
     };
     //获取脚本
     std::string scriptGet;
-    LaserSdkResult result;
-    result = curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec,  scriptGet);    //激光器参数
-    result = curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet); //激光图案
-    //result = curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet); //送丝机参数
-    scriptGet = mainFuncProgram + RobotProgram1 + scriptGet  +RobotProgram2;
-    std::string laserScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-    scriptGet = laserScript + scriptGet ;
-    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
+
+    try
     {
-        return result;
+        checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
+        checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
+        checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
     }
+    catch (const LaserSdkResult& errorResult) {
+        return errorResult;
+    }
+    
+    scriptGet = mainFuncProgram + RobotProgram1 + scriptGet  +RobotProgram2;
+    std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+    scriptGet = funcScript + scriptGet ;
     //脚本赋值
     if(strToChar(scripts, scriptLen, scriptGet)){
         return LaserSdkResult::MEMORY_ERROR_LASER_SDK;

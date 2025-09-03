@@ -82,14 +82,13 @@ public:
     //获取设置起焊脚本 CO2
     LaserSdkResult craft_script_start_weld_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
     
-
     //激光器设置脚本
     LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
 
     //激光头图案资源
     LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
 
-    //激光头图案资源读取设置页
+    //激光头图案资源读取
     LaserSdkResult craft_laser_head_param_read_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
 
     //激光头设置页

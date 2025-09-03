@@ -2,41 +2,40 @@
 
 std::string mainFuncProgram = "function mainFuncProgram()\n";
 
-std::string RobotProgram1 = "function RobotProgram()\n"
-                            "while(true)\n"
-                            "do\n";
+std::string RobotProgram1 = "function RobotProgram()\n";
 
 std::string RobotProgram2 = "sync()\n"
-                        "end\n"
-                        "end\n"
-                        "RobotProgram_Result=task_create(RobotProgram)\n"
-                        "function PauseFuncProgram()\n"
-                        "while(true)\n"
-                        "do\n"
-                        "wait(100)\n"
-                        "end\n"
-                        "end\n"
-                        "PauseFuncProgram_Result=task_create(PauseFuncProgram)\n"
-                        "end\n"
-                        "mainFuncProgram_Result=task_create(mainFuncProgram)\n";
+                            "halt()\n"
+                            "end\n"
+                            "-----RobotProgramEnd----\n"
+                            "RobotProgram_Result=task_create(RobotProgram)\n"
+                            "-----PauseFuncProgram----\n"
+                            "function PauseFuncProgram()\n"
+                            "\twhile(true)\n"
+                            "\tdo\n"
+                            "\t\twait(100)\n"
+                            "\tend\n"
+                            "end\n"
+                            "PauseFuncProgram_Result=task_create(PauseFuncProgram)\n"
+                            "end\n"
+                            "mainFuncProgram_Result=task_create(mainFuncProgram)\n";
 //连接激光
 std::string Lua_connect_laser = "connect_id=8\n"
-                            "::reconnect_label::\n"
-                            "socket_disconnect(connect_id)\n"
-                            "wait(100)\n"
-                            "socket_connect('udp','192.168.16.254',connect_id,8080,8080)\n"
-                            "wait(100)\n"
-                            "connect_status = get_socket_connect_status(connect_id)\n"
-                            "if(connect_status~=0) then\n"
-                            "\tif(connect_id<=16) then\n"
-                            "\t\tgoto reconnect_label\n"
-                            "\tend\n"
-                            "\tprint('连接失败,请检查设备')\n"
-                            "\thalt()\n"
-                            "end\n"
-                            "print('udp连接成功,连接ID:'..connect_id)\n"
-                            "connect_id=8\n";
-
+                                "::reconnect_label::\n"
+                                "socket_disconnect(connect_id)\n"
+                                "wait(100)\n"
+                                "socket_connect('udp','192.168.16.254',connect_id,8080,8080)\n"
+                                "wait(100)\n"
+                                "connect_status = get_socket_connect_status(connect_id)\n"
+                                "if(connect_status~=0) then\n"
+                                "\tif(connect_id<=16) then\n"
+                                "\t\tgoto reconnect_label\n"
+                                "\tend\n"
+                                "\tprint('连接失败,请检查设备')\n"
+                                "\thalt()\n"
+                                "end\n"
+                                "print('udp连接成功,连接ID:'..connect_id)\n"
+                                "connect_id=8\n";
 //送丝机连接函数
 std::string Lua_connect_Wire = "exj_disable(0)\n"
                             "wait(200)\n"
@@ -159,55 +158,6 @@ std::string swap_bytes_for_word = "function swap_bytes_for_word(data4)\n"
                               "return result1\n"
                               "end\n";
 
-
-
-std::string write_ospri_io = "function write_ospri_io(io_status)\n"
-                         "\tif(io_status>=0 and io_status<=7) then\n"
-                         "\t\tif(io_status&1==1) then\n"
-                         "\t\t\t  \n"
-                         "\t\telse\n"
-                         "\t\t\tset_configurable_digital_out(0,false)\n"
-                         "\t\tend\n"
-                         "\t\tif(io_status&2==2) then\n"
-                         "\t\t\tset_configurable_digital_out(1,true)\n"
-                         "\t\telse\n"
-                         "\t\t\tset_configurable_digital_out(1,false)\n"
-                         "\t\tend\n"
-                         "\t\tif(io_status&4==4) then\n"
-                         "\t\t\tset_configurable_digital_out(2,true)\n"
-                         "\t\telse\n"
-                         "\t\t\tset_configurable_digital_out(2,false)\n"
-                         "\t\tend\n"
-                         "\tend\n"
-                         "end\n";
-
-
-std::string write_YaxisCenter_offset = "function write_YaxisCenter_offset(number19)									-----定义写入Y轴中心偏移函数write_YaxisCenter_offset(Y轴中心偏移设定值)\n"
-                                   "--------将通讯变量清零--------\n"
-                                   "for i=62,69,1 do\n"
-                                   "write_int16_register(i,0)\n"
-                                   "end\n"
-                                   "--------定义写入报文---------\n"
-                                   "mes_1=Lua_get_message({0x0906,0x0239,number19*100})      --------整合扫描Y轴中心偏移设定报文(无校验码)，并处理为6维数组\n"
-                                   "mes_2=Lua_crc16(mes_1)											         --------计算CRC16校验码\n"
-                                   "number19=swap_bytes_for_word(number19*100)					 --------Y轴中心偏移参数高低位互换\n"
-                                   "mes_3={0x0609,0x3902,number19,mes_2}						     --------整合Y轴中心偏移设定报文\n"
-                                   "--------写入报文写入通讯变量---------\n"
-                                   "for i=1,4,1 do\n"
-                                   "write_int16_register(i+61,mes_3[i])\n"
-                                   "end\n"
-                                   "while(true) do\n"
-                                   "write_bool_register(33,1)\n"
-                                   "--------发送报文------\n"
-                                   "serial_send(3,4,1,62)\n"
-                                   "if(read_int16_register(65) == read_int16_register(69))\n"
-                                   "then\n"
-                                   "write_bool_register(33,0)\n"
-                                   "break\n"
-                                   "end\n"
-                                   "end\n"
-                                   "end\n";
-
 std::string readRespondOfWrite = "function readRespondOfWrite()\n"
                              "print(\"enter readRespondOfWrite\")\n"
                              "while(true)\n"
@@ -222,84 +172,240 @@ std::string readRespondOfWrite = "function readRespondOfWrite()\n"
                              "end\n"
                              "end\n";
 
-std::string read_scanningCorrectionCoefficient_YXaxis = "function read_scanningCorrectionCoefficient_YXaxis() -----定义读取扫描校正系数-Y/X轴函数read_scanningCorrectionCoefficient_YXaxis()\n"
-                                                    "--------将通讯变量清零--------\n"
-                                                    "for i=62,71,1 do\n"
-                                                    "write_int16_register(i,0)\n"
-                                                    "end\n"
-                                                    "--------定义读取报文---------\n"
-                                                    "mes={0x0309,0x3802,0x0300,0xF684}\n"
-                                                    "--------读取报文写入通讯变量---------\n"
-                                                    "for i=1,4,1 do\n"
-                                                    "write_int16_register(i+61,mes[i])\n"
-                                                    "end\n"
-                                                    "while(true) do\n"
-                                                    "write_bool_register(33,1)\n"
-                                                    "--------发送报文------\n"
-                                                    "serial_send(3,4,1,62)\n"
-                                                    "if(read_int16_register(71)~=0)\n"
-                                                    "then\n"
-                                                    "write_bool_register(33,0)\n"
-                                                    "break\n"
-                                                    "end\n"
-                                                    "end\n"
-                                                    "print(\"finish read\")\n"
-                                                    "Lua_data_get(read_int16_register(67),read_int16_register(68))\n"
-                                                    "write_int16_register(94,result1)\n"
-                                                    "write_double_register(11,read_int16_register(94)/100)\n"
-                                                    "Lua_data_get(read_int16_register(69),read_int16_register(70))\n"
-                                                    "write_int16_register(95,result1)\n"
-                                                    "write_double_register(12,read_int16_register(95)/100)\n"
-                                                    "end\n";
+/// 定义读取扫描速度函数
+std::string read_scanning_speed =
+R"(
+function read_scanning_speed()
+    ----------------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
 
-std::string LaserHeadGetDataXYaxisCorrection = "function LaserHeadGetDataXYaxisCorrection()\n"
-                                           "print(\"enter LaserHeadGetDataXYaxisCorrection\")\n"
-                                           "while(true)\n"
-                                           "do\n"
-                                           "isSendData=read_bool_register(33)\n"
-                                           "if(isSendData==1)\n"
-                                           "then\n"
-                                           "print(\"read serial data XYaxis\")\n"
-                                           "serial_receive(3,6,1,66,300)\n"
-                                           "end\n"
-                                           "sync()  --sync()\n"
-                                           "end\n"
-                                           "end\n";
+    mes={0x0309,0x0000,0x0100,0x4285}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
+    ---------------
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(77,result1)
+end
+)";
 
+/// 定义读取扫描宽度函数
+std::string read_scanning_width =
+R"(
+function read_scanning_width()
+    -----------------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    ------------------
+    mes={0x0309,0x0100,0x0100,0x82D4}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
+    ---------------
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(78,result1)
+end
+)";
+/// 定义读取峰值功率函数
+std::string read_peak_power =
+R"(
+function read_peak_power()
+    -----------------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    ------------------
+    mes={0x0309,0x0200,0x0100,0x8224}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
+    ---------------
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(79,result1)
+end
+)";
+/// 定义读取占空比函数
+std::string read_duty_cycle =
+R"(
+function read_duty_cycle()
+    -----------------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    ------------------
+    mes={0x0309,0x0300,0x0100,0x4275}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
+    ---------------
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(80,result1)
+end
+)";
+/// 定义读取脉冲频率函数
+std::string read_pulse_frequency =
+R"(
+function read_pulse_frequency()
+    -----------------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    ------------------
+    mes={0x0309,0x0500,0x0100,0x4395}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
+    ---------------
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(81,result1)
+end
+)";
+/// 定义读取扫描高度函数
+std::string read_scanning_height =
+R"(
+function read_scanning_height()
+    -----------------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    ------------------
+    mes={0x0309,0x0600,0x0100,0x4365}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
 
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(82,result1)
+end
+)";
+/// 定义读取旋转角度函数
+std::string read_rotation_angle =
+R"(
+function read_rotation_angle()
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    mes={0x0309,0x0700,0x0100,0x8334}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
+    ---------------
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(83,result1)
+end
+)";    
 
-std::string read_laser_power = "function read_laser_power()\n"
-                           "laser_power=read_double_register(13)\n"
-                           "laser_power=ceil(3000*laser_power/10)\n"
-                           "write_int16_register(72,laser_power)\n"
-                           "end\n";
-
-//送丝机
-std::string wireSenderPowerOn = "function wireSenderPowerOn()--开机\n"
-                            " if read_ect_pdo(904)==8 then\n"
-                            " exj_disable(0) --外部轴 0 关闭使能 \n"
-                            " wait(100)\n"
-                            " write_ect_pdo(904,9)\n"
-                            "end\n"
-                            "end\n";
-
-std::string wireEnable_Lua = "function wireEnable(isEnable)--送丝使能\n"
-                     "if isEnable==1 then--使能点亮\n"
-                     "exj_enable(0) --外部轴 0使能 \n"
-                     "wait(200)\n"
-                     "write_ect_pdo(902,0)\n"
-                     "else\n"
-                     "exj_disable(0) --外部轴 0 关闭使能 \n"
-                     "wait(200)\n"
-                     "end\n"
-                     "end\n";
-
-std::string manualWireSend = "function manualWireSend(manual_wire_speed)--手动送丝\n"
-                         "manual_wire_speed=manual_wire_speed*10\n"
-                         "write_ect_pdo(902,manual_wire_speed)\n"
-                         "end\n";
-
-std::string manualWireBack = "function manualWireBack(manual_wire_removal)--手动退丝\n"
-                         "manual_wire_removal=manual_wire_removal*(-10)\n"
-                         "write_ect_pdo(902,manual_wire_removal)\n"
-                         "end\n";
+/// 定义读取激光图形函数
+std::string read_laser_graphics =
+R"(
+function read_laser_graphics()
+    -----------------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    ------------------
+    mes={0x0309,0x3000,0x0100,0x4D85}
+    ------------------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes[i])
+    end
+    while(true) do
+    write_bool_register(33,1)
+    ---------------
+    serial_send(3,4,1,62)
+    if(read_int16_register(66)~=0 and read_int16_register(67)~=0 and read_int16_register(68)~=0 and read_int16_register(69)~=0)
+    then
+    write_bool_register(33,0)
+          break
+    end
+    end
+    Lua_data_get(read_int16_register(11),read_int16_register(12))
+    write_int16_register(84,result1)
+    if(result1==0) then
+    print("circle is using")
+    elseif(result1==1) then
+    print("8 is using")
+    elseif(result1==2) then
+    print("- is using")
+    elseif(result1==3) then
+    print("star is using")
+    elseif(result1==4) then
+    print("triangle is using")
+    elseif(result1==5) then
+    print("ten is using")
+    end
+end
+)";

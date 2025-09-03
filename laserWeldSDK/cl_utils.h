@@ -27,6 +27,11 @@ std::string readLuaScript(const std::string funcName, const std::string funcPara
 
 bool strToChar(char* script, int* scriptLen, std::string& generatedScript);
 
+/**
+ * 通过throw抛出问题LaserSdkResult
+ */
+void checkLaserSdkResult(LaserSdkResult result);
+
 //字符替换
 std::string strReplace(std::string srcStr, std::array<double,6> vecDouble);
 std::string strReplace(std::string srcStr, std::vector<double> vecDouble);

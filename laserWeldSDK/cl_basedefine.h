@@ -112,85 +112,90 @@ enum PulseTypeLaserSdk
     LOW_LASER_SDK = 1        //低电平
 };
 
+//开关类型
+enum SwitchTypeLaserSdk
+{
+    SWITCH_ON_LASER_SDK = 0,   //开
+    SWITCH_OFF_LASER_SDK = 1   //关
+};
+
 //激光器
 typedef struct CgxiLaserPowerLaserSdk
 {
-    BOOL LASER_OPEN_LASER_SDK;          ///< 是否 出光
-    BOOL LASER_MACHINE_LASER_SDK;       ///< 激光器有无报警
-    int LASER_POWER_LASER_SDK;          ///< 激光器功率 0-5000W
-    int LASER_POWER_OPEN_LASER_SDK;     ///< 开光功率 0-5000W
-    int LASER_POWER_CLOSE_LASER_SDK;    ///< 关光功率 0-5000W
-    int LASER_GRADUAL_TIME_OPEN_LASER_SDK;   ///< 开光渐进时间 0~1000ms
-    int LASER_GRADUAL_TIME_CLOSE_LASER_SDK;  ///< 关光渐进时间{关光渐进距离 0~300mm, 根据机器人移动速度换算}
-    int WIRE_FEEDER_AHEAD_OUT_LASER_SDK;     ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
-    int GAS_GRADUAL_TIME_CLOSE_LASER_SDK;    ///< 关气渐进 滞后送气时间	0~3000ms
-    int GAS_GRADUAL_TIME_OPEN_LASER_SDK;     ///< 开气渐进 提前送气时间	0~3000ms
-    int spotWeldDuration;        ///<点焊持续时间
-    int spotWeldInterval;        ///<点焊间隔时间
-    int driverTemp;              ///<  驱动器温度值
-    int protectiveWindowTemp;    ///<  保护镜温度值
-    int collimatorTemp;          ///<  准直镜温度值
+    BOOL isLaserOn;             ///< 是否 出光
+    BOOL isLaserAlarm;          ///< 激光器有无报警
+    int laserPower;             ///< 激光器功率 0-5000W
+    int laserPowerOpen;         ///< 开光功率 0-5000W
+    int laserPowerClose;        ///< 关光功率 0-5000W
+    int laserRampUpTime;        ///< 开光渐进时间 0~1000ms
+    int laserRampDownTime;      ///< 关光渐进时间{关光渐进距离 0~300mm, 根据机器人移动速度换算}
+    int wireFeedAdvanceTime;     ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
+    int gasShutoffDelayTime;        ///< 关气渐进 滞后送气时间	0~3000ms
+    int gasStartupAdvanceTime;     ///< 开气渐进 提前送气时间	0~3000ms
+    int spotWeldDurationTime;      ///<点焊持续时间 0~60000ms	整型
+    int spotWeldIntervalTime;      ///<点焊间隔时间 0~60000ms	整型
+    int driverTemp;             ///<  驱动器温度报警阈值 0~85°
+    int protectiveWindowTemp;   ///<  保护镜温度报警阈值 0~85°
+    int collimatorTemp;         ///<  准直镜温度报警阈值 0~85°
+    double laserHeadXOffset;    ///< X偏移 -3~+3mm	浮点型
+    double laserHeadYOffset;    ///< Y偏移 -3~+3mm	浮点型
+    double laserHeadXEnlarge;   ///< X放大 0.01~4	浮点型
+    double laserHeadYEnlarge;   ///< Y放大 0.01~4	浮点型
     WeldLineTypeLaserSdk spotWeldType;       ///<  点焊类型 (0:间断焊 1:鱼鳞焊)
-    PulseTypeLaserSdk LASER_POWER_PULSE_TYPE_LASER_SDK;             ///<  激光器报警类型 (0:高电平 1:低电平)
-    PulseTypeLaserSdk WATER_COOLER_ALARM_LASER_SDK;             ///<  水冷机报警 (0:高电平 1:低电平)
-    PulseTypeLaserSdk GAS_PULSE_TYPE_LASER_SDK;             ///<  气压报警 (0:高电平 1:低电平)
+    PulseTypeLaserSdk laserAlarmType;        ///<  激光器报警类型 (0:高电平 1:低电平)
+    PulseTypeLaserSdk waterCoolerAlarm;      ///<  水冷机报警 (0:高电平 1:低电平)
+    PulseTypeLaserSdk gasPressureAlarm;      ///<  气压报警 (0:高电平 1:低电平)
 }CgxiLaserPowerLaserSdk;
 
 enum SpotPatternLaserSdk
 {
-    Cir_LASERSDK = 0,    ///< 圆形（参数：直径mm）
-    Line_LASERSDK = 1,   ///< 水平线（参数：长度mm）
-    Horizon_8_LASERSDK = 2, ///< ∞字形（参数：长轴mm）
-    Square_LASERSDK = 3,    ///< 正方形（参数：边长mm）
-    Star_LASERSDK = 4,
-    TriAngle_LASERSDK = 5   ///< 等边三角形（参数：边长mm）
+    CIR_LASERSDK = 0,    ///< 圆形（参数：直径mm）
+    LINE_LASERSDK = 1,   ///< 水平线（参数：长度mm）
+    HORIZON_8_LASERSDK = 2, ///< ∞字形（参数：长轴mm）
+    SQUARE_LASERSDK = 3,    ///< 正方形（参数：边长mm）
+    STAR_LASERSDK = 4,
+    TRIANGLE_LASERSDK = 5   ///< 等边三角形（参数：边长mm）
 };
 
 ///< 激光头
 typedef struct CgxiLaserHeadLaserSdk
 {
-    SpotPatternLaserSdk LASERHEAD_SPOT_PATTERN_LASERSDK;   ///<光斑图案 0-点 1-圆 2-横线 3-竖线 4-横8 5-竖8 6-正方 7-三角
-    int LASERHEAD_SPINANGLE_LASERSDK;     ///<旋转角度 0~360°	整型
-    double LASERHEAD_PEAK_POWER_LASERSDK;      ///< 峰值功率
-    double LASERHEAD_DULY_CYCLE_LASERSDK;      ///< 占空比
-    double LASERHEAD_LOW_PULSE_FREQUENCY_LASERSDK;      ///< 脉冲频率 低位
-    double LASERHEAD_HIGH_PULSE_FREQUENCY_LASERSDK;     ///< 脉冲频率 高位
-    double LASERHEAD_SCANSPEED_LASERSDK;   ///<扫描速度 0~30000mm/s	浮点型
-    double LASERHEAD_SCANWIDTH_LASERSDK;   ///<扫描宽度 0.1~5mm 	浮点型
-    double LASERHEAD_SCANHEIGHT_LASERSDK;  ///<扫描高度 0.1~5mm	浮点型
-    double LASERHEAD_X_OFFSET_LASERSDK;    ///<X偏移 -3~+3mm	浮点型
-    double LASERHEAD_Y_OFFSET_LASERSDK;    ///<Y偏移 -3~+3mm	浮点型
-    double LASERHEAD_X_ENLARGE_LASERSDK;   ///<X放大 0.01~4	浮点型
-    double LASERHEAD_Y_ENLARGE_LASERSDK;   ///<Y放大 0.01~4	浮点型
-
+    SpotPatternLaserSdk laserSpotPattern;   ///<光斑图案 
+    int laserHeadSpinAngle;         ///<旋转角度 0~360°	整型
+    double laserHeadPeakPower;      ///< 峰值功率
+    double laserHeadDutyCycle;      ///< 占空比
+    double laserHeadLowPulseFrequency;      ///< 脉冲频率 低位
+    double laserHeadHighPulseFrequency;     ///< 脉冲频率 高位
+    double laserHeadScanSpeed;   ///<扫描速度 0~2000mm/s	整型
+    double laserHeadScanWidth;   ///<扫描宽度 0.1~5mm 	浮点型
+    double laserHeadScanHeight;  ///<扫描高度 0.1~5mm	浮点型
+    
 }CgxiLaserHeadLaserSdk;
 
 // 水冷机
 typedef struct CgxiWaterCoolerLaserSdk
 {
-
-    BOOL WATERCOOLER_IS_START_LASER_SDK;   ///< 是否 水冷机开机
-    BOOL WATER_COOLER_ALARM_LASER_SDK;     ///< 水冷机报警
+    BOOL isWaterCoolerStart;   ///< 是否 水冷机开机
+    BOOL isWaterCoolerAlarm;     ///< 水冷机报警
 
 }CgxiWaterCoolerLaserSdk;
 
 ///< 送丝机
 typedef struct CgxiWireFeederLaserSdk
 {
-    BOOL WIREFEEDER_IS_START_LASERSDK;             ///< 送丝机是否开机
-    BOOL WIREFEEDER_ENABLE_LASERSDK;               ///< 是否 使能 送丝机连接状态？
-    BOOL WIREFEEDER_DATA_SAVE_LASERSDK;            ///< 是否保存送丝机数据
-    BOOL WIREFEEDER_MANUAL_FEED_SWITCH_LASERSDK;        ///< 手动送丝 停止 | 运行
-    BOOL WIREFEEDER_MANUAL_RETRRAC_SWITCH_LASERSDK;     ///< 手动回抽 停止 | 运行
-    BOOL WIREFEEDER_DANGER_CURRENT_SAVE_LASERSDK;  ///< 过流报警信号
+    BOOL isWireFeederStart;                   ///< 送丝机是否开机
+    BOOL isWireFeederEnable;                  ///< 是否 使能 送丝机连接状态？
+    BOOL isWireFeederDataSave;                ///< 是否保存送丝机数据
+    BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
+    BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
+    BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
 
-
-    int WIREFEEDER_MOTOR_SPEED_LASERSDK;        ///< 自动送丝速度
-    int WIREFEEDER_MANUAL_FEED_SPEED_LASERSDK;  ///< 手动送丝速度
-    int WIREFEEDER_MANUAL_BACK_SPEED_LASERSDK;  ///< 手动抽丝速度
-    int WIREFEEDER_FEED_LENGTH_LASERSDK;        ///< 送丝长度
-    int WIREFEEDER_BACK_LENGTH_LASERSDK;        ///< 抽丝长度
-    int WIREFEEDER_WAIT_TIME_LASERSDK;          ///< 等待时间
+    int wireFeederMotorSpeed;                  ///< 自动送丝速度
+    int wireFeederManualFeedSpeed;             ///< 手动送丝速度
+    int wireFeederManualBackSpeed;             ///< 手动抽丝速度
+    int wireFeederFeedLength;                  ///< 送丝长度
+    int wireFeederBackLength;                  ///< 抽丝长度
+    int wireFeederWaitTime;                    ///< 等待时间
 
 }CgxiWireFeederLaserSdk;
 
@@ -303,7 +308,6 @@ enum CraftTypeLaserSdk
     MULTILAYER_CHANNEL_CRAFT_LASER_SDK = 2,          //多层多道
     MULTILAYER_CHANNEL_AUTO_CAL_CRAFT_LASER_SDK = 3  //多层多道自动计算
 };
-
 
 //// WeldSdk XXX  待修改项 ////
 /// ---指令类型///

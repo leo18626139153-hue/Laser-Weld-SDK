@@ -617,13 +617,9 @@ std::string generateLuaScript(const std::string funcName, const std::string func
             luaCode << "    serial_send(3,4,0,62)  -- 使用bool类型\n";
             break;
         case CommuRegType::int16Reg:
-            luaCode << "    serial_send(3,4,1,62)  -- 使用int16类型\n";
-            break;
         case CommuRegType::int32Reg:
-            luaCode << "    serial_send(3,4,1,62)  -- 使用int32类型\n";
-            break;
         case CommuRegType::floatReg:
-            luaCode << "    serial_send(3,4,1,62)  -- 使用float类型\n";
+            luaCode << "    serial_send(3,4,1,62)\n";
             break;
         default:
             luaCode << "    serial_send(3,4,1,62)  -- 默认使用int16类型\n";
@@ -637,4 +633,11 @@ std::string readLuaScript(const std::string funcName, const std::string funcPara
 {
 
     return funcName;
+}
+
+void checkLaserSdkResult(LaserSdkResult result)
+{
+    if (result != SUCCESS_LASER_SDK) {
+        throw result;  // 异常抛出
+    }
 }
