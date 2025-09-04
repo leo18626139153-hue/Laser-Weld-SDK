@@ -576,8 +576,20 @@ bool strToChar(char* script, int* scriptLen, std::string& generatedScript)
 
 std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regType)
 {
-    // 扫描校正系数/中心偏移函数 需要乘以100的因子,0x0238 0x0239 0x023a 0x023b
-    bool needsFactor = addr >= 0x0238 && addr <= 0x023b;
+    std::string funcParamScale  = funcParam;
+    switch (regType) {
+        case CommuRegType::int16Reg:
+            funcParamScale = funcParam;
+            break;
+        case CommuRegType::float10Reg:
+            funcParamScale = funcParam + "*10";
+            break;
+        case CommuRegType::float100Reg:
+            funcParamScale = funcParam + "*100";
+            break;
+        default:
+            break;
+    }
     // 计算交换后的地址（高低字节互换）
     unsigned int swapped_addr = ((addr & 0xFF) << 8) | (addr >> 8);
     // 创建字符串流用于构建Lua代码
@@ -590,41 +602,16 @@ std::string generateLuaScript(const std::string funcName, const std::string func
             << "        write_int16_register(i,0)\n"
             << "    end\n";
     //---定义写入报文----
-    luaCode << "    mes_1 = Lua_get_message({0x0906, 0x"<< std::setw(4) << addr << ", "<< funcParam;
-    if (needsFactor)
-    {
-        luaCode << "*100})\n";
-    }
-    else
-    {
-        luaCode << "})\n";
-    }
+    luaCode << "    mes_1 = Lua_get_message({0x0906, 0x"<< std::setw(4) << addr << ", "<< funcParamScale << "})\n";
     luaCode << "    mes_2 = Lua_crc16(mes_1)\n";
-    luaCode << "    " << funcParam << " = swap_bytes_for_word(" << funcParam;
-    if (needsFactor) {
-        luaCode << "*100)\n";
-    } else {
-        luaCode << ")\n";
-    }
-    luaCode << "    mes_3 = {0x0609, 0x"<< std::setw(4) << swapped_addr << ", "<< funcParam << ", mes_2}\n";
+    luaCode << "    " << funcParam << " = swap_bytes_for_word(" << funcParam << ")\n";
+    luaCode << "    mes_3 = {0x0609, 0x"<< std::setw(4) << swapped_addr << ", "<< funcParamScale << ", mes_2}\n";
 
     luaCode << "    for i=1,4,1 do\n"
             << "        write_int16_register(i+61, mes_3[i])\n"
             << "    end\n";
     luaCode << "    -- 发送报文\n";
-    switch (regType) {
-        case CommuRegType::boolReg:
-            luaCode << "    serial_send(3,4,0,62)  -- 使用bool类型\n";
-            break;
-        case CommuRegType::int16Reg:
-        case CommuRegType::int32Reg:
-        case CommuRegType::floatReg:
-            luaCode << "    serial_send(3,4,1,62)\n";
-            break;
-        default:
-            luaCode << "    serial_send(3,4,1,62)  -- 默认使用int16类型\n";
-            break;
-    }
+    luaCode << "    serial_send(3,4,1,62)  -- 默认使用int16类型\n";
     luaCode << "end\n";
     return luaCode.str();
 }

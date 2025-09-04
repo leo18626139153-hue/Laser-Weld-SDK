@@ -79,7 +79,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHan
  * @param scriptLen         脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的起弧LUA脚本大小
  * @return WeldSdkResult    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
  * @brief cw_machine_resource_release    读激光头参数，测试用

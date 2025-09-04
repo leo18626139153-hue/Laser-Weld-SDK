@@ -54,7 +54,6 @@ LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc,
         pause()
     end
     )";
-
     script += strReplace(scriptText, std::vector<std::string>{std::to_string(instLoc), std::to_string(runBreakPointStatusLoc)});
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
@@ -73,7 +72,6 @@ CommuRS485 *CommuRS485::GetInstance()
     std::call_once(initFlag, [](){s_commuRS485 = new CommuRS485();});
     return s_commuRS485;
 }
-
 CommuRS485::CommuRS485()
 {
     loadLuaFunctionScript = Lua_split + Lua_get_message + Lua_crc16 + swap_bytes_for_word;
@@ -102,7 +100,6 @@ LaserSdkResult CommuRS485::craft_script_laser_on_script_get(LaserMachineHandle l
         result = cr_set_configDigitalOut(machineResource.robotHandle, 0, FALSE); // 关光
         return crsdk_return_value_transfer(result);
     }
-
 }
 //485-起焊 开|关 废案
 LaserSdkResult CommuRS485::craft_script_start_weld_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string &script)
@@ -188,7 +185,8 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         std::ostringstream useScript;
         switch (regType) 
         {
-        case floatReg:
+        case float10Reg:
+        case float100Reg:
             useScript << funcName << "(" << static_cast<float>(paramValue) << endstr;
             break;            
         case int16Reg:
@@ -205,7 +203,6 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         
         writeDataHash.emplace(addr, std::make_pair(useScript.str(), funcDef));
     };
-
     // 1. 写入激光器功率 (0-5000W, 整型)
     addParam("write_laser_power", "number10",
              machineResource.laserPowerLoc, CommuRegType::int16Reg,
@@ -257,23 +254,21 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     addParam("write_collimator_temp", "collimatorTempNum",
              machineResource.collimatorTempLoc, int16Reg,
              laserPowerParams.collimatorTemp);
-
     //12. 写入X偏移
     addParam("write_laserHead_x_offset", "laserHeadXOffsetNum",
-             machineResource.laserHeadXOffsetLoc, floatReg,
+             machineResource.laserHeadXOffsetLoc, float100Reg,
              laserPowerParams.laserHeadXOffset);
-
     //13. 写入Y偏移
     addParam("write_laserHead_y_offset", "laserHeadYOffsetNum",
-             machineResource.laserHeadYOffsetLoc, floatReg,
+             machineResource.laserHeadYOffsetLoc, float100Reg,
              laserPowerParams.laserHeadYOffset);
     //14. 写入X放大
     addParam("write_laserHead_x_enlarge", "laserHeadXEnlargeNum",
-             machineResource.laserHeadXScaleLoc, floatReg,
+             machineResource.laserHeadXScaleLoc, float100Reg,
              laserPowerParams.laserHeadXEnlarge);
     //15. 写入Y放大
     addParam("write_laserHead_y_enlarge", "laserHeadYEnlargeNum",
-             machineResource.laserHeadYScaleLoc, floatReg,
+             machineResource.laserHeadYScaleLoc, float100Reg,
              laserPowerParams.laserHeadYEnlarge);
     //16. 写入点焊类型
     addParam("write_spotWeld_type", "spotWeldTypeNum",
@@ -301,7 +296,6 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }
     }
-
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 //激光头图案
@@ -309,7 +303,6 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 {
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     CgxiLaserHeadLaserSdk &laserHeadParams = machineResource.laserHeadParams;
-
     // 参数校验
 //    if (laserHeadParams.laserHeadScanSpeed < 0 || laserHeadParams.laserHeadScanSpeed > 30000)
 //        return PARAMETER_ERROR_LASER_SDK;
@@ -323,12 +316,9 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 //        return PARAMETER_ERROR_LASER_SDK;
 //    if (laserHeadParams.laserHeadSpinAngle < 0 || laserHeadParams.laserHeadSpinAngle > 360)
 //        return PARAMETER_ERROR_LASER_SDK;
-
     std::string endstr = ")\nwait(200)\n";
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
-
     const unsigned int graphicsAddr = machineResource.laserHeadPatternIdLoc;
-
     auto addParam = [&](const std::string& funcName, const std::string& paramName,
                       unsigned int addr, CommuRegType regType, double paramValue)
     {
@@ -336,7 +326,8 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         std::ostringstream useScript;
         switch (regType) 
         {
-        case floatReg:
+        case float10Reg:
+        case float100Reg:
             useScript << funcName << "(" << static_cast<float>(paramValue) << endstr;
             break;            
         case int16Reg:
@@ -348,15 +339,15 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         writeDataHash.emplace(addr, std::make_pair(useScript.str(), funcDef));
     };
 
-    // 1. 写入扫描速度 (0~30000mm/s, 浮点型)
+    // 1. 写入扫描速度 (0~30000mm/s,)
     addParam("write_scanning_speed", "scanSpeedNum",
              machineResource.laserHeadScanSpeedLoc, int16Reg,
              laserHeadParams.laserHeadScanSpeed);
 
     // 2. 写入扫描宽度 (0.1~5mm, 浮点型)
     addParam("write_scanning_width", "scanwidthNum",
-             machineResource.laserHeadScanWidthLoc, floatReg,
-             laserHeadParams.laserHeadScanWidth);
+             machineResource.laserHeadScanWidthLoc, float100Reg,
+             laserHeadParams.laserHeadScanWidth );
 
     // 3. 写入峰值功率 (0-3000W, 整型)
     addParam("write_peak_power", "peakPowerNum",
@@ -380,7 +371,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 
     // 7. 写入扫描高度 (0.1~5mm, 浮点型)
     addParam("write_scanning_height", "scanHeightNum",
-             machineResource.laserHeadScanHeightLoc, floatReg,
+             machineResource.laserHeadScanHeightLoc, float100Reg,
              laserHeadParams.laserHeadScanHeight);
 
     // 8. 写入旋转角度 (0~360°, 整型)
@@ -408,7 +399,6 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
                 script += it->second.first;
                 loadLuaFunctionScript += it->second.second;
             }
-
         }
         else
         {
@@ -431,11 +421,8 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     const int wireFeedLength = wireFeederParams.wireFeederFeedLength;
     const int wireRetractLength = wireFeederParams.wireFeederBackLength;
 
-
-
     // 定义写入操作的结束字符串
-    std::string endstr = ")\nwait(200)\n";
-
+    std::string endstr = ")\nwait(50)\n";
     // 存储所有函数定义和调用脚本的数据结构
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
 
@@ -448,7 +435,7 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     };
 
     // 1. 自动送丝速度地址 0x0100 256
-    addParam("write_wirefeeder_send_motor_speed", "autoWireFeedSpeed",
+    addParam("write_wirefeede r_send_motor_speed", "autoWireFeedSpeed",
              machineResource.autoWireFeedSpeedLoc, int16Reg,
              wireFeederParams.wireFeederMotorSpeed);
 
@@ -530,7 +517,6 @@ LaserSdkResult CommuRS485::craft_laser_head_setting_set_script_get(LaserMachineH
     const unsigned int gasOnDelayAddr = machineResource.gasONDelayLoc;
 
     double gasOnTime = wireFeederParams.isWireFeederEnable;
-
 
     std::stringstream use_write_data;
 //    use_write_data << "write_laser_power(" << laserPowerParams.LASER_POWER_LASER_SDK << endstr

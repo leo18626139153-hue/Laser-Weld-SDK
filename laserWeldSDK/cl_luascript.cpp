@@ -3,22 +3,19 @@
 std::string mainFuncProgram = "function mainFuncProgram()\n";
 
 std::string RobotProgram1 = "function RobotProgram()\n";
-
-std::string RobotProgram2 = "sync()\n"
-                            "halt()\n"
-                            "end\n"
+std::string RobotProgram2 = "end\n"
                             "-----RobotProgramEnd----\n"
-                            "RobotProgram_Result=task_create(RobotProgram)\n"
-                            "-----PauseFuncProgram----\n"
-                            "function PauseFuncProgram()\n"
-                            "\twhile(true)\n"
-                            "\tdo\n"
-                            "\t\twait(100)\n"
-                            "\tend\n"
-                            "end\n"
-                            "PauseFuncProgram_Result=task_create(PauseFuncProgram)\n"
-                            "end\n"
-                            "mainFuncProgram_Result=task_create(mainFuncProgram)\n";
+                            "RobotProgram_Result=task_create(RobotProgram)\n";
+
+std::string mainFuncProgramEnd = "function PauseFuncProgram()\n"
+                                "   while(true)\n"
+                                "   do\n"
+                                "       wait(100) --sync\n"
+                                "   end\n"
+                                "end\n"
+                                "PauseFuncProgram_Result=task_create(PauseFuncProgram)\n"
+                                "end\n"
+                                "mainFuncProgram_Result=task_create(mainFuncProgram)\n";
 //连接激光
 std::string Lua_connect_laser = "connect_id=8\n"
                                 "::reconnect_label::\n"

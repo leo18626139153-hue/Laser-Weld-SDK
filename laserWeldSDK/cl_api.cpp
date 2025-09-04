@@ -101,7 +101,11 @@ LaserSdkResult cl_laser_head_params_read(const LaserMachineHandle laserMachineHa
 
     //脚本赋值
     std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-    scriptGet = mainFuncProgram + RobotProgram1 + scriptGet  +RobotProgram2;
+    std::string readRobotProgram1 = "function readRobotProgram()\n";
+    std::string readRobotProgram2 = "end\n"
+                                "-----RobotProgramEnd----\n"
+                                "RobotProgram_Result=task_create(readRobotProgram)\n";
+    scriptGet = readRobotProgram1 + scriptGet  +readRobotProgram1;
     scriptGet = funcScript + scriptGet ;
     if(strToChar(script, &scriptLen, scriptGet)){
         return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
@@ -170,18 +174,23 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //激光图案
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
+        std::string arcStartProgram1 = "function arcStartProgram()\n";
+        std::string arcStartProgram2 = "end\n"
+                                    "arcStartProgram_Result=task_create(arcStartProgram)\n";
+        scriptGet = arcStartProgram1 + scriptGet + arcStartProgram2;
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        //scriptGet = funcScript + scriptGet;
+        //脚本赋值
+        if(!strToChar(scripts, scriptLen, scriptGet)){
+            return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
     }
     catch (const LaserSdkResult& errorResult) {
         return errorResult;
     }
     
-    scriptGet = RobotProgram1 + scriptGet  +RobotProgram2;
-    std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-    scriptGet = mainFuncProgram + funcScript + scriptGet ;
-    //脚本赋值
-    if(strToChar(scripts, scriptLen, scriptGet)){
-        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
-    }
+    
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -213,33 +222,33 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
         machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
     };
-    //需要设置的激光头地址参数
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec = {
         machineResource.wireRetractLengthLoc, //260
     };
     //获取脚本
     std::string scriptGet;
-
     try
     {
-        //提前送气
+        //送丝机
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
-
+        std::string arcStopProgram1 = "function arcStopProgram()\n";
+        std::string arcStopProgram2 = "end\n"
+                                      "arcStopProgram_Result=task_create(arcStopProgram)\n";
+        scriptGet = arcStopProgram1 + scriptGet + arcStopProgram2;
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();          //功能函数
+        //scriptGet = funcScript + scriptGet;      //脚本赋值
+        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        if(!strToChar(scripts, scriptLen, scriptGet)){
+            return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
     }
     catch (const LaserSdkResult& errorResult) {
         return errorResult;
     }
 
-    scriptGet = RobotProgram1 + scriptGet  +RobotProgram2;
-    std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-    scriptGet = mainFuncProgram + funcScript + scriptGet ;
-    //脚本赋值
-    if(strToChar(scripts, scriptLen, scriptGet)){
-        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
-    }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 

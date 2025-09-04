@@ -91,7 +91,7 @@ enum WeldModeLaserSdk
     CONTINUOUS_LASER_SDK = 1   //连续焊接
 };
 
-//连续和脉冲模式
+//送丝机模式设置
 enum WeldFuncLaserSdk
 {
     CONTINUE_LASER_SDK = 0,      //连续模式
@@ -189,6 +189,7 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
     BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
+    WeldFuncLaserSdk weldFunction;            ///< 送丝机模式设置(0	连续  1	脉冲)
 
     int wireFeederMotorSpeed;                  ///< 自动送丝速度
     int wireFeederManualFeedSpeed;             ///< 手动送丝速度
@@ -202,8 +203,8 @@ typedef struct CgxiWireFeederLaserSdk
 ///< 工艺参数
 typedef struct CgxiLaserWeldCraftSdk
 {
-    WeldModeLaserSdk weldMode;      ///< 焊接模式    
-    WeldFuncLaserSdk weldFunction;  ///< 模式设置(0	连续  1	脉冲)
+    WeldModeLaserSdk weldMode;      ///< 焊接模式(0 点焊 - 1 连续焊)
+
 }CgxiLaserWeldCraftSdk;
 
 /// 焊机资源 ///
@@ -242,8 +243,10 @@ typedef struct MachineResource
     unsigned int laserHeadScanHeightLoc;              ///<  扫描高度地址 0x0006 6
     unsigned int laserHeadRotationAngleLoc;           ///<  旋转角度地址 0x0007 7
     unsigned int laserHeadPatternIdLoc;               ///<  图形切换地址 0x0030 48
+    /* 写---------- 焊接工艺 ---------- */
+    unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
     
-    /* 读|写 ------ 激光器工艺参数 ------ */
+    /* 读|写 ------ 激光器 - 工艺参数 ------ */
     unsigned int laserPowerLoc;              ///<  激光器功率地址 0x0230 560
     unsigned int laserOnPowerLoc;            ///<  开光功率地址 0x0231 561
     unsigned int laserOnRampTimeLoc;         ///<  开光渐进时间地址 0x0232 562
@@ -258,9 +261,9 @@ typedef struct MachineResource
     unsigned int laserHeadYScaleLoc;         ///<  Y轴放大地址 0x0238 568
     unsigned int laserHeadXScaleLoc;         ///<  X轴放大地址 0x023a 570
 
-    unsigned int spotWeldTypeLoc;            ///< 点焊类型地址 0x0242 578
-    unsigned int spotWeldDurationLoc;        ///< 焊持续时间地址 0x0243 579
-    unsigned int spotWeldIntervalLoc;        ///< 点焊间隔时间地址 0x0244 580
+    unsigned int spotWeldTypeLoc;            ///<  点焊类型地址 0x0242 578
+    unsigned int spotWeldDurationLoc;        ///<  焊持续时间地址 0x0243 579
+    unsigned int spotWeldIntervalLoc;        ///<  点焊间隔时间地址 0x0244 580
     /* 读|写---------- 温度监控 ---------- */
     unsigned int driverTempLoc;              ///<  驱动器温度值地址 0x023f 575
     unsigned int protectiveWindowTempLoc;    ///<  保护镜温度值地址 0x0240 576
@@ -276,19 +279,17 @@ typedef struct MachineResource
     unsigned int manualWireRetractSpeedLoc;  ///<  手动抽丝速度地址 0x0102 258
     unsigned int wireFeedLengthLoc;          ///<  送丝长度地址 0x0105 261
     unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
-    unsigned int manualWireFeedSwitchLoc;         ///< 手动送丝地址 (0	停    1	运行)  0x0140  320
-    unsigned int manualWireRetractSwitchLoc;      ///< 手动抽丝地址 (0 停    1 运行)  0x0141  321
+    unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0	停    1	运行)  0x0140  320
+    unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
     /*写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
-    unsigned int gasValveSignalLoc;          ///<  送气信号开关地址 0x0031 → ​​49​
-    unsigned int wireFeedSignalLoc;          ///<  送丝信号开关地址 0x0032 → ​​50   
-
-    /* 写---------- 未知 ---------- */
+    unsigned int gasValveSignalLoc;            ///<  送气信号开关地址 0x0031 → ​​49​
+    unsigned int wireFeedSignalLoc;            ///<  送丝信号开关地址 0x0032 → ​​50
+    /* 写---- 连续模式下的送丝机参数---------- */
     unsigned int pulsePeriodLoc;             ///<  脉冲周期地址 0x0107 263
     unsigned int smoothnessLoc;              ///<  平滑度地址  0x0108 264
-    /* 写---------- 焊接工艺 ---------- */
-    unsigned int operationModeLoc;           ///< 模式设置地址 0x010C 268
-    unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
+    unsigned int operationModeLoc;           ///<  送丝机模式设置地址 0x010C 268
+
 
     CgxiLaserWeldCraftSdk LaserWeldCraft;      ///< 焊接工艺参数
     CgxiLaserHeadLaserSdk laserHeadParams;     ///< 激光头参数

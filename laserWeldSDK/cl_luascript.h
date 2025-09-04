@@ -10,6 +10,7 @@
 extern  std::string mainFuncProgram;
 extern  std::string RobotProgram1;
 extern  std::string RobotProgram2;
+extern  std::string mainFuncProgramEnd;
 extern  std::string Lua_connect_laser;  //激光器连接函数
 extern  std::string Lua_connect_Wire;   //送丝机连接函数
 extern  std::string read_switch_wc;     //读取水冷机开关
