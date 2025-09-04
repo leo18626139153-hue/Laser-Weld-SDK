@@ -39,6 +39,17 @@ LaserSdkResult cl_machine_resource_init(const MachineResource* laserMachineResou
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineHandle, const MachineResource *laserMachineResource)
+{
+    //判断是否存在该句柄
+    if(machineResourcesMap.count(laserMachineHandle) == 0)
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    machineResourcesMap[laserMachineHandle] = *laserMachineResource;
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
 //获取焊机资源句柄对应的数据
 LaserSdkResult cl_machine_resource_get(const LaserMachineHandle laserMachineHandle, MachineResource *laserMachineResource)
 {
@@ -47,7 +58,7 @@ LaserSdkResult cl_machine_resource_get(const LaserMachineHandle laserMachineHand
     {
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
-    machineResourcesMap[laserMachineHandle] = *laserMachineResource;
+    *laserMachineResource = machineResourcesMap[laserMachineHandle];
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -153,20 +164,83 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
 
     try
     {
-        checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
-        checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
+        //提前送气
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
+        //激光器
+        checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
+        //激光图案
+        checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
     }
     catch (const LaserSdkResult& errorResult) {
         return errorResult;
     }
     
-    scriptGet = mainFuncProgram + RobotProgram1 + scriptGet  +RobotProgram2;
+    scriptGet = RobotProgram1 + scriptGet  +RobotProgram2;
     std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-    scriptGet = funcScript + scriptGet ;
+    scriptGet = mainFuncProgram + funcScript + scriptGet ;
     //脚本赋值
     if(strToChar(scripts, scriptLen, scriptGet)){
         return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
+
+LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr) {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+
+    //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
+    std::vector<unsigned int> laserPowerVec = {
+        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
+        machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
+        machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
+    };
+    //需要设置的激光头地址参数
+    //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
+    std::vector<unsigned int> wireFeedVec = {
+        machineResource.wireRetractLengthLoc, //260
+    };
+    //获取脚本
+    std::string scriptGet;
+
+    try
+    {
+        //提前送气
+        checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
+        //激光器
+        checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
+
+    }
+    catch (const LaserSdkResult& errorResult) {
+        return errorResult;
+    }
+
+    scriptGet = RobotProgram1 + scriptGet  +RobotProgram2;
+    std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+    scriptGet = mainFuncProgram + funcScript + scriptGet ;
+    //脚本赋值
+    if(strToChar(scripts, scriptLen, scriptGet)){
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    }
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+

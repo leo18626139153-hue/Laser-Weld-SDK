@@ -232,8 +232,6 @@ typedef struct MachineResource
     unsigned int gasValveOutputLoc;          ///<  气阀输出信号地址 (0:无输出 1:有输出) 0x0411 → ​​1041​
     unsigned int dacVoltageLoc;              ///<  DAC模拟量输出电压地址 (0:无输出 1:有输出) 0x0412 → ​​1042
 
-    unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​  
-
     /* 读|写------ 激光头 - 图案工艺参数 ------ */
     unsigned int laserHeadScanSpeedLoc;               ///<  扫描速度地址 0x0000 0
     unsigned int laserHeadScanWidthLoc;               ///<  扫描宽度地址 0x0001 1
@@ -279,8 +277,9 @@ typedef struct MachineResource
     unsigned int wireFeedLengthLoc;          ///<  送丝长度地址 0x0105 261
     unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
     unsigned int manualWireFeedSwitchLoc;         ///< 手动送丝地址 (0	停    1	运行)  0x0140  320
-    unsigned int manualWireRetractSwitchLoc;      ///< 手动回抽地址 (0 停    1 运行)  0x0141  321
+    unsigned int manualWireRetractSwitchLoc;      ///< 手动抽丝地址 (0 停    1 运行)  0x0141  321
     /*写 --- 送丝机参数--- */
+    unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
     unsigned int gasValveSignalLoc;          ///<  送气信号开关地址 0x0031 → ​​49​
     unsigned int wireFeedSignalLoc;          ///<  送丝信号开关地址 0x0032 → ​​50   
 

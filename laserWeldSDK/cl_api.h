@@ -73,13 +73,13 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_release(const LaserMachin
 LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief cw_machine_resource_release    设置激光头参数，测试用
- * @param laserMachineHandle             焊机资源句柄
- * script
- * scriptLen
- * @return LaserSdkResult                处理结果
+ * @brief cl_get_arc_start_script 获取收弧脚本脚本
+ * @param laserMachineHandle 焊机资源句柄
+ * @param scripts           起弧LUA脚本 传出参数
+ * @param scriptLen         脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的起弧LUA脚本大小
+ * @return WeldSdkResult    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_laser_head_params_set(const LaserMachineHandle laserMachineHandle, char* script, int scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
  * @brief cw_machine_resource_release    读激光头参数，测试用
