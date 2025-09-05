@@ -1,4 +1,4 @@
-#ifndef CL_API_H
+﻿#ifndef CL_API_H
 #define CL_API_H
 
 #include "cl_basedefine.h"
@@ -11,11 +11,11 @@
 #  define LASERWELDSDK_EXPORT __declspec(dllimport)
 #endif
 #else
-    #ifdef  LASERWELDSDK_LIBRARY
-    #define LASERWELDSDK_EXPORT
-    #else
-    #define LASERWELDSDK_EXPORT
-    #endif
+#ifdef  LASERWELDSDK_LIBRARY
+#define LASERWELDSDK_EXPORT
+#else
+#define LASERWELDSDK_EXPORT
+#endif
 #endif
 
 #define LASERWELDSDK_VERSION "1.0.0"
@@ -89,6 +89,13 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHand
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_laser_head_params_read(const LaserMachineHandle laserMachineHandle, char* script, int scriptLen);
+
+/**
+ * @brief cl_craft_weld_status_init      初始化所有焊接相关状态
+ * @param laserMachineHandle     焊机资源句柄
+ * @return LaserSdkResult        处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHandle);
 
 #ifdef __cplusplus
 }

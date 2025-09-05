@@ -1,4 +1,4 @@
-#ifndef CL_BASEDEFINE_H
+﻿#ifndef CL_BASEDEFINE_H
 #define CL_BASEDEFINE_H
 
 #include"basestruct.h"
@@ -81,7 +81,7 @@ enum CommuTypeLaserSdk
 {
     RS485_2_LASER_SDK = 0,    //RS485
     SIMULATE_LASER_SDK = 1    //模拟量通讯
-    //ETHERCAT_LASER_SDK = 2,   //EtherCAT通讯
+                         //ETHERCAT_LASER_SDK = 2,   //EtherCAT通讯
 };
 
 //焊接模式 点焊- 连续焊
@@ -145,7 +145,7 @@ typedef struct CgxiLaserPowerLaserSdk
     PulseTypeLaserSdk laserAlarmType;        ///<  激光器报警类型 (0:高电平 1:低电平)
     PulseTypeLaserSdk waterCoolerAlarm;      ///<  水冷机报警 (0:高电平 1:低电平)
     PulseTypeLaserSdk gasPressureAlarm;      ///<  气压报警 (0:高电平 1:低电平)
-}CgxiLaserPowerLaserSdk;
+} CgxiLaserPowerLaserSdk;
 
 enum SpotPatternLaserSdk
 {
@@ -160,7 +160,7 @@ enum SpotPatternLaserSdk
 ///< 激光头
 typedef struct CgxiLaserHeadLaserSdk
 {
-    SpotPatternLaserSdk laserSpotPattern;   ///<光斑图案 
+    SpotPatternLaserSdk laserSpotPattern;   ///<光斑图案
     int laserHeadSpinAngle;         ///<旋转角度 0~360°	整型
     double laserHeadPeakPower;      ///< 峰值功率
     double laserHeadDutyCycle;      ///< 占空比
@@ -169,8 +169,8 @@ typedef struct CgxiLaserHeadLaserSdk
     double laserHeadScanSpeed;   ///<扫描速度 0~2000mm/s	整型
     double laserHeadScanWidth;   ///<扫描宽度 0.1~5mm 	浮点型
     double laserHeadScanHeight;  ///<扫描高度 0.1~5mm	浮点型
-    
-}CgxiLaserHeadLaserSdk;
+
+} CgxiLaserHeadLaserSdk;
 
 // 水冷机
 typedef struct CgxiWaterCoolerLaserSdk
@@ -178,7 +178,7 @@ typedef struct CgxiWaterCoolerLaserSdk
     BOOL isWaterCoolerStart;   ///< 是否 水冷机开机
     BOOL isWaterCoolerAlarm;     ///< 水冷机报警
 
-}CgxiWaterCoolerLaserSdk;
+} CgxiWaterCoolerLaserSdk;
 
 ///< 送丝机
 typedef struct CgxiWireFeederLaserSdk
@@ -198,14 +198,14 @@ typedef struct CgxiWireFeederLaserSdk
     int wireFeederBackLength;                  ///< 抽丝长度
     int wireFeederWaitTime;                    ///< 等待时间
 
-}CgxiWireFeederLaserSdk;
+} CgxiWireFeederLaserSdk;
 
 ///< 工艺参数
 typedef struct CgxiLaserWeldCraftSdk
 {
     WeldModeLaserSdk weldMode;      ///< 焊接模式(0 点焊 - 1 连续焊)
 
-}CgxiLaserWeldCraftSdk;
+} CgxiLaserWeldCraftSdk;
 
 /// 焊机资源 ///
 typedef struct MachineResource
@@ -245,7 +245,7 @@ typedef struct MachineResource
     unsigned int laserHeadPatternIdLoc;               ///<  图形切换地址 0x0030 48
     /* 写---------- 焊接工艺 ---------- */
     unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
-    
+
     /* 读|写 ------ 激光器 - 工艺参数 ------ */
     unsigned int laserPowerLoc;              ///<  激光器功率地址 0x0230 560
     unsigned int laserOnPowerLoc;            ///<  开光功率地址 0x0231 561
@@ -296,7 +296,7 @@ typedef struct MachineResource
     CgxiLaserPowerLaserSdk laserPowerParams;   ///< 激光器参数
     CgxiWireFeederLaserSdk wireFeederParams;   ///< 送丝机参数
     CgxiWaterCoolerLaserSdk waterCoolerParams; ///< 水冷机参数
-}MachineResource;
+} MachineResource;
 
 //起焊
 
@@ -350,6 +350,19 @@ enum WeldControlAddressLaserSdk
     INT_REG_ARRIVE_POINT_LOC_663 = 663, // 轨迹模拟下已到达的定点指令位置 用于高亮显示
 
     INT_REG_PRESENT_CRAFT_LOC_664 = 664,               // 当前工艺指令在指令列表中的位置
+
+    // 激光通讯的交互
+    INT_REG_WRITE_PARAMETER_62 = 62,
+    INT_REG_WRITE_PARAMETER_63 = 63,
+    INT_REG_WRITE_PARAMETER_64 = 64,
+    INT_REG_WRITE_PARAMETER_65 = 65,
+
+    INT_REG_READ_PARAMETER_66 = 66,
+    INT_REG_READ_PARAMETER_67 = 67,
+    INT_REG_READ_PARAMETER_68 = 68,
+    INT_REG_READ_PARAMETER_69 = 69,
+
+    INT_REG_RESULT_77 = 77
 };
 
 
