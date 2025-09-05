@@ -319,7 +319,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 //        return PARAMETER_ERROR_LASER_SDK;
 //    if (laserHeadParams.laserHeadSpinAngle < 0 || laserHeadParams.laserHeadSpinAngle > 360)
 //        return PARAMETER_ERROR_LASER_SDK;
-    std::string endstr = ")\nwait(200)\n";
+    std::string endstr = ")\nwait(50)\n";
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
     const unsigned int graphicsAddr = machineResource.laserHeadPatternIdLoc;
     auto addParam = [&](const std::string& funcName, const std::string& paramName,

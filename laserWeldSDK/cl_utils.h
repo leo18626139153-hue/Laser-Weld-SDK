@@ -23,7 +23,7 @@
  * coAddr      从机地址：coAddr 默认0x0608
  * comNo        端口号：comNo 默认3
  */
-std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regTypr, unsigned int coAddr = 0x0609,int comNo = 3);
+std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regTypr, unsigned int coAddr = 0x0906,int comNo = 3);
 /**
  * 生成读参数类型的Lua脚本的函数
  */
