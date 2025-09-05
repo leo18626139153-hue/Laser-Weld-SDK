@@ -28,7 +28,6 @@ struct ParamConfig {
 //变量类型
 enum CommuRegType
 {
-    boolReg = 0,
     int16Reg = 1,
     float10Reg = 2,
     float100Reg = 3

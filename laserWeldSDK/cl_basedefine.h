@@ -130,7 +130,7 @@ typedef struct CgxiLaserPowerLaserSdk
     int laserRampUpTime;        ///< 开光渐进时间 0~1000ms
     int laserRampDownTime;      ///< 关光渐进时间{关光渐进距离 0~300mm, 根据机器人移动速度换算}
     int wireFeedAdvanceTime;     ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
-    int gasShutoffDelayTime;        ///< 关气渐进 滞后送气时间	0~3000ms
+    int gasShutoffDelayTime;       ///< 关气渐进 滞后送气时间	0~3000ms
     int gasStartupAdvanceTime;     ///< 开气渐进 提前送气时间	0~3000ms
     int spotWeldDurationTime;      ///<点焊持续时间 0~60000ms	整型
     int spotWeldIntervalTime;      ///<点焊间隔时间 0~60000ms	整型
@@ -162,11 +162,11 @@ typedef struct CgxiLaserHeadLaserSdk
 {
     SpotPatternLaserSdk laserSpotPattern;   ///<光斑图案
     int laserHeadSpinAngle;         ///<旋转角度 0~360°	整型
-    double laserHeadPeakPower;      ///< 峰值功率
-    double laserHeadDutyCycle;      ///< 占空比
-    double laserHeadLowPulseFrequency;      ///< 脉冲频率 低位
-    double laserHeadHighPulseFrequency;     ///< 脉冲频率 高位
-    double laserHeadScanSpeed;   ///<扫描速度 0~2000mm/s	整型
+    int laserHeadPeakPower;         ///< 峰值功率
+    int laserHeadDutyCycle;         ///< 占空比
+    int laserHeadLowPulseFrequency;      ///< 脉冲频率 低位
+    int laserHeadHighPulseFrequency;     ///< 脉冲频率 高位
+    int laserHeadScanSpeed;      ///<扫描速度 0~2000mm/s	整型
     double laserHeadScanWidth;   ///<扫描宽度 0.1~5mm 	浮点型
     double laserHeadScanHeight;  ///<扫描高度 0.1~5mm	浮点型
 
@@ -189,6 +189,8 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
     BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
+    SwitchTypeLaserSdk WireFeederGasSignalSwitch;      ///< 送气信号开关
+    SwitchTypeLaserSdk WireFeederSignalSwitch;         ///< 送丝信号开关
     WeldFuncLaserSdk weldFunction;            ///< 送丝机模式设置(0	连续  1	脉冲)
 
     int wireFeederMotorSpeed;                  ///< 自动送丝速度
@@ -197,6 +199,8 @@ typedef struct CgxiWireFeederLaserSdk
     int wireFeederFeedLength;                  ///< 送丝长度
     int wireFeederBackLength;                  ///< 抽丝长度
     int wireFeederWaitTime;                    ///< 等待时间
+    int wireFeederSmoothness;       ///< 平滑度
+    int wireFeederPulsePeriod;      ///< 脉冲周期
 
 } CgxiWireFeederLaserSdk;
 
@@ -372,7 +376,6 @@ enum WeldControlAddressLaserSdk
 //    SIN_SWING_WELD_SDK = 0,       //正弦摆
 //    TRIANGLE_SWING_WELD_SDK = 1,    //正三角摆
 //    CIRCLE_SWING_WELD_SDK = 2   //圆形摆
-
 //};
 
 

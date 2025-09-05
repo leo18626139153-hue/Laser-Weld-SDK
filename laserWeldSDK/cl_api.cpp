@@ -165,9 +165,21 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         machineResource.laserHeadPatternIdLoc
     };
     //送丝机地址参数 - 自动送丝速度
-    std::vector<unsigned int> wireFeedVec =
-    {
-        machineResource.autoWireFeedSpeedLoc, //256
+    std::vector<unsigned int> wireFeedVec = {
+        machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
+        machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
+        machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
+        machineResource.operationModeLoc,            ///<  送丝机模式设置地址 0x010C 268
+
+        machineResource.manualWireFeedSpeedLoc,     ///<  手动送丝速度地址 0x0101 257
+        machineResource.manualWireRetractSpeedLoc,  ///<  手动抽丝速度地址 0x0102 258
+        machineResource.wireFeedLengthLoc,          ///<  送丝长度地址 0x0105 261
+        machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
+        machineResource.manualWireFeedSwitchLoc,    ///<  手动送丝使能地址 (0	停    1	运行)  0x0140  320
+        machineResource.manualWireRetractSwitchLoc, ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
+        machineResource.pulsePeriodLoc,             ///<  脉冲周期地址 0x0107 263
+        machineResource.smoothnessLoc,              ///<  平滑度地址  0x0108 264
+
     };
     //获取脚本
     std::string scriptGet;
@@ -182,7 +194,7 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
         std::string arcStartProgram1 = "function arcStartProgram()\n";
         std::string arcStartProgram2 = "end\n"
-                                       "arcStartProgram_Result=task_create(arcStartProgram)\n";
+                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartProgram2;
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
         scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
