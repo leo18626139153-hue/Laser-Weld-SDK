@@ -81,8 +81,8 @@ enum LaserSdkResult
 enum CommuTypeLaserSdk
 {
     RS485_2_LASER_SDK = 0,    //RS485
-    SIMULATE_LASER_SDK = 1    //模拟量通讯
-                         //ETHERCAT_LASER_SDK = 2,   //EtherCAT通讯
+    //SIMULATE_LASER_SDK = 1    //模拟量通讯
+    //ETHERCAT_LASER_SDK = 2,   //EtherCAT通讯
 };
 
 //焊接模式 点焊- 连续焊
@@ -152,12 +152,12 @@ typedef struct CgxiLaserPowerLaserSdk
 
 enum SpotPatternLaserSdk
 {
-    CIR_LASERSDK = 0,    ///< 圆形（参数：直径mm）
-    LINE_LASERSDK = 1,   ///< 水平线（参数：长度mm）
-    HORIZON_8_LASERSDK = 2, ///< ∞字形（参数：长轴mm）
-    SQUARE_LASERSDK = 3,    ///< 正方形（参数：边长mm）
-    STAR_LASERSDK = 4,
-    TRIANGLE_LASERSDK = 5   ///< 等边三角形（参数：边长mm）
+    CIR_LASERSDK = 0,       ///< 圆形（参数：直径mm）
+    HORIZON_8_LASERSDK = 1, ///< 8 字形（参数：长轴mm）
+    LINE_LASERSDK = 2,      ///< 水平线（参数：长度mm）
+    STAR_LASERSDK = 3,      ///< 正方形（参数：边长mm）
+    TRIANGLE_LASERSDK = 4,  ///< 等边三角形（参数：边长mm）
+    CROSS_LASERSDK = 5      ///< 十字形（参数：边长mm）
 };
 
 ///< 激光头
