@@ -18,7 +18,7 @@ enum LaserSdkResult
     SPEED_CAL_ERROR_LASER_SDK = 6,                     ///< 速度计算错误
     ARC_FAILURE_LASER_SDK = 7,                         ///< 起弧失败,(前提：CO0未置1)
     COMMU_ERROR_LASER_SDK = 8,                         ///< 通讯错误
-    PARAMETER_ERROR_LASER_SDK = 9,                     ///< 参数错误
+    PARAMETER_ERROR_LASER_SDK = 9,                     ///< 参数错误，没有传值
 
     //  参考 weldSDK //
     CALCULATE_CIRCLE_ERROR_LASER_SDK = 10,              // 计算圆错误
@@ -31,6 +31,7 @@ enum LaserSdkResult
     MOVEJ_TRAJECTORY_SPLIT_FAILED_LASER_SDK = 17,      // movej轨迹拆分失败
     INTERMITTENT_ERROR_LASER_SDK = 18,                 // 间断焊接错误（焊接总长度小于一个焊接周期）
     INSTLIST_ERROR_LASER_SDK = 19,                     // 指令列表错误
+    PARAMETER_OUT_OF_RANGE_LASER_SDK =20,              ///< 激光焊参数设置越界
 
     WELD_LOCATE_THREAD_IS_RUN_LASER_SDK = 21,          // 焊丝寻位状态异常，寻位线程仍在运行
     WELD_LOCATE_HAVE_CIRCLE_POINT_LASER_SDK = 22,      // 焊丝寻位存在圆弧定点
@@ -124,6 +125,8 @@ typedef struct CgxiLaserPowerLaserSdk
 {
     BOOL isLaserOn;             ///< 是否 出光
     BOOL isLaserAlarm;          ///< 激光器有无报警
+    WeldModeLaserSdk weldMode;  ///< 焊接模式(0 点焊 - 1 连续)
+    
     int laserPower;             ///< 激光器功率 0-5000W
     int laserPowerOpen;         ///< 开光功率 0-5000W
     int laserPowerClose;        ///< 关光功率 0-5000W
@@ -169,6 +172,8 @@ typedef struct CgxiLaserHeadLaserSdk
     int laserHeadScanSpeed;      ///<扫描速度 0~2000mm/s	整型
     double laserHeadScanWidth;   ///<扫描宽度 0.1~5mm 	浮点型
     double laserHeadScanHeight;  ///<扫描高度 0.1~5mm	浮点型
+    SwitchTypeLaserSdk WireFeederGasSignalSwitch;      ///< 送气信号开关 激光头厂家内控地址
+    SwitchTypeLaserSdk WireFeederSignalSwitch;         ///< 送丝信号开关 激光头厂家内控地址
 
 } CgxiLaserHeadLaserSdk;
 
@@ -188,28 +193,21 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederDataSave;                ///< 是否保存送丝机数据
     BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
-    BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
-    SwitchTypeLaserSdk WireFeederGasSignalSwitch;      ///< 送气信号开关
-    SwitchTypeLaserSdk WireFeederSignalSwitch;         ///< 送丝信号开关
-    WeldFuncLaserSdk weldFunction;            ///< 送丝机模式设置(0	连续  1	脉冲)
+    BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号    
+    WeldFuncLaserSdk wireFeedFunction;            ///< 送丝机模式设置(0	连续  1	脉冲) 0x010CR/W
+    //WeldFuncLaserSdk wireCutFunction;    断丝模式 0：常规 1：高速（仅步进有效）0x010DR/W
 
-    int wireFeederMotorSpeed;                  ///< 自动送丝速度
-    int wireFeederManualFeedSpeed;             ///< 手动送丝速度
-    int wireFeederManualBackSpeed;             ///< 手动抽丝速度
+    int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
+    int wireFeederManualFeedSpeed;             ///< 手动送丝速度 15~600cm/min 0x0101 R/W
+    int wireFeederManualBackSpeed;             ///< 手动回抽速度 15~600 cm/min 0x0102 R/W
     int wireFeederFeedLength;                  ///< 送丝长度
     int wireFeederBackLength;                  ///< 抽丝长度
-    int wireFeederWaitTime;                    ///< 等待时间
-    int wireFeederSmoothness;       ///< 平滑度
+    int wireFeederWaitTime;                    ///< 延时等待时间
+    int wireFeederSmoothness;       ///< 平滑度 25 %~80 % 0x0108 R/W
     int wireFeederPulsePeriod;      ///< 脉冲周期
 
 } CgxiWireFeederLaserSdk;
 
-///< 工艺参数
-typedef struct CgxiLaserWeldCraftSdk
-{
-    WeldModeLaserSdk weldMode;      ///< 焊接模式(0 点焊 - 1 连续焊)
-
-} CgxiLaserWeldCraftSdk;
 
 /// 焊机资源 ///
 typedef struct MachineResource
@@ -247,10 +245,14 @@ typedef struct MachineResource
     unsigned int laserHeadScanHeightLoc;              ///<  扫描高度地址 0x0006 6
     unsigned int laserHeadRotationAngleLoc;           ///<  旋转角度地址 0x0007 7
     unsigned int laserHeadPatternIdLoc;               ///<  图形切换地址 0x0030 48
+
+    unsigned int gasValveSignalLoc;            ///<  送气信号开关地址 0x0031 → ​​49​ 激光头厂家内控地址
+    unsigned int wireFeedSignalLoc;            ///<  送丝信号开关地址 0x0032 → ​​50 激光头厂家内控地址
     /* 写---------- 焊接工艺 ---------- */
     unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
 
-    /* 读|写 ------ 激光器 - 工艺参数 ------ */
+    /* 读|写 ------ 激光器 - 工艺参数 ------ */   
+
     unsigned int laserPowerLoc;              ///<  激光器功率地址 0x0230 560
     unsigned int laserOnPowerLoc;            ///<  开光功率地址 0x0231 561
     unsigned int laserOnRampTimeLoc;         ///<  开光渐进时间地址 0x0232 562
@@ -287,46 +289,108 @@ typedef struct MachineResource
     unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
     /*写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
-    unsigned int gasValveSignalLoc;            ///<  送气信号开关地址 0x0031 → ​​49​
-    unsigned int wireFeedSignalLoc;            ///<  送丝信号开关地址 0x0032 → ​​50
+    
     /* 写---- 连续模式下的送丝机参数---------- */
     unsigned int pulsePeriodLoc;             ///<  脉冲周期地址 0x0107 263
     unsigned int smoothnessLoc;              ///<  平滑度地址  0x0108 264
     unsigned int operationModeLoc;           ///<  送丝机模式设置地址 0x010C 268
 
-
-    CgxiLaserWeldCraftSdk LaserWeldCraft;      ///< 焊接工艺参数
     CgxiLaserHeadLaserSdk laserHeadParams;     ///< 激光头参数
     CgxiLaserPowerLaserSdk laserPowerParams;   ///< 激光器参数
     CgxiWireFeederLaserSdk wireFeederParams;   ///< 送丝机参数
     CgxiWaterCoolerLaserSdk waterCoolerParams; ///< 水冷机参数
 } MachineResource;
 
-//起焊
 
-//焊接工艺
+//焊接工艺 没有摆弧、多层多道工艺、电弧跟踪、示意图、俯仰角
 enum CraftTypeLaserSdk
 {
-    BASIC_CRAFT_LASER_SDK = 0,                       //基础工艺
+    BASIC_CRAFT_LASER_SDK = 0,                       ///< 基础工艺
     PENDULUM_CRAFT_LASER_SDK = 1,                    //摆弧工艺
     MULTILAYER_CHANNEL_CRAFT_LASER_SDK = 2,          //多层多道
     MULTILAYER_CHANNEL_AUTO_CAL_CRAFT_LASER_SDK = 3  //多层多道自动计算
 };
 
-//// WeldSdk XXX  待修改项 ////
 /// ---指令类型///
-enum InstTypeWeldSdk
+
+//工艺信息
+struct CraftInfoLaserSdk
 {
-    CRAFT_SElECT_INST_WELD_SDK = 0,      // 工艺模板指令
-    ARC_START_INST_WELD_SDK = 1,         // 起弧指令
-    ARC_END_INST_WELD_SDK = 2,           // 收弧指令
-    LINE_POINT_INST_WELD_SDK = 3,        // 直线定点指令
-    CIRCLE_POINT_INST_WELD_SDK = 4,      // 圆弧定点指令
-    JOINT_POINT_INST_WELD_SDK = 5,       // 关节运动指令
-    SAFE_POINT_MOVEL_INST_WELD_SDK = 6,  // 安全点指令
-    SAFE_POINT_MOVEJ_INST_WELD_SDK = 7,  // 安全点指令
-    LINE_PITCH_ANGLE_INST_WELD_SDK = 8,  // 计算直线俯仰角指令
-    CIRCLE_PITCH_ANGLE_INST_WELD_SDK = 9 // 计算圆弧俯仰角指令
+    int deliveryTime;       //提前送气时间
+    double arcStartCurrent; //起弧电流
+    double arcStartVoltage; //起弧电压
+    int arcStartTransTime;  //起弧过渡时间
+    double weldSpeed;       //焊接速度
+    double weldCurrent;     //焊接电流
+    double weldVoltage;     //焊接电压
+    double arcEndCurrent;   //收弧电流
+    double arcEndVoltage;   //收弧电压
+    int craterTime;         //弧坑时间
+    int delayedAirTime;     //滞后送气时间
+    double frequency;                 // 频率
+    double amplitude;                 // 振幅
+    int leftWaitTime;                 // 左停留时间
+    int rightWaitTime;                // 右停留时间
+    int bottomWaitTime;               // 底部端点停留时间
+    int diffPlaneAngle;               // 异面夹角
+    int relativePitchAngle;           // 相对俯仰角
+    double arcRadius;                 // 弧形半径
+    double swingInclinationAngle;     // 摆弧倾斜角
+
+};
+
+//路点类型
+enum PointTypeLaserSdk
+{
+    SAFE_POINT_WELD_SDK = 0,      //安全点
+    LINE_POINT_WELD_SDK = 1,      //直线定点
+    CIRCLE_POINT_WELD_SDK = 2,    //圆弧定点
+    JOINT_POINT_WELD_SDK = 3      //关节运动
+};
+//路点数据
+struct PointDataLaserSdk
+{
+    int pointID;
+    PointTypeLaserSdk pointType;
+    double pose[6];
+    double joint[6];
+};
+//指令列表转换数据
+struct LaserWeldStartData
+{
+   int *instList;                              ///< { 指令枚举，在对应数据列表中的地址 } 数对列表
+   int instNum;                                ///< 指令数对列表中数对对数
+   CraftInfoLaserSdk *craftInfoList;            ///< 工艺信息列表
+   int craftNum;                               ///< 工艺信息列表长度
+   PointDataLaserSdk *pointList;                ///< 路点数据列表
+   int pointsNum;                              ///< 路点数据列表长度
+   bool isOpenWireBack; ///< 是否开启焊丝回抽
+   int wireBackTime;    ///< 焊丝回抽时间
+   int *signalStepPointLocList; ///< 单步运行路点位置列表
+   int signalStepPointNum;      ///< 单步运行路点位置列表长度
+   int *breakPointLocList; ///< 断点位置列表
+   int breakPointNum;      ///< 断点位置列表长度
+   // PitchAngleData *pitchAngleList;             // 直线俯仰角数据列表
+   // int pitchAngleNum;                          // 直线俯仰角数据列表长度
+   // CirclePitchAngleData *circlePitchAngleList; // 圆弧俯仰角数据列表
+   // int circlePitchAngleNum;                    // 圆弧俯仰角数据列表长度
+   // bool isMoreLayerRoadLapWeld; // 是否进行多层多道搭接
+   // int lapWeldRoadLoc;          // 多层多道搭接道路径的位置
+};
+
+//指令类型
+enum InstTypeLaserSdk
+{
+    CRAFT_SElECT_INST_LASER_WELD_SDK = 0,      // 工艺模板指令
+    ARC_START_INST_LASER_WELD_SDK = 1,         // 起弧指令
+    ARC_END_INST_LASER_WELD_SDK = 2,           // 收弧指令
+    LINE_POINT_INST_LASER_WELD_SDK = 3,        // 直线定点指令
+    CIRCLE_POINT_INST_LASER_WELD_SDK = 4,      // 圆弧定点指令
+    JOINT_POINT_INST_LASER_WELD_SDK = 5,       // 关节运动指令
+    SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  // 安全点指令
+    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  // 安全点指令
+    // LINE_PITCH_ANGLE_INST_LASER_WELD_SDK = 8,  // 计算直线俯仰角指令
+    // CIRCLE_PITCH_ANGLE_INST_LASER_WELD_SDK = 9 // 计算圆弧俯仰角指令
 };
 
 /// 焊接控制寄存器位///
@@ -369,17 +433,15 @@ enum WeldControlAddressLaserSdk
     INT_REG_RESULT_77 = 77
 };
 
-
 ////摆弧类型
 //enum SwingTypeWeldSdk
 //{
-//    SIN_SWING_WELD_SDK = 0,       //正弦摆
-//    TRIANGLE_SWING_WELD_SDK = 1,    //正三角摆
-//    CIRCLE_SWING_WELD_SDK = 2   //圆形摆
+//    SIN_SWING_LASER_WELD_SDK = 0,       //正弦摆
+//    TRIANGLE_SWING_LASER_WELD_SDK = 1,    //正三角摆
+//    CIRCLE_SWING_LASER_WELD_SDK = 2   //圆形摆
 //};
 
-
-
+//// WeldSdk XXX  待修改项👇⬇⬇⬇ ////
 enum WeldLineTypeForMulFloorWeldSdk
 {
     ANGLE_WELD_LINE_MULFLOOR_WELD_SDK = 0,           //角焊缝（角平分线方向层偏移）
@@ -428,66 +490,67 @@ struct OneLayerRoadDataWeldSdk
     bool isChecked;             //是否选择
 };
 
-//工艺信息
-struct CraftInfoWeldSdk
-{
-    CraftTypeLaserSdk lasercraftType; //工艺类型
+////工艺信息
+//struct CraftInfoWeldSdk
+//{
+//    CraftTypeLaserSdk lasercraftType; //工艺类型
 
-    int deliveryTime;       //提前送气时间
-    double arcStartCurrent; //起弧电流
-    double arcStartVoltage; //起弧电压
-    int arcStartTransTime;  //起弧过渡时间
-    double weldSpeed;       //焊接速度
-    double weldCurrent;     //焊接电流
-    double weldVoltage;     //焊接电压
-    double arcEndCurrent;   //收弧电流
-    double arcEndVoltage;   //收弧电压
-    int craterTime;         //弧坑时间
-    int delayedAirTime;     //滞后送气时间
+//    int deliveryTime;       //提前送气时间
+//    double arcStartCurrent; //起弧电流
+//    double arcStartVoltage; //起弧电压
+//    int arcStartTransTime;  //起弧过渡时间
+//    double weldSpeed;       //焊接速度
+//    double weldCurrent;     //焊接电流
+//    double weldVoltage;     //焊接电压
+//    double arcEndCurrent;   //收弧电流
+//    double arcEndVoltage;   //收弧电压
+//    int craterTime;         //弧坑时间
+//    int delayedAirTime;     //滞后送气时间
 
-    //SwingTypeWeldSdk swingType;       // 摆弧类型
-    //WeldLineTypeWeldSdk weldLineType; // 焊缝类型
-    double frequency;                 // 频率
-    double amplitude;                 // 振幅
-    int leftWaitTime;                 // 左停留时间
-    int rightWaitTime;                // 右停留时间
-    int bottomWaitTime;               // 底部端点停留时间
-    int diffPlaneAngle;               // 异面夹角
-    int relativePitchAngle;           // 相对俯仰角
-    double arcRadius;                 // 弧形半径
-    double swingInclinationAngle;     // 摆弧倾斜角
+//    //SwingTypeWeldSdk swingType;       // 摆弧类型
+//    //WeldLineTypeWeldSdk weldLineType; // 焊缝类型
+//    double frequency;                 // 频率
+//    double amplitude;                 // 振幅
+//    int leftWaitTime;                 // 左停留时间
+//    int rightWaitTime;                // 右停留时间
+//    int bottomWaitTime;               // 底部端点停留时间
+//    int diffPlaneAngle;               // 异面夹角
+//    int relativePitchAngle;           // 相对俯仰角
+//    double arcRadius;                 // 弧形半径
+//    double swingInclinationAngle;     // 摆弧倾斜角
 
-    bool arcTrackEnable;            //电弧跟踪是否开启
-    TrackDirectionWeldSdk trackDirection;  //跟踪方向
-    SensitivityWeldSdk sensitivity;        //灵敏度
-    int arcTrackWaitTime;           //等待时间
-    double upDownCompensation;      //上下补偿量
-    double leftRightCompensation;   //左右补偿量
+//    bool arcTrackEnable;            //电弧跟踪是否开启
+//    TrackDirectionWeldSdk trackDirection;  //跟踪方向
+//    SensitivityWeldSdk sensitivity;        //灵敏度
+//    int arcTrackWaitTime;           //等待时间
+//    double upDownCompensation;      //上下补偿量
+//    double leftRightCompensation;   //左右补偿量
 
-    MoreLayerRoadRunType moreLayerRoadRunType;      //多层多道执行类型
-    WeldLineTypeForMulFloorWeldSdk moreLayerRoadWeldLineType; //多层多道焊缝类型
-    int moreLayerRoadDiffPlaneAngle;                //异面夹角
-    int allRoadNum;                                 //所有道数量
-    OneLayerRoadDataWeldSdk* moreLayerRoadData;    //道数据数组
-};
+//    MoreLayerRoadRunType moreLayerRoadRunType;      //多层多道执行类型
+//    WeldLineTypeForMulFloorWeldSdk moreLayerRoadWeldLineType; //多层多道焊缝类型
+//    int moreLayerRoadDiffPlaneAngle;                //异面夹角
+//    int allRoadNum;                                 //所有道数量
+//    OneLayerRoadDataWeldSdk* moreLayerRoadData;    //道数据数组
+//};
 
-//路点类型
-enum PointTypeWeldSdk
-{
-    SAFE_POINT_WELD_SDK = 0,      //安全点
-    LINE_POINT_WELD_SDK = 1,      //直线定点
-    CIRCLE_POINT_WELD_SDK = 2,    //圆弧定点
-    JOINT_POINT_WELD_SDK = 3      //关节运动
-};
+////路点类型
+//enum PointTypeWeldSdk
+//{
+//    SAFE_POINT_WELD_SDK = 0,      //安全点
+//    LINE_POINT_WELD_SDK = 1,      //直线定点
+//    CIRCLE_POINT_WELD_SDK = 2,    //圆弧定点
+//    JOINT_POINT_WELD_SDK = 3      //关节运动
+//};
 
-//路点数据
-struct PointDataWeldSdk
-{
-    int pointID;
-    PointTypeWeldSdk pointType;
-    double pose[6];
-    double joint[6];
-};
+////路点数据
+//struct PointDataWeldSdk
+//{
+//    int pointID;
+//    PointTypeWeldSdk pointType;
+//    double pose[6];
+//    double joint[6];
+//};
+
 
 ////圆圈摆
 //struct SwingCircleData
@@ -899,31 +962,7 @@ enum AdvanceAngleType
 //    double endPointOut[6];          ///<终点 基于基坐标系下固定路点的位姿 - 出参
 //};
 
-//struct WeldStartData
-//{
-//    int *instList;                              //{指令枚举，在对应数据列表中的地址}数对列表
-//    int instNum;                                // 数对列表中数对对数
-//    CraftInfoWeldSdk *craftInfoList;            // 工艺信息列表
-//    int craftNum;                               // 工艺信息列表长度
-//    PointDataWeldSdk *pointList;                // 路点数据列表
-//    int pointsNum;                              // 路点数据列表长度
-//    PitchAngleData *pitchAngleList;             // 直线俯仰角数据列表
-//    int pitchAngleNum;                          // 直线俯仰角数据列表长度
-//    CirclePitchAngleData *circlePitchAngleList; // 圆弧俯仰角数据列表
-//    int circlePitchAngleNum;                    // 圆弧俯仰角数据列表长度
 
-//    bool isOpenWireBack; // 是否开启焊丝回抽
-//    int wireBackTime;    // 焊丝回抽时间
-
-//    int *signalStepPointLocList; // 单步运行路点位置列表
-//    int signalStepPointNum;      // 单步运行路点位置列表长度
-
-//    int *breakPointLocList; // 断点位置列表
-//    int breakPointNum;      // 断点位置列表长度
-
-//    // bool isMoreLayerRoadLapWeld; // 是否进行多层多道搭接
-//    // int lapWeldRoadLoc;          // 多层多道搭接道路径的位置
-//};
 
 ////路点数据
 //struct MoveParaWeldSdk

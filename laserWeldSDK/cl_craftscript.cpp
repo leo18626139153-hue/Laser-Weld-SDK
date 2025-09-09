@@ -175,11 +175,19 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
 //    if (laserPowerParams.spotWeldIntervalTime < 0 || laserPowerParams.spotWeldIntervalTime > 60000)
 //        return PARAMETER_ERROR_LASER_SDK;//    点焊间隔时间 0~60000ms
 
-    std::string endstr = ")\nwait(1)\n"; //激光器目前无需wait
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
-    //写脚本 - 脚本函数名 - 传参名 - 地址 - 参数类型 - 参数值
+    //写脚本 - 脚本函数名 - 传参名 - 参数类型 - 参数值 - 地址
     auto addParam = [&](const std::string& funcName, const std::string& paramName,
-                        unsigned int addr, CommuRegType regType, double paramValue) {
+                        CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF, int waitTime = 0)
+    {
+        //没有写入地址
+        if(addr == 0xFFFFFFFF)
+            return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
+
+        std::string endstr = ")\n";
+        if(waitTime !=0)
+            endstr = ")\nwait(" + std::to_string(waitTime) + ")\n";
+
         std::string funcDef = generateLuaScript(funcName, paramName, addr, regType);
         std::ostringstream useScript;
         switch (regType)
@@ -199,92 +207,71 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
             break;
         }
         //如果地址未赋值，返回错误
-        if (&addr == nullptr)
-        {
-            return PARAMETER_ERROR_LASER_SDK;
-        }
-
         writeDataHash.emplace(addr, std::make_pair(useScript.str(), funcDef));
     };
+    
+             
     // 1. 写入激光器功率 (0-5000W, 整型)
     addParam("write_laser_power", "number10",
-             machineResource.laserPowerLoc, CommuRegType::int16Reg,
-             laserPowerParams.laserPower);
+            int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc);
 
     // 2. 写入开光功率 (0-5000W, 整型)
     addParam("write_open_power", "number11",
-             machineResource.laserOnPowerLoc, int16Reg,
-             laserPowerParams.laserPowerOpen);
+             int16Reg, laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc);
 
     // 3. 写入开光渐进时间 (0~1000ms, 整型)
     addParam("write_gradualLighting_time", "number12",
-             machineResource.laserOnRampTimeLoc, int16Reg,
-             laserPowerParams.laserRampUpTime);
+             int16Reg, laserPowerParams.laserRampUpTime, machineResource.laserOnRampTimeLoc);
 
     // 4. 写入关光功率 (0-5000W, 整型)
     addParam("write_close_power", "number13",
-             machineResource.laserOffPowerLoc, int16Reg,
-             laserPowerParams.laserPowerClose);
+             int16Reg, laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc);
 
     // 5. 写入关光渐进时间 (0~300mm, 整型)
     addParam("write_offLightAsymptotic_time", "number14",
-             machineResource.laserOffRampTimeLoc, int16Reg,
-             laserPowerParams.laserRampDownTime);
+             int16Reg, laserPowerParams.laserRampDownTime, machineResource.laserOffRampTimeLoc);
 
-    // 6. 写入开气延时函数
+    // 6. 写入开气延时函数 提前送气时间	0~3000ms
     addParam("write_opening_delay", "gasOnDelayNum",
-             machineResource.gasONDelayLoc, int16Reg,
-             laserPowerParams.gasStartupAdvanceTime);
+             int16Reg, laserPowerParams.gasStartupAdvanceTime, machineResource.gasONDelayLoc);
 
     // 7. 写入关气延时函数
     addParam("write_closeing_delay", "gasOffDelayNum",
-             machineResource.gasOffDelayLoc, int16Reg,
-             laserPowerParams.gasShutoffDelayTime);
+             int16Reg, laserPowerParams.gasShutoffDelayTime, machineResource.gasOffDelayLoc);
 
     // 8. 写入送丝延时函数
     addParam("write_wireDelivery_delay", "wireDeliveryNum",
-             machineResource.wireOutDelayLoc, int16Reg,
-             laserPowerParams.wireFeedAdvanceTime);
+             int16Reg, laserPowerParams.wireFeedAdvanceTime, machineResource.wireOutDelayLoc);
     // 9. 写入驱动器温度报警阈值函数
     addParam("write_driver_temp", "driverTempNum",
-             machineResource.driverTempLoc, int16Reg,
-             laserPowerParams.driverTemp);
+             int16Reg, laserPowerParams.driverTemp, machineResource.driverTempLoc);
     //10. 写入保护镜报警阈值
     addParam("write_protective_window_temp", "protectiveWindowTempNum",
-             machineResource.protectiveWindowTempLoc, int16Reg,
-             laserPowerParams.protectiveWindowTemp);
+             int16Reg, laserPowerParams.protectiveWindowTemp, machineResource.protectiveWindowTempLoc);
     //11. 写入准直镜温度报警阈值
     addParam("write_collimator_temp", "collimatorTempNum",
-             machineResource.collimatorTempLoc, int16Reg,
-             laserPowerParams.collimatorTemp);
+             int16Reg, laserPowerParams.collimatorTemp, machineResource.collimatorTempLoc);
     //12. 写入X偏移
     addParam("write_laserHead_x_offset", "laserHeadXOffsetNum",
-             machineResource.laserHeadXOffsetLoc, float100Reg,
-             laserPowerParams.laserHeadXOffset);
+             float100Reg, laserPowerParams.laserHeadXOffset, machineResource.laserHeadXOffsetLoc);
     //13. 写入Y偏移
     addParam("write_laserHead_y_offset", "laserHeadYOffsetNum",
-             machineResource.laserHeadYOffsetLoc, float100Reg,
-             laserPowerParams.laserHeadYOffset);
+             float100Reg, laserPowerParams.laserHeadYOffset, machineResource.laserHeadYOffsetLoc);
     //14. 写入X放大
     addParam("write_laserHead_x_enlarge", "laserHeadXEnlargeNum",
-             machineResource.laserHeadXScaleLoc, float100Reg,
-             laserPowerParams.laserHeadXEnlarge);
+             float100Reg, laserPowerParams.laserHeadXEnlarge, machineResource.laserHeadXScaleLoc);
     //15. 写入Y放大
     addParam("write_laserHead_y_enlarge", "laserHeadYEnlargeNum",
-             machineResource.laserHeadYScaleLoc, float100Reg,
-             laserPowerParams.laserHeadYEnlarge);
+             float100Reg, laserPowerParams.laserHeadYEnlarge, machineResource.laserHeadYScaleLoc);
     //16. 写入点焊类型
     addParam("write_spotWeld_type", "spotWeldTypeNum",
-             machineResource.spotWeldTypeLoc, int16Reg,
-             laserPowerParams.spotWeldType);
+             int16Reg, static_cast<int>(laserPowerParams.spotWeldType), machineResource.spotWeldTypeLoc);
     //17. 写入点焊持续时间
     addParam("write_spotWeld_duration_time", "spotWeldDurationTimeNum",
-             machineResource.spotWeldDurationLoc, int16Reg,
-             laserPowerParams.spotWeldDurationTime);
+             int16Reg, laserPowerParams.spotWeldDurationTime, machineResource.spotWeldDurationLoc);
     //18. 写入点焊间隔时间
     addParam("write_spotWeld_interval_time", "spotWeldIntervalTimeNum",
-             machineResource.spotWeldIntervalLoc, int16Reg,
-             laserPowerParams.spotWeldIntervalTime);
+             int16Reg, laserPowerParams.spotWeldIntervalTime, machineResource.spotWeldIntervalLoc);
 
     // 按指定地址顺序添加脚本
     for (unsigned int addr : locVec) {
@@ -319,12 +306,21 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 //        return PARAMETER_ERROR_LASER_SDK;
 //    if (laserHeadParams.laserHeadSpinAngle < 0 || laserHeadParams.laserHeadSpinAngle > 360)
 //        return PARAMETER_ERROR_LASER_SDK;
-    std::string endstr = ")\nwait(50)\n";
+    
+    
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
-    const unsigned int graphicsAddr = machineResource.laserHeadPatternIdLoc;
     auto addParam = [&](const std::string& funcName, const std::string& paramName,
-                      unsigned int addr, CommuRegType regType, double paramValue)
+                      CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF, int waitTime = 0)
     {
+        //没有写入地址
+        if(addr == 0xFFFFFFFF)
+            return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
+
+        //设置等待时间
+        std::string endstr = ")\n";
+        if(waitTime !=0)
+            endstr = ")\nwait(" + std::to_string(waitTime) + ")\n";
+
         std::string funcDef = generateLuaScript(funcName, paramName, addr, regType);
         std::ostringstream useScript;
         switch (regType)
@@ -345,67 +341,54 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         }
         writeDataHash.emplace(addr, std::make_pair(useScript.str(), funcDef));
     };
+    ///<01. 送气信号开关
+    addParam("write_wirefeeder_gas_valve_signal", "gasValveSignal",
+             int16Reg, static_cast<int>(laserHeadParams.WireFeederGasSignalSwitch), machineResource.gasValveSignalLoc);
+    ///<02. 送丝信号开关
+    addParam("write_wirefeeder_wire_feed_signal", "wireFeedSignal",
+             int16Reg, static_cast<int>(laserHeadParams.WireFeederSignalSwitch), machineResource.wireFeedSignalLoc);
 
     // 1. 写入扫描速度 (0~30000mm/s,)
     addParam("write_scanning_speed", "scanSpeedNum",
-             machineResource.laserHeadScanSpeedLoc, int16Reg,
-             laserHeadParams.laserHeadScanSpeed);
+             int16Reg, laserHeadParams.laserHeadScanSpeed, machineResource.laserHeadScanSpeedLoc);
 
     // 2. 写入扫描宽度 (0.1~5mm, 浮点型)
     addParam("write_scanning_width", "scanwidthNum",
-             machineResource.laserHeadScanWidthLoc, float10Reg,
-             laserHeadParams.laserHeadScanWidth );
+             float10Reg, laserHeadParams.laserHeadScanWidth, machineResource.laserHeadScanWidthLoc);
 
     // 3. 写入峰值功率 (0-3000W, 整型)
     addParam("write_peak_power", "peakPowerNum",
-             machineResource.laserHeadPeakPowerLoc, int16Reg,
-             laserHeadParams.laserHeadPeakPower);
+             int16Reg, laserHeadParams.laserHeadPeakPower, machineResource.laserHeadPeakPowerLoc);
 
     // 4. 写入占空比 (0~100, 整型)
     addParam("write_duty_cycle", "dutyCycleNum",
-             machineResource.laserHeadDutyCycleLoc, int16Reg,
-             laserHeadParams.laserHeadDutyCycle);
+             int16Reg, laserHeadParams.laserHeadDutyCycle, machineResource.laserHeadDutyCycleLoc);
 
     // 5. 写入脉冲频率低地址 (5~100000HZ, 整型)
     addParam("write_pulse_low_frequency", "pulseLowNum",
-             machineResource.laserHeadFrequencyLowLoc, int16Reg,
-             laserHeadParams.laserHeadLowPulseFrequency);
+             int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
 
     // 6. 写入脉冲频率高地址 (5~100000HZ, 整型)
     addParam("write_pulse_high_frequency", "pulseHighNum",
-             machineResource.laserHeadFrequencyHighLoc, int16Reg,
-             laserHeadParams.laserHeadHighPulseFrequency);
+             int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc);
 
     // 7. 写入扫描高度 (0.1~5mm, 浮点型)
     addParam("write_scanning_height", "scanHeightNum",
-             machineResource.laserHeadScanHeightLoc, float10Reg,
-             laserHeadParams.laserHeadScanHeight);
+             float10Reg, laserHeadParams.laserHeadScanHeight, machineResource.laserHeadScanHeightLoc);
 
     // 8. 写入旋转角度 (0~360°, 整型)
     addParam("write_rotation_angle", "rotationAngleNum",
-             machineResource.laserHeadRotationAngleLoc, int16Reg,
-             laserHeadParams.laserHeadSpinAngle);
+             int16Reg, laserHeadParams.laserHeadSpinAngle, machineResource.laserHeadRotationAngleLoc);
 
-    // 9. 写入图形（特殊处理）
+    // 9. 写入图形（特殊处理）图形
     addParam("write_laser_graphics", "laserGraphicNum",
-             graphicsAddr, int16Reg,
-             static_cast<int>(laserHeadParams.laserSpotPattern));
+             int16Reg, static_cast<int>(laserHeadParams.laserSpotPattern), machineResource.laserHeadPatternIdLoc);
 
     for (unsigned int addr : locVec) {
         auto it = writeDataHash.find(addr);
         if (it != writeDataHash.end()) {
-            if (addr == graphicsAddr)
-            {
-                std::string graphicsScript = it->second.first;
-                // 图形设置放在所以图案指令前
-                script = graphicsScript + script;
-                loadLuaFunctionScript += it->second.second;
-            }
-            else
-            {
-                script += it->second.first;
-                loadLuaFunctionScript += it->second.second;
-            }
+            script += it->second.first;
+            loadLuaFunctionScript += it->second.second;
         }
         else
         {
@@ -419,6 +402,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 //送丝机参数
 LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string &script)
 {
+
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     CgxiWireFeederLaserSdk &wireFeederParams = machineResource.wireFeederParams;
 
@@ -428,79 +412,68 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     const int wireFeedLength = wireFeederParams.wireFeederFeedLength;
     const int wireRetractLength = wireFeederParams.wireFeederBackLength;
 
-    // 定义写入操作的结束字符串
-    std::string endstr = ")\nwait(50)\n";
+    
     // 存储所有函数定义和调用脚本的数据结构
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
 
     auto addParam = [&](const std::string& funcName, const std::string& paramName,
-                        unsigned int addr, CommuRegType regType, int paramValue) {
+                        CommuRegType regType, int paramValue, unsigned int addr = 0xFFFFFFFF)
+    {
+        //没有写入地址
+        if(addr == 0xFFFFFFFF)
+            return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
+
+        // 定义写入操作的结束字符串
+        std::string endstr = ")\n";
         std::string funcDef = generateLuaScript(funcName, paramName, addr, regType, 0x0A06, 2); //送丝机暂时先用RS485-1 == 2
         std::ostringstream useScript;
         useScript << funcName << "(" << paramValue << endstr;
         writeDataHash.emplace(addr, std::make_pair(useScript.str(), funcDef));
     };
-
+    /// 送丝机使能
+    addParam("write_wirefeeder_enable", "wireFeederEnable",
+             int16Reg, wireFeederParams.isWireFeederStart, machineResource.wireFeederStatusLoc);
     //0.送丝机模式设置
-    addParam("write_wirefeeder_mode", "weldFunction",
-             machineResource.operationModeLoc, int16Reg,
-             wireFeederParams.weldFunction);
-    // 1. 脉冲周期 0x0107 263
+    addParam("write_wirefeeder_mode", "wireFeedFunction",
+             int16Reg, wireFeederParams.wireFeedFunction, machineResource.operationModeLoc);
+    // 1. 脉冲模式-脉冲周期 0x0107 263
     addParam("write_wirefeeder_pulse_period", "pulsePeriod",
-             machineResource.pulsePeriodLoc, int16Reg,
-             wireFeederParams.wireFeederPulsePeriod);
-    // 2. 平滑度  0x0108 264
+             int16Reg, wireFeederParams.wireFeederPulsePeriod, machineResource.pulsePeriodLoc);
+    // 2. 脉冲模式-平滑度  0x0108 264
     addParam("write_wirefeeder_smoothness", "smoothness",
-             machineResource.smoothnessLoc, int16Reg,
-             wireFeederParams.wireFeederSmoothness);
+             int16Reg, wireFeederParams.wireFeederSmoothness, machineResource.smoothnessLoc);
 
     // 0. 是否保存当前送丝机数据 地址 0x013F → ​​319​
-    addParam("write_wirefeede_save_current_data", "saveCurrentWireFeederData",
-             machineResource.saveCurrentWireFeederDataLoc, int16Reg,
-             wireFeederParams.isWireFeederDataSave);
-    ///<1. 送气信号开关
-    addParam("write_wirefeede_gas_valve_signal", "gasValveSignal",
-             machineResource.gasValveSignalLoc, int16Reg,
-             wireFeederParams.WireFeederGasSignalSwitch);
-    ///<2. 送丝信号开关
-    addParam("write_wirefeede_wire_feed_signal", "wireFeedSignal",
-             machineResource.wireFeedSignalLoc, int16Reg,
-             wireFeederParams.WireFeederSignalSwitch);
+    addParam("write_wirefeeder_save_current_data", "saveCurrentWireFeederData",
+             int16Reg, wireFeederParams.isWireFeederDataSave, machineResource.saveCurrentWireFeederDataLoc);    
 
     // 1. 自动送丝速度
-    addParam("write_wirefeede_auto_send_speed", "autoWireFeedSpeed",
-             machineResource.autoWireFeedSpeedLoc, int16Reg,
-             wireFeederParams.wireFeederMotorSpeed);
+    addParam("write_wirefeeder_auto_send_speed", "autoWireFeedSpeed",
+             int16Reg, wireFeederParams.wireFeederMotorSpeed, machineResource.autoWireFeedSpeedLoc);
 
     // 2. 手动送丝速度
     addParam("write_wirefeeder_send_manual_speed", "manualWireFeedSpeed",
-             machineResource.manualWireFeedSpeedLoc, int16Reg,
-             wireFeederParams.wireFeederManualFeedSpeed);
+             int16Reg, wireFeederParams.wireFeederManualFeedSpeed, machineResource.manualWireFeedSpeedLoc);
 
     // 3. 手动抽丝速度
     addParam("write_wirefeeder_retrack_manual_speed", "manualWireRetractSpeed",
-             machineResource.manualWireRetractSpeedLoc, int16Reg,
-             wireFeederParams.wireFeederManualBackSpeed);
+             int16Reg, wireFeederParams.wireFeederManualBackSpeed, machineResource.manualWireRetractSpeedLoc);
 
     // 4. 送丝长度
     addParam("write_wirefeeder_feed_length_speed", "wireFeedLength",
-             machineResource.wireFeedLengthLoc, int16Reg,
-             wireFeederParams.wireFeederFeedLength);
+             int16Reg, wireFeederParams.wireFeederFeedLength, machineResource.wireFeedLengthLoc);
 
     // 5. 抽丝长度
     addParam("write_wirefeeder_retrack_length_speed", "wireRetractLength",
-             machineResource.wireRetractLengthLoc, int16Reg,
-             wireFeederParams.wireFeederBackLength);
+             int16Reg, wireFeederParams.wireFeederBackLength, machineResource.wireRetractLengthLoc);
 
     // 6. 手动送丝开关
     addParam("write_wirefeeder_manual_send_switch", "manualWireFeedSwitch",
-             machineResource.manualWireFeedSwitchLoc, int16Reg,
-             wireFeederParams.isWireFeederManualFeedSwitch);
+             int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualFeedSwitch), machineResource.manualWireFeedSwitchLoc);
 
     // 7. 手动退丝开关
     addParam("write_wirefeeder_manual_retrack_switch", "manualWireRetractSwitch",
-             machineResource.manualWireRetractSwitchLoc, int16Reg,
-             wireFeederParams.isWireFeederManualRetractSwitch);
+             int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc);
 
     for (unsigned int addr : locVec) {
         auto it = writeDataHash.find(addr);
@@ -552,12 +525,6 @@ LaserSdkResult CommuRS485::craft_laser_head_setting_set_script_get(LaserMachineH
     double gasOnTime = wireFeederParams.isWireFeederEnable;
 
     std::stringstream use_write_data;
-//    use_write_data << "write_laser_power(" << laserPowerParams.LASER_POWER_LASER_SDK << endstr
-//                   << "write_open_power(" << laserPowerParams.LASER_POWER_OPEN_LASER_SDK << endstr
-//                   << "write_gradualLighting_time(" << laserPowerParams.LASER_GRADUAL_TIME_OPEN_LASER_SDK << endstr
-//                   << "write_close_power(" << laserPowerParams.LASER_POWER_CLOSE_LASER_SDK << endstr
-//                   << "write_offLightAsymptotic_time(" << laserPowerParams.LASER_GRADUAL_TIME_CLOSE_LASER_SDK << endstr
-//                   << "halt()\n";
     script = mainFuncProgram + Lua_split + Lua_get_message + Lua_crc16 + swap_bytes_for_word
 
             + RobotProgram1

@@ -3,7 +3,7 @@ CONFIG -= qt
 TEMPLATE = lib
 DEFINES += LASERWELDSDK_LIBRARY
 
-CONFIG += c++11
+CONFIG += c++17
 # 声明源码使用UTF-8编码
 CONFIG += utf8_source
 
@@ -20,6 +20,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     cl_api.cpp \
+    cl_comandlistscript.cpp \
     cl_craftscript.cpp \
     cl_luascript.cpp \
     cl_utils.cpp
@@ -27,6 +28,7 @@ SOURCES += \
 HEADERS += \
     cl_api.h \
     cl_basedefine.h \
+    cl_comandlistscript.h \
     cl_craftscript.h \
     cl_internaldatadefine.h \
     cl_luascript.h \

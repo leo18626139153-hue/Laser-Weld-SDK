@@ -97,6 +97,18 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_laser_head_params_read(const LaserMachineH
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHandle);
 
+/**
+ * @brief getStartWeldScript    获取指令列表转换后脚本
+ * @param laserMachineHandle    焊机资源句柄
+ * @param LaserWeldStartData    指令列表数据结构体
+ * @param isWeld                是否进行焊接 false-轨迹模拟 true-开始焊接
+ * @param scripts               指令列表LUA脚本 传出参数
+ * @param scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
+ * @return WeldSdkResult        处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char* scripts, int* scriptLen);
+
+
 #ifdef __cplusplus
 }
 #endif
