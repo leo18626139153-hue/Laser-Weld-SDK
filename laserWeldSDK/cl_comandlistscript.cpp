@@ -188,7 +188,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
     int& prePointLoc = instListTransEnvironmentData.prePointLoc; ///< 前一个点的位置
     bool& isWelding = instListTransEnvironmentData.isWelding;    ///< 是否焊接中
 
-    double weldSpeed = curCraftInfo.weldSpeed; ///< 当前焊接速度
+    double weldSpeed = curCraftInfo.craftWeldingSpeed; ///< 当前焊接速度
     for (int instLoc = instListStartLoc; instLoc <= instListEndLoc; instLoc++)
     {
         if (listLocToTypeID.count(instLoc) != 0)

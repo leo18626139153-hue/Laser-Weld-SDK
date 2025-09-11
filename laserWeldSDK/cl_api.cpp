@@ -175,7 +175,7 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
     //送丝机地址参数 - 自动送丝速度
     std::vector<unsigned int> wireFeedVec = {
         machineResource.wireFeederStatusLoc,        ///< 送丝机运行状态地址 (0:停止 1:运行) 0x0115 → ​​277
-        machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256        
+        machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
         machineResource.operationModeLoc,           ///<  送丝机模式设置地址 0x010C 268
 
 //        machineResource.manualWireFeedSpeedLoc,     ///<  手动送丝速度地址 0x0101 257
@@ -246,7 +246,7 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
 
     //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
     std::vector<unsigned int> laserPowerVec =
-    {        
+    {
         machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
         machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
 //        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
@@ -262,7 +262,7 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     std::vector<unsigned int> wireFeedVec =
     {
         machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
-        machineResource.wireFeedLengthLoc,          //261 补丝长度地址  
+        machineResource.wireFeedLengthLoc,          //261 补丝长度地址
         machineResource.wireFeederStatusLoc,        ///<  送丝机运行状态地址 (0:停止 1:运行) 0x0115 结束关闭送丝机器
     };
     //获取脚本
@@ -529,6 +529,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             //建立指令在列表中位置与指令类型与ID的联系
             listLocToTypeID[instLoc] = {InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK, instID};
         }
+
     }
 
     // 建立点数据与ID的联系
@@ -536,7 +537,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     {
         tempPointsMap[elem.first].pointID = elem.second.pointID;     ///< 点ID
         tempPointsMap[elem.first].pointType = elem.second.pointType; ///< 点类型
-        memcpy(tempPointsMap[elem.first].pose, elem.second.pose, sizeof(double)*6);     
+        memcpy(tempPointsMap[elem.first].pose, elem.second.pose, sizeof(double)*6);
         memcpy(tempPointsMap[elem.first].joint, elem.second.joint, sizeof(double)*6);
     }
 
@@ -558,7 +559,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             craftInstListCraftIDVec.emplace_back(tempCraftID);  ///<道工艺实例列表
         }
         //起弧
-        if(instType == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK) 
+        if(instType == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK)
         {
             tempIsWelding = true;
         }
@@ -572,15 +573,15 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                 (instLoc == listLocToTypeID.size()-1 ||
                  ((tempIsWelding == false) && (instLoc < listLocToTypeID.size()-1) && (listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK))))
         {
-            tempCraftInstListEndLoc = instLoc;  
+            tempCraftInstListEndLoc = instLoc;
             //建立工艺ID与该工艺实例指令列表起始和终止位置的联系
             craftInstListStartEndLoc[tempCraftID] = {tempCraftInstListStartLoc, tempCraftInstListEndLoc};
             tempCraftInstListStartLoc = -1;
             tempCraftInstListEndLoc = -1;
-            continue;       
-        }   
+            continue;
+        }
     }
-   
+
 
     std::string bodyScriptText;
     CommuTypeLaserSdk commuType = machineResource.commuType;
@@ -590,9 +591,9 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     double emptyRunJointSpeed = robotParams.emptyRunJointSpeed;          //空走关节速度
     double emptyRunJointAcc = robotParams.emptyRunJointAcc;            //空走关节加速度
     double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
-    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径    
+    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
 
-     
+
     for(auto craftID: craftInstListCraftIDVec)
     {
         CraftInfoLaserSdk& craftInfo = craftsMap[craftID];      //当前工艺信息
@@ -756,7 +757,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
     }
 
-   
+
 
     std::string breakPointListScript;
     std::string signalSetpPointLocListScript;
@@ -801,8 +802,8 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
     //组装最终要下发执行的脚本
     std::string script;
-    script += breakPointListScript;
-    script += signalSetpPointLocListScript;
+    script += breakPointListScript; //断电列表
+    script += signalSetpPointLocListScript; //单步运行列表序列
     script += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
     script += bodyScriptText;
 
