@@ -2,6 +2,8 @@
 #include "cl_utils.h"
 #include "cl_craftscript.h"
 #include "cl_luascript.h"
+#include "cl_comandlistscript.h"
+
 #include <functional>
 #include <thread>
 #include <chrono>
@@ -169,6 +171,7 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
 
     };
+
     //送丝机地址参数 - 自动送丝速度
     std::vector<unsigned int> wireFeedVec = {
         machineResource.wireFeederStatusLoc,        ///< 送丝机运行状态地址 (0:停止 1:运行) 0x0115 → ​​277
@@ -258,7 +261,8 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
     {
-        machineResource.wireRetractLengthLoc, //260
+        machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
+        machineResource.wireFeedLengthLoc,          //261 补丝长度地址  
         machineResource.wireFeederStatusLoc,        ///<  送丝机运行状态地址 (0:停止 1:运行) 0x0115 结束关闭送丝机器
     };
     //获取脚本
@@ -384,13 +388,12 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
 //指令列表转换
 LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char *scripts, int *scriptLen)
 {
-    //获取句柄对应的焊机资源对象
+    //句柄
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
     {
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-
     CommuBase* curCommuFunction = nullptr;
     if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
     {
@@ -405,20 +408,23 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
 
-    InstListData instListData;
+    InstListData instListData;//指令列表数据
     std::unordered_map<int, std::pair<InstTypeLaserSdk, int>>& listLocToTypeID = instListData.listLocToTypeID;
     std::unordered_set<int>& IDSet = instListData.IDSet;
     std::unordered_map<int, CraftInfoLaserSdk>& craftsMap = instListData.craftsMap;
     std::unordered_map<int, PointDataLaserSdk>& pointsMap = instListData.pointsMap;
 
+    std::vector<int>& craftInstListCraftIDVec = instListData.craftInstListCraftIDVec;
+    std::unordered_map<int, std::pair<int, int>>& craftInstListStartEndLoc = instListData.craftInstListStartEndLoc;
+
     std::unordered_map<int, PointDataLaserSdk> tempPointsMap;   //临时路点信息
-    //将指令树结构体中的数据进行转化
+    //对应指令 对应 ID
     for(int instLoc = 0; instLoc < weldStartData.instNum; instLoc++)
     {
         InstTypeLaserSdk instType = static_cast<InstTypeLaserSdk>(weldStartData.instList[instLoc*2]);
         int dataListLoc = weldStartData.instList[instLoc*2+1];
         //工艺模板指令
-        if(instType == InstTypeLaserSdk::CRAFT_SElECT_INST_LASER_WELD_SDK)
+        if(instType == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK)
         {
             int instID = distribution(engine);
             while(IDSet.count(instID) != 0)
@@ -427,7 +433,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             }
             IDSet.insert(instID);
             //建立指令在列表中位置与指令类型与ID的联系
-            listLocToTypeID[instLoc] = {InstTypeLaserSdk::CRAFT_SElECT_INST_LASER_WELD_SDK, instID};
+            listLocToTypeID[instLoc] = {InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK, instID};
 
             //建立指令ID和工艺数据的联系
             craftsMap[instID] = weldStartData.craftInfoList[dataListLoc];
@@ -530,8 +536,292 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     {
         tempPointsMap[elem.first].pointID = elem.second.pointID;     ///< 点ID
         tempPointsMap[elem.first].pointType = elem.second.pointType; ///< 点类型
-        memcpy(tempPointsMap[elem.first].pose, elem.second.pose, sizeof(double)*6);     ///<
+        memcpy(tempPointsMap[elem.first].pose, elem.second.pose, sizeof(double)*6);     
         memcpy(tempPointsMap[elem.first].joint, elem.second.joint, sizeof(double)*6);
+    }
+
+    int tempCraftInstListStartLoc = -1; //当前工艺实例指令列表起始位置
+    int tempCraftInstListEndLoc = -1;  //当前工艺实例指令列表终止位置
+    bool tempIsWelding = false; //当前是否在焊接状态
+    int tempCraftID = -1;   //当前工艺ID
+    //对指令列表进行预处理获取每个顶层工艺(区别于只进行arc set的工艺)所属指令的起点和终点位置
+    craftInstListCraftIDVec.clear();
+    craftInstListStartEndLoc.clear();
+    for(int instLoc = 0; instLoc < listLocToTypeID.size(); instLoc++)
+    {
+        InstTypeLaserSdk instType = listLocToTypeID[instLoc].first; //指令类型
+        //工艺实例开始
+        if(tempCraftInstListStartLoc == -1)
+        {
+            tempCraftInstListStartLoc = instLoc;    //当前工艺实例指令列表起始位置
+            tempCraftID = listLocToTypeID[instLoc].second;  //当前工艺ID
+            craftInstListCraftIDVec.emplace_back(tempCraftID);  ///<道工艺实例列表
+        }
+        //起弧
+        if(instType == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK) 
+        {
+            tempIsWelding = true;
+        }
+        //收弧
+        else if(instType == InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
+        {
+            tempIsWelding = false;
+        }
+        //工艺实例结束
+        if(tempCraftInstListStartLoc != -1 &&
+                (instLoc == listLocToTypeID.size()-1 ||
+                 ((tempIsWelding == false) && (instLoc < listLocToTypeID.size()-1) && (listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK))))
+        {
+            tempCraftInstListEndLoc = instLoc;  
+            //建立工艺ID与该工艺实例指令列表起始和终止位置的联系
+            craftInstListStartEndLoc[tempCraftID] = {tempCraftInstListStartLoc, tempCraftInstListEndLoc};
+            tempCraftInstListStartLoc = -1;
+            tempCraftInstListEndLoc = -1;
+            continue;       
+        }   
+    }
+   
+
+    std::string bodyScriptText;
+    CommuTypeLaserSdk commuType = machineResource.commuType;
+    CgxiRobotLaserSdk &robotParams = machineResource.robotParams;
+    double emptyRunTCPSpeed = robotParams.emptyRunTCPSpeed;            //空走TCP速度
+    double emptyRunTCPAcc = robotParams.emptyRunTCPAcc;              //空走TCP加速度
+    double emptyRunJointSpeed = robotParams.emptyRunJointSpeed;          //空走关节速度
+    double emptyRunJointAcc = robotParams.emptyRunJointAcc;            //空走关节加速度
+    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
+    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径    
+
+     
+    for(auto craftID: craftInstListCraftIDVec)
+    {
+        CraftInfoLaserSdk& craftInfo = craftsMap[craftID];      //当前工艺信息
+        int craftInstListStartLoc = craftInstListStartEndLoc[craftID].first;    //当前工艺指令列表起始位置
+        int craftInstListEndLoc = craftInstListStartEndLoc[craftID].second;     //当前工艺指令列表终止位置
+        int pitchAngleID = -1;  //当前工艺的起弧指令ID
+        int circlePitchAngleID = -1;    //当前工艺的圆弧起弧指令ID
+        int weldInstListStartLoc = craftInstListStartLoc;    //当前焊接指令列表起始位置
+        int weldInstListEndLoc;       //当前焊接指令列表终止位置
+        int currentInstLoc = craftInstListStartLoc;         //当前指令位置
+
+        //遍历一段工艺路径内的所有点
+        while(true)
+        {
+            // 遍历非焊接过程中的指令
+            while (currentInstLoc == craftInstListEndLoc || (currentInstLoc < craftInstListEndLoc && (listLocToTypeID.count(currentInstLoc + 1) != 0 && listLocToTypeID[currentInstLoc + 1].first != InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK)))
+            {
+                int instType = listLocToTypeID[currentInstLoc].first;
+                int instID = listLocToTypeID[currentInstLoc].second;
+                //工艺选择指令
+                if (instType == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK)
+                {
+                    bodyScriptText += "--change present craft loc--\n";
+                    // 当前工艺指令在指令列表中的位置
+                    bodyScriptText += strReplace("write_int16_register(%1, %2)\n", std::vector<int>{WeldControlAddressLaserSdk::INT_REG_PRESENT_CRAFT_LOC_664, currentInstLoc});
+                }
+                //安全点movej
+                else if (instType == InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK)
+                {
+                    if (!isWeld)
+                    {
+                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
+                    }
+                    bodyScriptText += "--safePointMoveJ--\n";
+                    bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0)});
+                    if (!isWeld)
+                    {
+                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
+                    }
+                }
+               //直线点位move
+                else if (instType == InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK)
+                {
+                    if (!isWeld)
+                    {
+                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
+                    }
+                    bodyScriptText += "--linePoint--\n";
+                    bodyScriptText += strReplace("movel(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0)});
+                    if (!isWeld)
+                    {
+                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
+                    }
+                }
+                //圆弧点位move
+                else if (instType == InstTypeLaserSdk::CIRCLE_POINT_INST_LASER_WELD_SDK)
+                {
+                    if (!isWeld)
+                    {
+                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc + 1, bodyScriptText);
+                    }
+                    bodyScriptText += "--circlePoint--\n";
+                    int nextCirclePointID = listLocToTypeID[currentInstLoc + 1].second;
+                    bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0), std::to_string(0)});
+                    if (!isWeld)
+                    {
+                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
+                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc + 1, bodyScriptText);
+                    }
+
+                    // 跳过下一个圆弧定点并将最后一个定点的列表位置复制为下一个圆弧定点的位置
+                    currentInstLoc++;
+                }
+                //关节运动指令
+                else if (instType == InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK)
+                {
+                    if (!isWeld)
+                    {
+                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
+                    }
+
+                    bodyScriptText += "--jointPoint--\n";
+                    bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6),
+                                                                          std::to_string(emptyRunJointSpeed),
+                                                                          std::to_string(emptyRunJointAcc), std::to_string(0)});
+                    if (!isWeld)
+                    {
+                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
+                    }
+                }
+                currentInstLoc++;
+            }
+
+            // 遍历完了当前工艺下的所有指令
+            if (currentInstLoc > craftInstListEndLoc)
+            {
+                break;
+            }
+
+            // 获取当前焊接路径的起始与结束位置
+            weldInstListStartLoc = currentInstLoc;
+            weldInstListEndLoc = weldInstListStartLoc;
+            while (listLocToTypeID[weldInstListEndLoc].first != InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
+            {
+                weldInstListEndLoc++;
+            }
+
+            InstListTransEnvironmentData instListTransEnvironmentData; // 指令列表转换过程中的环境数据
+            instListTransEnvironmentData.craftID = craftID;
+            instListTransEnvironmentData.prePointLoc = -1;
+            instListTransEnvironmentData.roadCraftFlag = RoadCraftType::NO_ROAD_CRAFT;
+            instListTransEnvironmentData.isWeld = isWeld;
+            instListTransEnvironmentData.isWelding = false;
+
+
+            //拆分后路径的起始与终点位置
+            int segWeldInstListStartLoc = weldInstListStartLoc; //起始位置
+            int segWeldInstListEndLoc = weldInstListStartLoc;   //结束位置
+
+            // 遍历一段起收弧相应焊接路径内所有的指令
+            while (true)
+            {
+                // 根据焊接过程中的工艺指令将一段起收弧路径拆分为多段
+                while ((segWeldInstListEndLoc < weldInstListEndLoc) && (listLocToTypeID.count(segWeldInstListEndLoc + 1) != 0 && listLocToTypeID[segWeldInstListEndLoc + 1].first != InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK))
+                {
+                    if (listLocToTypeID[segWeldInstListEndLoc].first == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK)
+                    {
+                        instListTransEnvironmentData.craftID = listLocToTypeID[segWeldInstListEndLoc].second;
+                    }
+                    segWeldInstListEndLoc++;
+                }
+
+                CraftInfoLaserSdk &segCraftInfo = craftsMap[instListTransEnvironmentData.craftID];
+
+                //指令列表转换接口
+                 LaserSdkResult result = GetBasicCraftScript(laserMachineHandle, weldStartData, instListData, tempPointsMap, instListTransEnvironmentData, segWeldInstListStartLoc, segWeldInstListEndLoc, bodyScriptText);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+
+                // 结束当前起收弧路径的转换或者继续遍历拆分后的下一段
+                if (segWeldInstListEndLoc >= weldInstListEndLoc)
+                {
+                    break;
+                }
+                else
+                {
+                    segWeldInstListEndLoc += 1;
+                    segWeldInstListStartLoc = segWeldInstListEndLoc;
+                }
+            }
+
+
+
+            currentInstLoc = weldInstListEndLoc+1;
+        }
+
+    }
+
+   
+
+    std::string breakPointListScript;
+    std::string signalSetpPointLocListScript;
+    if(!isWeld)
+    {
+        // 进行断点列表的处理
+        for (int i = 0; i < weldStartData.breakPointNum; i++)
+        {
+            breakPointListScript += std::to_string(weldStartData.breakPointLocList[i]);  // 断点列表
+            if (i != weldStartData.breakPointNum - 1)
+            {
+                breakPointListScript += ", ";  // 逗号分隔
+            }
+        }
+
+        breakPointListScript = "breakPointLocList = {" + breakPointListScript + "}\n";
+        breakPointListScript += R"(
+    breakPointLocListLookUp = {}
+    for k, v in pairs(breakPointLocList) do
+        breakPointLocListLookUp[v] = 1
+    end
+)";
+
+        // 进行单步运行路点地址列表的处理
+        for (int i = 0; i < weldStartData.signalStepPointNum; i++)
+        {
+            signalSetpPointLocListScript += std::to_string(weldStartData.signalStepPointLocList[i]);
+            if (i != weldStartData.signalStepPointNum - 1)
+            {
+                signalSetpPointLocListScript += ", ";
+            }
+        }
+
+        signalSetpPointLocListScript = "signalSetpPointLocList = {" + signalSetpPointLocListScript + "}\n";
+        signalSetpPointLocListScript += R"(
+    signalSetpPointLocListLookUp = {}
+    for k, v in pairs(signalSetpPointLocList) do
+        signalSetpPointLocListLookUp[v] = 1
+    end
+)";
+    }
+
+    //组装最终要下发执行的脚本
+    std::string script;
+    script += breakPointListScript;
+    script += signalSetpPointLocListScript;
+    script += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
+    script += bodyScriptText;
+
+    //测试代码scripts
+    if(isWeld)
+    {    std::ofstream file("./startWeldFun.txt");
+        file << script;
+        file.close();
+    }
+    else
+    {
+        std::ofstream file("./trackSimulateFun.txt");
+        file << script;
+        file.close();
+    }
+
+    if(!strToChar(scripts, scriptLen, script))
+    {
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
     }
 
     return SUCCESS_LASER_SDK;

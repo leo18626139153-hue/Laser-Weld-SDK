@@ -83,8 +83,8 @@ struct InstListData
     //std::unordered_map<int, PitchAngleData> pitchAnglesMap; ///<焊接俯仰角°角度信息
     // std::unordered_map<int, CirclePitchAngleData> circlePitchAnglesMap; ///<圆弧俯仰角角度信息
     // std::unordered_map<int, std::vector<int> >moreLayerRoadCraftIDToRoadCraftsID; ///<多层道工艺ID到道工艺ID的映射
-    // std::vector<int> craftInstListCraftIDVec;   ///<道工艺实例列表
-    // std::unordered_map<int, std::pair<int, int>> craftInstListStartEndLoc;  ///<道工艺实例列表起始结束位置
+    std::vector<int> craftInstListCraftIDVec;   ///<道工艺实例列表
+    std::unordered_map<int, std::pair<int, int>> craftInstListStartEndLoc;  ///<道工艺实例列表起始结束位置
 };
 
 
@@ -125,10 +125,10 @@ struct IntervalWeldSegment
 struct InstListTransEnvironmentData
 {
     int craftID;                  // 工艺ID
-    int prePointLoc;              // 前一个点的位置
-    RoadCraftType roadCraftFlag;  // 道工艺类型
+    int prePointLoc;              // 前一个点的位置    
     bool isWeld;                  // 是否焊接 false->轨迹模拟 true->开始焊接
     bool isWelding;               // 是否正在焊接
+    RoadCraftType roadCraftFlag;  // 道工艺类型
 };
 
 #endif // CLINTERNALDATADEFINE_H

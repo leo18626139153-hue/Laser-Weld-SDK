@@ -70,47 +70,66 @@ std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc,int writeValue);
 std::string strSetStandardDigitalReplace(int srcStr, bool vecStr);
 //
 
+
+/* ---   读写寄存器   --- */
 //write_ect_pdo
-template <typename T, typename Y>
-std::string strWritePdoReplace(T srcStr, Y vecStr);
-
+template<typename T, typename Y>
+inline std::string strWritePdoReplace(T srcStr, Y vecStr)
+{
+    return strReplace(strReplace("%1=write_ect_pdo(%2)\n", "%1", srcStr), "%2", vecStr);
+}
 //read_ect_pdo
-template <typename T, typename Y>
-std::string strReadPdoReplace(T returnStr, Y addrStr);
-
+template<typename T, typename Y>
+inline std::string strReadPdoReplace(T returnStr, Y addrStr)
+{
+    return strReplace(strReplace("%1=read_ect_pdo(%2)\n", "%1", returnStr), "%2", addrStr);
+}
 //write_int16_register
 template <typename T, typename Y>
-std::string strWriteModbusReplace(T srcStr, Y vecStr);
-
+inline std::string strWriteModbusReplace(T srcStr, Y vecStr)
+{
+    return strReplace(strReplace("write_int16_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
+}
 //read_int16_register
-template <typename T, typename Y>
-std::string strReadModbusReplace(T returnStr, Y addrStr);
-
+template<typename T, typename Y>
+inline std::string strReadModbusReplace(T returnStr, Y addrStr)
+{
+    return strReplace(strReplace("%1=read_int16_register(%2)\n", "%1", returnStr), "%2", addrStr);
+}
 //write_float_register
-template <typename T, typename Y>
-std::string strWritefloatRegReplace(T srcStr, Y vecStr);
-
+template<typename T, typename Y>
+inline std::string strWriteFloatRegReplace(T srcStr, Y vecStr)
+{
+    return strReplace(strReplace("write_float_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
+}
 //read_float_register
-template <typename T, typename Y>
-std::string strReadfloatRegReplace(T returnStr, Y addrStr);
-
+template<typename T, typename Y>
+std::string strReadFloatRegReplace(T returnStr, Y addrStr)
+{
+    return strReplace(strReplace("%1=read_float_register(%2)\n", "%1", returnStr), "%2", addrStr);
+}
 //write_bool_register
-template <typename T, typename Y>
-std::string strWriteBoolRegReplace(T srcStr, Y vecStr);
+template<typename T, typename Y>
+inline std::string strWriteBoolRegReplace(T srcStr, Y vecStr)
+{
+    return strReplace(strReplace("write_bool_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
+}
 
-////moveL
+/* --- 运动脚本 --- */
+//moveL
 template <typename X, typename Y, typename Z, typename N>
 std::string strMoveLReplace(X data1, Y data2, Z data3, N data4);
 //moveJ
 template <typename X, typename Y, typename Z, typename N>
 std::string strMoveJReplace(X data1, Y data2, Z data3, N data4);
-
-///moveC
+//moveC
 template <typename X, typename Y, typename Z, typename N, typename M, typename P>
 std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6);
 
 /// 比较两个浮点数是否相等的函数
 //bool isEqual(double a, double b);
+
+
 
 //对16位数据进行高低字节拆分
 std::tuple<int, int> splitHighLowByteValue(double value);

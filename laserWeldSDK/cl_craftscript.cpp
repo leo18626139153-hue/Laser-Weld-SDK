@@ -492,6 +492,19 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+//工艺参数设置脚本获取
+LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk &craftInfo, std::string &script)
+{
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    CgxiLaserHeadLaserSdk &laserHeadParams  = machineResource.laserHeadParams;
+    CgxiWireFeederLaserSdk &wireFeederParams  = machineResource.wireFeederParams;
+    CgxiLaserPowerLaserSdk &laserPowerParams  = machineResource.laserPowerParams;
+    std::string localAddr = "{0X%04X}";
+    std::stringstream localParam;
+    
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
 //激光头对应参数读取
 LaserSdkResult CommuRS485::craft_laser_head_param_read_script_get(LaserMachineHandle laserMachineHandle, std::string &script)
 {

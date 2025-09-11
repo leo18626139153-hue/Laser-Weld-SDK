@@ -132,7 +132,7 @@ typedef struct CgxiLaserPowerLaserSdk
     int laserPowerClose;        ///< 关光功率 0-5000W
     int laserRampUpTime;        ///< 开光渐进时间 0~1000ms
     int laserRampDownTime;      ///< 关光渐进时间{关光渐进距离 0~300mm, 根据机器人移动速度换算}
-    int wireFeedAdvanceTime;     ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
+    int wireFeedAdvanceTime;    ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
     int gasShutoffDelayTime;       ///< 关气渐进 滞后送气时间	0~3000ms
     int gasStartupAdvanceTime;     ///< 开气渐进 提前送气时间	0~3000ms
     int spotWeldDurationTime;      ///<点焊持续时间 0~60000ms	整型
@@ -160,29 +160,28 @@ enum SpotPatternLaserSdk
     CROSS_LASERSDK = 5      ///< 十字形（参数：边长mm）
 };
 
-///< 激光头
+///< 激光头工艺参数
 typedef struct CgxiLaserHeadLaserSdk
 {
-    SpotPatternLaserSdk laserSpotPattern;   ///<光斑图案
-    int laserHeadSpinAngle;         ///<旋转角度 0~360°	整型
+    SpotPatternLaserSdk laserSpotPattern;   ///< 光斑图案
+    int laserHeadSpinAngle;         ///< 旋转角度 0~360° 整型
     int laserHeadPeakPower;         ///< 峰值功率
     int laserHeadDutyCycle;         ///< 占空比
     int laserHeadLowPulseFrequency;      ///< 脉冲频率 低位
     int laserHeadHighPulseFrequency;     ///< 脉冲频率 高位
-    int laserHeadScanSpeed;      ///<扫描速度 0~2000mm/s	整型
-    double laserHeadScanWidth;   ///<扫描宽度 0.1~5mm 	浮点型
-    double laserHeadScanHeight;  ///<扫描高度 0.1~5mm	浮点型
+    int laserHeadScanSpeed;      ///< 扫描速度 0~3000mm/s	整型
+    double laserHeadScanWidth;   ///< 扫描宽度 0.1~5mm 	浮点型
+    double laserHeadScanHeight;  ///< 扫描高度 0.1~5mm	浮点型
     SwitchTypeLaserSdk WireFeederGasSignalSwitch;      ///< 送气信号开关 激光头厂家内控地址
     SwitchTypeLaserSdk WireFeederSignalSwitch;         ///< 送丝信号开关 激光头厂家内控地址
 
 } CgxiLaserHeadLaserSdk;
 
-// 水冷机
+// 水冷机 尚未使用
 typedef struct CgxiWaterCoolerLaserSdk
 {
     BOOL isWaterCoolerStart;   ///< 是否 水冷机开机
-    BOOL isWaterCoolerAlarm;     ///< 水冷机报警
-
+    BOOL isWaterCoolerAlarm;   ///< 水冷机报警
 } CgxiWaterCoolerLaserSdk;
 
 ///< 送丝机
@@ -193,21 +192,32 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederDataSave;                ///< 是否保存送丝机数据
     BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
-    BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号    
-    WeldFuncLaserSdk wireFeedFunction;            ///< 送丝机模式设置(0	连续  1	脉冲) 0x010CR/W
-    //WeldFuncLaserSdk wireCutFunction;    断丝模式 0：常规 1：高速（仅步进有效）0x010DR/W
+    BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
+    WeldFuncLaserSdk wireFeedFunction;        ///< 送丝机模式设置(0	连续  1	脉冲) 0x010C R/W
+    //WeldFuncLaserSdk wireCutFunction;    断丝模式 0：常规 1：高速（仅步进有效）0x010D R/W
 
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederManualFeedSpeed;             ///< 手动送丝速度 15~600cm/min 0x0101 R/W
     int wireFeederManualBackSpeed;             ///< 手动回抽速度 15~600 cm/min 0x0102 R/W
-    int wireFeederFeedLength;                  ///< 送丝长度
+    int wireFeederFeedLength;                  ///< 补丝长度
     int wireFeederBackLength;                  ///< 抽丝长度
     int wireFeederWaitTime;                    ///< 延时等待时间
-    int wireFeederSmoothness;       ///< 平滑度 25 %~80 % 0x0108 R/W
-    int wireFeederPulsePeriod;      ///< 脉冲周期
+    int wireFeederSmoothness;                  ///< 平滑度 25 %~80 % 0x0108 R/W
+    int wireFeederPulsePeriod;                 ///< 脉冲周期
 
 } CgxiWireFeederLaserSdk;
 
+///< 机械臂参数
+typedef struct CgxiRobotLaserSdk
+{
+    double emptyRunTCPSpeed;            //空走TCP速度
+    double emptyRunTCPAcc;              //空走TCP加速度
+    double weldTCPAcc;                  //焊接TCP加速度
+    double emptyRunJointSpeed;          //空走关节速度
+    double emptyRunJointAcc;            //空走关节加速度
+    double emptyPointTransitionRadius;  //空走点位过渡半径
+    double weldPointTransitionRadius;   //焊接点位过渡半径
+}CgxiRobotLaserSdk;
 
 /// 焊机资源 ///
 typedef struct MachineResource
@@ -216,19 +226,20 @@ typedef struct MachineResource
     RobotHandle robotHandle;        ///< 机器人句柄
 
     /* 读---------- 输入状态地址 ---------- */
+    //送丝机参数
     unsigned int wireFeederOvercurrentLoc;   ///< 送丝机过流告警地址 (1:告警 2:正常) 0x0112 → ​​274​
     unsigned int wireFeederStatusLoc;        ///< 送丝机运行状态地址 (0:停止 1:运行) 0x0115 → ​​277
+    //激光头参数
     unsigned int laserHeadStatusLoc;         ///< 激光头系统状态地址 (0:出光（未使能） 1:出光（未使能）)  0x2000 → ​​8192​
     unsigned int globalAlarmLoc;             ///< 总报警状态地址 0x2001 → ​​8193​
     unsigned int infAlarmLoc;                ///< 报警信息地址 0x2002 → ​​8194​
+    //还没找到地址出处:
     unsigned int wireFeederConnectedLoc;     ///< 送丝机连接状态地址 (0:断开 1:已连接) 0x042e → ​​1070​
     unsigned int laserTriggerSignalLoc;      ///< 激光器扳机信号地址 (0:异常 1:正常)  0x0409 → ​​1033​
     unsigned int laserAlarmSignalLoc;        ///< 激光器报警信号地址 (0:异常 1:正常)  0x040a → ​​1034​
     unsigned int safetyLockInputLoc;         ///<  安全地锁信号地址 (0:异常 1:正常) 0x040b → ​​1035​
     unsigned int chillerAlarmInputLoc;       ///<  水冷机报警信号地址 (0:异常 1:正常) 0x040c → ​​1036​
     unsigned int airPressureAlarmLoc;        ///<  气压报警信号地址 (0:异常 1:正常) 0x040d → ​​1037​
-
-    /* 读---------- 控制输出 ---------- */
     unsigned int wireFeedOutputLoc;          ///<  送丝输出信号地址 (0:关闭 1:送丝) 0x040e → ​​1038​
     unsigned int pwmOutputLoc;               ///<  PWM输出信号地址 (0:无输出 1:有输出) 0x040f → ​​1039​
     unsigned int laserEnableOutputLoc;       ///<  激光使能输出信号地址 (0:无输出 1:有输出) 0x0410 → ​​1040​
@@ -279,11 +290,12 @@ typedef struct MachineResource
     unsigned int waterCoolerAlarmCodeLoc;      ///<  水冷机报警代码地址 (0 低电平，正常 || 1 高电平，报警) 0x023d → ​​573​
     unsigned int airPressureAlarmCodeLoc;      ///<  气压报警代码地址 (0 低电平，正常 || 1 高电平，报警).0x023e → ​​574​
 
+
     /* 读|写---------- 送丝机参数 ---------- */
     unsigned int autoWireFeedSpeedLoc;       ///<  自动送丝速度地址 0x0100 256
     unsigned int manualWireFeedSpeedLoc;     ///<  手动送丝速度地址 0x0101 257
     unsigned int manualWireRetractSpeedLoc;  ///<  手动抽丝速度地址 0x0102 258
-    unsigned int wireFeedLengthLoc;          ///<  送丝长度地址 0x0105 261
+    unsigned int wireFeedLengthLoc;          ///<  补丝长度地址 0x0105 261
     unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
     unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0	停    1	运行)  0x0140  320
     unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
@@ -298,7 +310,7 @@ typedef struct MachineResource
     CgxiLaserHeadLaserSdk laserHeadParams;     ///< 激光头参数
     CgxiLaserPowerLaserSdk laserPowerParams;   ///< 激光器参数
     CgxiWireFeederLaserSdk wireFeederParams;   ///< 送丝机参数
-    CgxiWaterCoolerLaserSdk waterCoolerParams; ///< 水冷机参数
+    CgxiRobotLaserSdk robotParams;             ///< 机械臂参数
 } MachineResource;
 
 
@@ -306,9 +318,9 @@ typedef struct MachineResource
 enum CraftTypeLaserSdk
 {
     BASIC_CRAFT_LASER_SDK = 0,                       ///< 基础工艺
-    PENDULUM_CRAFT_LASER_SDK = 1,                    //摆弧工艺
-    MULTILAYER_CHANNEL_CRAFT_LASER_SDK = 2,          //多层多道
-    MULTILAYER_CHANNEL_AUTO_CAL_CRAFT_LASER_SDK = 3  //多层多道自动计算
+    // PENDULUM_CRAFT_LASER_SDK = 1,                    //摆弧工艺
+    // MULTILAYER_CHANNEL_CRAFT_LASER_SDK = 2,          //多层多道
+    // MULTILAYER_CHANNEL_AUTO_CAL_CRAFT_LASER_SDK = 3  //多层多道自动计算
 };
 
 /// ---指令类型///
@@ -316,27 +328,32 @@ enum CraftTypeLaserSdk
 //工艺信息
 struct CraftInfoLaserSdk
 {
-    int deliveryTime;       //提前送气时间
-    double arcStartCurrent; //起弧电流
-    double arcStartVoltage; //起弧电压
-    int arcStartTransTime;  //起弧过渡时间
-    double weldSpeed;       //焊接速度
-    double weldCurrent;     //焊接电流
-    double weldVoltage;     //焊接电压
-    double arcEndCurrent;   //收弧电流
-    double arcEndVoltage;   //收弧电压
-    int craterTime;         //弧坑时间
-    int delayedAirTime;     //滞后送气时间
-    double frequency;                 // 频率
-    double amplitude;                 // 振幅
-    int leftWaitTime;                 // 左停留时间
-    int rightWaitTime;                // 右停留时间
-    int bottomWaitTime;               // 底部端点停留时间
-    int diffPlaneAngle;               // 异面夹角
-    int relativePitchAngle;           // 相对俯仰角
-    double arcRadius;                 // 弧形半径
-    double swingInclinationAngle;     // 摆弧倾斜角
+    SpotPatternLaserSdk laserSpotPattern;   ///<光斑图案
+    int laserHeadScanSpeed;      ///<扫描速度 0~3000mm/s	整型
+    double laserHeadScanWidth;   ///<扫描宽度 0.1~5mm 	浮点型
+    double laserHeadScanHeight;  ///<扫描高度 0.1~5mm	浮点型
 
+    double laserHeadXOffset;    ///< X偏移 -3~+3mm	浮点型
+    double laserHeadYOffset;    ///< Y偏移 -3~+3mm	浮点型
+    double laserHeadXEnlarge;   ///< X放大 0.01~4	浮点型
+    double laserHeadYEnlarge;   ///< Y放大 0.01~4	浮点型
+
+    int gasStartupAdvanceTime;     ///<  提前送气时间	0~3000ms
+    int gasShutoffDelayTime;       ///<  滞后送气时间	0~3000ms
+
+    int laserPowerOpen;         ///< 起焊功率  开光功率 0-5000W
+    int laserRampUpTime;        ///< 起焊过渡时间(ms) 开光渐进时间 0~1000ms
+
+    int laserPower;             ///< 激光器功率 0-5000W
+    double weldSpeed;              // 焊接速度 
+    int endDistance;            // 收尾过渡距离 0~300mm
+    //int laserRampDownTime = endDistance / weldSpeed   ///< 关光渐进时间 {收尾过渡距离 0~300mm, 根据机器人移动速度换算}
+    int laserPowerClose;        ///< 关光功率 收尾激光器功率 0-5000W
+
+    int wireBackAheadLength;     ///< 提前回抽距离(mm)
+    int wireOutStartSpeed;       ///< 起焊送丝（cm/min）
+    int wireOutIngSpeed;         ///< 焊接送丝（cm/min）
+    int wireBackIngSpeed;        ///< 收尾送丝（cm/min）
 };
 
 //路点类型
@@ -358,37 +375,31 @@ struct PointDataLaserSdk
 //指令列表转换数据
 struct LaserWeldStartData
 {
-   int *instList;                              ///< { 指令枚举，在对应数据列表中的地址 } 数对列表
-   int instNum;                                ///< 指令数对列表中数对对数
+   int *instList;                               ///< { 指令枚举，在对应数据列表中的地址 } 数对列表
+   int instNum;                                 ///< 指令数对列表中数对对数
    CraftInfoLaserSdk *craftInfoList;            ///< 工艺信息列表
-   int craftNum;                               ///< 工艺信息列表长度
+   int craftNum;                                ///< 工艺信息列表长度
    PointDataLaserSdk *pointList;                ///< 路点数据列表
-   int pointsNum;                              ///< 路点数据列表长度
+   int pointsNum;                               ///< 路点数据列表长度
    bool isOpenWireBack; ///< 是否开启焊丝回抽
    int wireBackTime;    ///< 焊丝回抽时间
    int *signalStepPointLocList; ///< 单步运行路点位置列表
    int signalStepPointNum;      ///< 单步运行路点位置列表长度
    int *breakPointLocList; ///< 断点位置列表
    int breakPointNum;      ///< 断点位置列表长度
-   // PitchAngleData *pitchAngleList;             // 直线俯仰角数据列表
-   // int pitchAngleNum;                          // 直线俯仰角数据列表长度
-   // CirclePitchAngleData *circlePitchAngleList; // 圆弧俯仰角数据列表
-   // int circlePitchAngleNum;                    // 圆弧俯仰角数据列表长度
-   // bool isMoreLayerRoadLapWeld; // 是否进行多层多道搭接
-   // int lapWeldRoadLoc;          // 多层多道搭接道路径的位置
 };
 
 //指令类型
 enum InstTypeLaserSdk
 {
-    CRAFT_SElECT_INST_LASER_WELD_SDK = 0,      // 工艺模板指令
+    CRAFT_SELECT_INST_LASER_WELD_SDK = 0,      // 工艺模板指令
     ARC_START_INST_LASER_WELD_SDK = 1,         // 起弧指令
     ARC_END_INST_LASER_WELD_SDK = 2,           // 收弧指令
     LINE_POINT_INST_LASER_WELD_SDK = 3,        // 直线定点指令
     CIRCLE_POINT_INST_LASER_WELD_SDK = 4,      // 圆弧定点指令
     JOINT_POINT_INST_LASER_WELD_SDK = 5,       // 关节运动指令
-    SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  // 安全点指令
-    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  // 安全点指令
+    SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  // 安全点指令 MoveL
+    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  // 安全点指令 MoveJ
     // LINE_PITCH_ANGLE_INST_LASER_WELD_SDK = 8,  // 计算直线俯仰角指令
     // CIRCLE_PITCH_ANGLE_INST_LASER_WELD_SDK = 9 // 计算圆弧俯仰角指令
 };
@@ -414,10 +425,10 @@ enum WeldControlAddressLaserSdk
     INT_REG_WELD_MODE_660 = 660,        // 执行模式：0.空状态 1.轨迹模拟 2.焊接
     INT_REG_WELD_STATE_661 = 661,       // 非0表示上一个已经到达的路点在指令列表中的位置,为0表示不在起收弧中间
 
-    INT_REG_WELD_PATH_662 = 662,        // 焊接路径分段信息
-    INT_REG_ARRIVE_POINT_LOC_663 = 663, // 轨迹模拟下已到达的定点指令位置 用于高亮显示
+    INT_REG_WELD_PATH_662 = 662,         // 焊接路径分段信息
+    INT_REG_ARRIVE_POINT_LOC_663 = 663,  // 轨迹模拟下已到达的定点指令位置 用于高亮显示
 
-    INT_REG_PRESENT_CRAFT_LOC_664 = 664,               // 当前工艺指令在指令列表中的位置
+    INT_REG_PRESENT_CRAFT_LOC_664 = 664, // 当前工艺指令在指令列表中的位置
 
     // 激光通讯的交互
     INT_REG_WRITE_PARAMETER_62 = 62,

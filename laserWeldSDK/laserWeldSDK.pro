@@ -28,13 +28,14 @@ SOURCES += \
 HEADERS += \
     cl_api.h \
     cl_basedefine.h \
+    cl_utils.h \
     cl_comandlistscript.h \
     cl_craftscript.h \
     cl_internaldatadefine.h \
     cl_luascript.h \
     cr_sdk/include/basestruct.h \
     cr_sdk/include/robotapi.h \
-    cl_utils.h
+
 
 #如果编译时报错找不到WDK相关系统文件，解开这段注释并修改为当前电脑中相应的WDK地址
 #INCLUDEPATH += "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17763.0/ucrt"

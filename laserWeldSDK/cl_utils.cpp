@@ -1,7 +1,4 @@
 #include "cl_utils.h"
-
-//#include"cwutils.h"
-//#include"cwmath.h"
 #include <sstream>
 #include <iomanip>
 
@@ -481,49 +478,7 @@ std::string strSetStandardDigitalReplace(int srcStr, bool vecStr)
     return strReplace(strReplace("set_standard_digital_out(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
 
-template<typename T, typename Y>
-std::string strWritePdoReplace(T srcStr, Y vecStr)
-{
-    return strReplace(strReplace("%1=write_ect_pdo(%2)\n", "%1", srcStr), "%2", vecStr);
-}
 
-template<typename T, typename Y>
-std::string strReadPdoReplace(T returnStr, Y addrStr)
-{
-    return strReplace(strReplace("%1=read_ect_pdo(%2)\n", "%1", returnStr), "%2", addrStr);
-}
-
-template<typename T, typename Y>
-std::string strWriteModbusReplace(T srcStr, Y vecStr)
-{
-    return strReplace(strReplace("write_int16_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
-
-}
-
-template<typename T, typename Y>
-std::string strReadModbusReplace(T returnStr, Y addrStr)
-{
-    return strReplace(strReplace("%1=read_int16_register(%2)\n", "%1", returnStr), "%2", addrStr);
-
-}
-
-template<typename T, typename Y>
-std::string strWriteFloatRegReplace(T srcStr, Y vecStr)
-{
-    return strReplace(strReplace("write_float_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
-}
-
-template<typename T, typename Y>
-std::string strReadFloatRegReplace(T returnStr, Y addrStr)
-{
-    return strReplace(strReplace("%1=read_float_register(%2)\n", "%1", returnStr), "%2", addrStr);
-}
-
-template<typename T, typename Y>
-std::string strWriteBoolRegReplace(T srcStr, Y vecStr)
-{
-    return strReplace(strReplace("write_bool_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
-}
 
 template<typename X, typename Y, typename Z, typename N>
 std::string strMoveLReplace(X data1, Y data2, Z data3, N data4)
