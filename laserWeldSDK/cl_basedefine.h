@@ -126,7 +126,7 @@ typedef struct CgxiLaserPowerLaserSdk
     BOOL isLaserOn;             ///< 是否 出光
     BOOL isLaserAlarm;          ///< 激光器有无报警
     WeldModeLaserSdk weldMode;  ///< 焊接模式(0 点焊 - 1 连续)
-    
+
     int laserPower;             ///< 激光器功率 0-5000W
     int laserPowerOpen;         ///< 开光功率 0-5000W
     int laserPowerClose;        ///< 关光功率 0-5000W
@@ -217,7 +217,7 @@ typedef struct CgxiRobotLaserSdk
     double emptyRunJointAcc;            //空走关节加速度
     double emptyPointTransitionRadius;  //空走点位过渡半径
     double weldPointTransitionRadius;   //焊接点位过渡半径
-}CgxiRobotLaserSdk;
+} CgxiRobotLaserSdk;
 
 /// 焊机资源 ///
 typedef struct MachineResource
@@ -262,7 +262,7 @@ typedef struct MachineResource
     /* 写---------- 焊接工艺 ---------- */
     unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
 
-    /* 读|写 ------ 激光器 - 工艺参数 ------ */   
+    /* 读|写 ------ 激光器 - 工艺参数 ------ */
 
     unsigned int laserPowerLoc;              ///<  激光器功率地址 0x0230 560
     unsigned int laserOnPowerLoc;            ///<  开光功率地址 0x0231 561
@@ -301,7 +301,7 @@ typedef struct MachineResource
     unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
     /*写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
-    
+
     /* 写---- 连续模式下的送丝机参数---------- */
     unsigned int pulsePeriodLoc;             ///<  脉冲周期地址 0x0107 263
     unsigned int smoothnessLoc;              ///<  平滑度地址  0x0108 264
@@ -385,18 +385,18 @@ struct PointDataLaserSdk
 //指令列表转换数据
 struct LaserWeldStartData
 {
-   int *instList;                               ///< { 指令枚举，在对应数据列表中的地址 } 数对列表
-   int instNum;                                 ///< 指令数对列表中数对对数
-   CraftInfoLaserSdk *craftInfoList;            ///< 工艺信息列表
-   int craftNum;                                ///< 工艺信息列表长度
-   PointDataLaserSdk *pointList;                ///< 路点数据列表
-   int pointsNum;                               ///< 路点数据列表长度
-   bool isOpenWireBack; ///< 是否开启焊丝回抽
-   int wireBackTime;    ///< 焊丝回抽时间
-   int *signalStepPointLocList; ///< 单步运行路点位置列表
-   int signalStepPointNum;      ///< 单步运行路点位置列表长度
-   int *breakPointLocList; ///< 断点位置列表
-   int breakPointNum;      ///< 断点位置列表长度
+    int *instList;                               ///< { 指令枚举，在对应数据列表中的地址 } 数对列表
+    int instNum;                                 ///< 指令数对列表中数对对数
+    CraftInfoLaserSdk *craftInfoList;            ///< 工艺信息列表
+    int craftNum;                                ///< 工艺信息列表长度
+    PointDataLaserSdk *pointList;                ///< 路点数据列表
+    int pointsNum;                               ///< 路点数据列表长度
+    bool isOpenWireBack; ///< 是否开启焊丝回抽
+    int wireBackTime;    ///< 焊丝回抽时间
+    int *signalStepPointLocList; ///< 单步运行路点位置列表
+    int signalStepPointNum;      ///< 单步运行路点位置列表长度
+    int *breakPointLocList; ///< 断点位置列表
+    int breakPointNum;      ///< 断点位置列表长度
 };
 
 //指令类型
@@ -476,6 +476,30 @@ enum AdvanceAngleType
 
 };
 
+//计算回退点 - 圆弧
+struct RollbackCircleData
+{
+    double startPoint[6];           ///<起点 基于基坐标系下固定路点的位姿
+    double transPoint[6];           ///<过度点 基于基坐标系下固定路点的位姿
+    double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
+    double stopPoint[6];            ///<停止点
+    double distance;            ///<延迟距离
+
+    double stopMappingPoint[6];     ///<停止点的映射点 - 出参
+    double startPointOut[6];        ///<起点 基于基坐标系下固定路点的位姿 - 出参
+    double transPointOut[6];        ///<过度点 基于基坐标系下固定路点的位姿 - 出参
+    double endPointOut[6];          ///<终点 基于基坐标系下固定路点的位姿 - 出参
+};
+
+//计算回退点 - 圆弧
+struct RollbackStraightLineData
+{
+    double startPoint[6];           ///<起点 基于基坐标系下固定路点的位姿
+    double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
+    double distance;                ///<延迟距离
+
+    double pointOut[6];        ///<降功率点 - 出参
+};
 
 
 #endif // CL_BASEDEFINE_H

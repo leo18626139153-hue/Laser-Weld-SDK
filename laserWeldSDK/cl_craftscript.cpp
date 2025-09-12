@@ -1,4 +1,4 @@
-#include "cl_craftscript.h"
+﻿#include "cl_craftscript.h"
 #include "cl_api.h"
 #include "cl_utils.h"
 #include "cl_luascript.h"
@@ -31,15 +31,15 @@ LaserSdkResult CommuBase::craft_script_judge_signal_setp_run_script_get(int inst
 {
     unsigned int signalSetpStatusLoc = WeldControlAddressLaserSdk::BOOL_REG_SINGLE_STEP_RUN_616;
 
-        std::string scriptText = R"(
+    std::string scriptText = R"(
         if(read_bool_register(%1) == 1 and signalSetpPointLocListLookUp[%2] == 1)
         then
             pause()
         end
         )";
 
-        script += strReplace(scriptText, std::vector<std::string>{std::to_string(signalSetpStatusLoc), std::to_string(instLoc)});
-        return LaserSdkResult::SUCCESS_LASER_SDK;
+    script += strReplace(scriptText, std::vector<std::string> {std::to_string(signalSetpStatusLoc), std::to_string(instLoc)});
+    return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 //断点判断
@@ -54,7 +54,7 @@ LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc,
         pause()
     end
     )";
-    script += strReplace(scriptText, std::vector<std::string>{std::to_string(instLoc), std::to_string(runBreakPointStatusLoc)});
+    script += strReplace(scriptText, std::vector<std::string> {std::to_string(instLoc), std::to_string(runBreakPointStatusLoc)});
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -69,7 +69,10 @@ std::string CommuBase::loadLuaFunctionScriptOut()
 
 CommuRS485 *CommuRS485::GetInstance()
 {
-    std::call_once(initFlag, [](){s_commuRS485 = new CommuRS485();});
+    std::call_once(initFlag, []()
+    {
+        s_commuRS485 = new CommuRS485();
+    });
     return s_commuRS485;
 }
 CommuRS485::CommuRS485()
@@ -209,11 +212,11 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         //如果地址未赋值，返回错误
         writeDataHash.emplace(addr, std::make_pair(useScript.str(), funcDef));
     };
-    
-             
+
+
     // 1. 写入激光器功率 (0-5000W, 整型)
     addParam("write_laser_power", "number10",
-            int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc);
+             int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc);
 
     // 2. 写入开光功率 (0-5000W, 整型)
     addParam("write_open_power", "number11",
@@ -274,13 +277,16 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
              int16Reg, laserPowerParams.spotWeldIntervalTime, machineResource.spotWeldIntervalLoc);
 
     // 按指定地址顺序添加脚本
-    for (unsigned int addr : locVec) {
+    for (unsigned int addr : locVec)
+    {
         auto it = writeDataHash.find(addr);
-        if (it != writeDataHash.end()) {
+        if (it != writeDataHash.end())
+        {
             script += it->second.first;           // 调用函数
             loadLuaFunctionScript += it->second.second; // 函数定义
         }
-        else {
+        else
+        {
             std::cerr << "Warning: Missing Lua script for laser address 0x"
                       << std::hex << addr << std::dec << std::endl;
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
@@ -306,11 +312,11 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 //        return PARAMETER_ERROR_LASER_SDK;
 //    if (laserHeadParams.laserHeadSpinAngle < 0 || laserHeadParams.laserHeadSpinAngle > 360)
 //        return PARAMETER_ERROR_LASER_SDK;
-    
-    
+
+
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
     auto addParam = [&](const std::string& funcName, const std::string& paramName,
-                      CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF, int waitTime = 0)
+                        CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF, int waitTime = 0)
     {
         //没有写入地址
         if(addr == 0xFFFFFFFF)
@@ -384,9 +390,11 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     addParam("write_laser_graphics", "laserGraphicNum",
              int16Reg, static_cast<int>(laserHeadParams.laserSpotPattern), machineResource.laserHeadPatternIdLoc);
 
-    for (unsigned int addr : locVec) {
+    for (unsigned int addr : locVec)
+    {
         auto it = writeDataHash.find(addr);
-        if (it != writeDataHash.end()) {
+        if (it != writeDataHash.end())
+        {
             script += it->second.first;
             loadLuaFunctionScript += it->second.second;
         }
@@ -412,7 +420,7 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     const int wireFeedLength = wireFeederParams.wireFeederFeedLength;
     const int wireRetractLength = wireFeederParams.wireFeederBackLength;
 
-    
+
     // 存储所有函数定义和调用脚本的数据结构
     std::unordered_map<unsigned int, std::pair<std::string, std::string>> writeDataHash;
 
@@ -445,7 +453,7 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
 
     // 0. 是否保存当前送丝机数据 地址 0x013F → ​​319​
     addParam("write_wirefeeder_save_current_data", "saveCurrentWireFeederData",
-             int16Reg, wireFeederParams.isWireFeederDataSave, machineResource.saveCurrentWireFeederDataLoc);    
+             int16Reg, wireFeederParams.isWireFeederDataSave, machineResource.saveCurrentWireFeederDataLoc);
 
     // 1. 自动送丝速度
     addParam("write_wirefeeder_auto_send_speed", "autoWireFeedSpeed",
@@ -475,9 +483,11 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     addParam("write_wirefeeder_manual_retrack_switch", "manualWireRetractSwitch",
              int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc);
 
-    for (unsigned int addr : locVec) {
+    for (unsigned int addr : locVec)
+    {
         auto it = writeDataHash.find(addr);
-        if (it != writeDataHash.end()) {
+        if (it != writeDataHash.end())
+        {
             script += it->second.first;
             loadLuaFunctionScript += it->second.second;
         }
@@ -501,7 +511,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     CgxiLaserPowerLaserSdk &laserPowerParams  = machineResource.laserPowerParams;
     std::string localAddr = "{0X%04X}";
     std::stringstream localParam;
-    
+
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -521,7 +531,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_read_script_get(LaserMachineHa
                    << "read_laser_graphics()\n";
     script += use_write_data.str();
     loadLuaFunctionScript += read_scanning_speed + read_scanning_width + read_peak_power + read_duty_cycle
-                            + read_pulse_frequency + read_scanning_height + read_rotation_angle + read_laser_graphics;
+                             + read_pulse_frequency + read_scanning_height + read_rotation_angle + read_laser_graphics;
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -540,15 +550,9 @@ LaserSdkResult CommuRS485::craft_laser_head_setting_set_script_get(LaserMachineH
     std::stringstream use_write_data;
     script = mainFuncProgram + Lua_split + Lua_get_message + Lua_crc16 + swap_bytes_for_word
 
-            + RobotProgram1
-            + use_write_data.str()
-            + RobotProgram2;
+             + RobotProgram1
+             + use_write_data.str()
+             + RobotProgram2;
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
-
-
-
-
-
-

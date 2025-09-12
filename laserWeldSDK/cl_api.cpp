@@ -3,6 +3,7 @@
 #include "cl_craftscript.h"
 #include "cl_luascript.h"
 #include "cl_comandlistscript.h"
+#include "cl_gradualriseandfall.h"
 
 #include <functional>
 #include <thread>
@@ -173,7 +174,8 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
     };
 
     //送丝机地址参数 - 自动送丝速度
-    std::vector<unsigned int> wireFeedVec = {
+    std::vector<unsigned int> wireFeedVec =
+    {
         machineResource.wireFeederStatusLoc,        ///< 送丝机运行状态地址 (0:停止 1:运行) 0x0115 → ​​277
         machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
         machineResource.operationModeLoc,           ///<  送丝机模式设置地址 0x010C 268
@@ -202,7 +204,7 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
         std::string arcStartProgram1 = "function arcStartProgram()\n";
         std::string arcStartProgram2 = "end\n"
-                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
+                                       "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartProgram2;
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
         scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
@@ -618,7 +620,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                 {
                     bodyScriptText += "--change present craft loc--\n";
                     // 当前工艺指令在指令列表中的位置
-                    bodyScriptText += strReplace("write_int16_register(%1, %2)\n", std::vector<int>{WeldControlAddressLaserSdk::INT_REG_PRESENT_CRAFT_LOC_664, currentInstLoc});
+                    bodyScriptText += strReplace("write_int16_register(%1, %2)\n", std::vector<int> {WeldControlAddressLaserSdk::INT_REG_PRESENT_CRAFT_LOC_664, currentInstLoc});
                 }
                 //安全点movej
                 else if (instType == InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK)
@@ -635,7 +637,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
-               //直线点位move
+                //直线点位move
                 else if (instType == InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK)
                 {
                     if (!isWeld)
@@ -679,8 +681,9 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
                     bodyScriptText += "--jointPoint--\n";
                     bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6),
-                                                                          std::to_string(emptyRunJointSpeed),
-                                                                          std::to_string(emptyRunJointAcc), std::to_string(0)});
+                                                 std::to_string(emptyRunJointSpeed),
+                                                 std::to_string(emptyRunJointAcc), std::to_string(0)
+                                                                         });
                     if (!isWeld)
                     {
                         bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
@@ -732,7 +735,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                 CraftInfoLaserSdk &segCraftInfo = craftsMap[instListTransEnvironmentData.craftID];
 
                 //指令列表转换接口
-                 LaserSdkResult result = GetBasicCraftScript(laserMachineHandle, weldStartData, instListData, tempPointsMap, instListTransEnvironmentData, segWeldInstListStartLoc, segWeldInstListEndLoc, bodyScriptText);
+                LaserSdkResult result = GetBasicCraftScript(laserMachineHandle, weldStartData, instListData, tempPointsMap, instListTransEnvironmentData, segWeldInstListStartLoc, segWeldInstListEndLoc, bodyScriptText);
                 if (result != LaserSdkResult::SUCCESS_LASER_SDK)
                 {
                     return result;
@@ -826,4 +829,51 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     return SUCCESS_LASER_SDK;
+}
+
+
+//直线 计算 降功率点
+LaserSdkResult cl_craft_straight_line_back_point_cal(RollbackStraightLineData* rollbackStraightLineData)
+{
+    // 调用 getNewTeachPoints 方法计算新的起点和终点
+    LaserSdkResult result = getStraightLineSlowUpPoint(
+                                rollbackStraightLineData->startPoint,
+                                rollbackStraightLineData->endPoint,
+                                rollbackStraightLineData->distance,
+                                rollbackStraightLineData->pointOut
+                            );
+
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+    {
+        std::cerr << "Failed to calculate new teach points." << std::endl;
+        return result;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+
+//圆弧 计算 降功率点
+LaserSdkResult cl_craft_circle_back_point_cal(RollbackCircleData* rollbackCircleData)
+{
+    // 调用 getNewTeachPoints 方法计算新的起点和终点
+    LaserSdkResult result = getCirclrSlowDownPoints(
+                                rollbackCircleData->startPoint,
+                                rollbackCircleData->transPoint,
+                                rollbackCircleData->endPoint,
+                                rollbackCircleData->stopPoint,
+                                rollbackCircleData->distance,
+                                rollbackCircleData->stopMappingPoint,
+                                rollbackCircleData->startPointOut,
+                                rollbackCircleData->transPointOut,
+                                rollbackCircleData->endPointOut
+                            );
+
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+    {
+        std::cerr << "Failed to calculate new teach points." << std::endl;
+        return result;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
 }

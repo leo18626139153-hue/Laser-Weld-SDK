@@ -108,6 +108,21 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineH
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char* scripts, int* scriptLen);
 
+/**
+ * @brief getLapRollbackCirclePoint     获取直线轨迹——根据终点和降功率点获取新的起点和终点
+ * @param RollbackStraightLineData         直线回退参数
+ * @return WeldSdkResult                处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(RollbackStraightLineData* rollbackStraightLineData);
+
+
+/**
+ * @brief getLapRollbackCirclePoint     获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
+ * @param RollbackCircleData         圆弧回退参数
+ * @return WeldSdkResult                处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(RollbackCircleData* rollbackCircleData);
+
 
 #ifdef __cplusplus
 }
