@@ -32,6 +32,10 @@ extern std::string read_scanning_height;      ///< 读取扫描高度的函数
 extern std::string read_rotation_angle;       ///< 读取旋转角度的函数
 extern std::string read_laser_graphics;       ///< 定义读取激光图形函数
 
+extern std::string write_function; //写参数定义
+extern std::string write_laser_params;  //写激光器参数
+extern std::string write_wire_params;   //写激光头参数
+
 
 
 #endif // CL_LUASCRIPT_H

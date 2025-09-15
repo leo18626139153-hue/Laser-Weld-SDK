@@ -807,6 +807,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     std::string script;
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
+    script += write_function;   //功能函数
     script += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
     script += bodyScriptText;
 

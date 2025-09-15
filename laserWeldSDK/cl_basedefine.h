@@ -497,7 +497,6 @@ struct RollbackStraightLineData
     double startPoint[6];           ///<起点 基于基坐标系下固定路点的位姿
     double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
     double distance;                ///<延迟距离
-
     double pointOut[6];        ///<降功率点 - 出参
 };
 

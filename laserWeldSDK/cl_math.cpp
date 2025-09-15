@@ -11,6 +11,7 @@ void vecCross(double xdir[3], double ydir[3], double result[3])
     result[2] = xdir[0] * ydir[1] - xdir[1] * ydir[0];
 }
 
+
 void normalizeVector(double Fn[3])
 {
     // 计算Fn的长度

@@ -2,6 +2,7 @@
 #include "cl_utils.h"
 #include "cl_internaldatadefine.h"
 #include "cl_craftscript.h"
+#include "cl_luascript.h"
 
 //计算交融半径
 LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r)
@@ -201,7 +202,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             case InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK:
             {    // 工艺模板指令
                 bodyScriptText += "--CRAFT_SELECT--\n";
-                bodyScriptText += "--111111111111--\n";
+                bodyScriptText += write_laser_params;
                 break;
             }
             case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
