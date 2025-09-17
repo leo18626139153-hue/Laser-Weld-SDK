@@ -498,7 +498,7 @@ std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6
     return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4), "%5", data5), "%6", data6);
 }
 
-bool strToChar(char* script, int* scriptLen, std::string& generatedScript)
+bool strToChar(char* script, int* scriptLen, const std::string& generatedScript)
 {
     if (script == nullptr || scriptLen == nullptr)
     {

@@ -126,7 +126,7 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r)
     *r =  radius;
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
-
+//返回相应的工艺通讯
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass)
 {
     //句柄
@@ -152,7 +152,7 @@ LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandl
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
-
+//
 LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, InstListData &instListData, std::unordered_map<int, PointDataLaserSdk> tempPointsMap, InstListTransEnvironmentData &instListTransEnvironmentData, int instListStartLoc, int instListEndLoc, std::string &bodyScriptText)
 {
     //句柄
@@ -183,6 +183,43 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
 
     int CraftID = instListTransEnvironmentData.craftID;
     CraftInfoLaserSdk& curCraftInfo = craftsMap[CraftID]; ///< 当前工艺信息
+    //工艺脚本赋值
+    ///激光参数赋值
+    std::string write_laser_params = "laserRegisterMap.gasONDelayLoc[2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n";
+    write_laser_params += "laserRegisterMap.gasOffDelayLoc[2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";
+    write_laser_params += "laserRegisterMap.laserOnPowerLoc[2] = "+ std::to_string(curCraftInfo.craftLeadInPower)+"\n";
+    write_laser_params += "laserRegisterMap.laserOnRampTimeLoc[2] = "+ std::to_string(curCraftInfo.craftLeadInRampTime)+"\n";
+    write_laser_params += "laserRegisterMap.laserPowerLoc[2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";
+    write_laser_params += "laserRegisterMap.laserOffPowerLoc[2] = "+ std::to_string(curCraftInfo.craftLeadOutPower)+"\n";
+    //关光渐进时间
+    int tempTime = curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed; 
+    write_laser_params += "laserRegisterMap.laserOffRampTimeLoc[2] = "+ std::to_string(tempTime)+"\n";
+
+    //激光头参数赋值
+    write_laser_params += "laserHeadRegisterMap.laserHeadPatternIdLoc[2] = "+ std::to_string(curCraftInfo.graphicsSwitching)+"\n";
+    write_laser_params += "laserHeadRegisterMap.laserHeadScanWidthLoc[2] = "+ std::to_string(curCraftInfo.craftScanWidth)+"\n";
+    write_laser_params += "laserHeadRegisterMap.laserHeadScanHeightLoc[2] = "+ std::to_string(curCraftInfo.craftScanHeight)+"\n";
+    write_laser_params += "laserHeadRegisterMap.laserHeadScanSpeedLoc[2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n";
+    write_laser_params += "laserHeadRegisterMap.laserHeadRotationAngleLoc[2] = "+ std::to_string(curCraftInfo.craftRotationAngle)+"\n";
+            
+    //YXYX轴偏移量
+    write_laser_params += "locationCalibration.laserHeadYScaleLoc[2] = "+ std::to_string(curCraftInfo.craftYAxisZoom)+"\n";
+    write_laser_params += "locationCalibration.laserHeadXScaleLoc[2] = "+ std::to_string(curCraftInfo.craftXAxisZoom)+"\n";
+    write_laser_params += "locationCalibration.laserHeadYOffsetLoc[2] = "+ std::to_string(curCraftInfo.craftYAxisOffset)+"\n";
+    write_laser_params += "locationCalibration.laserHeadXOffsetLoc[2] = "+ std::to_string(curCraftInfo.craftXAxisOffset)+"\n";
+
+    //焊接模式
+    write_laser_params += "weldingMode.weldingModeLoc[2] = "+ std::to_string(curCraftInfo.craftweldMode)+"\n";
+    //点焊工艺
+    write_laser_params += "spotWeld.spotWeldTypeLoc[2] = "+ std::to_string(curCraftInfo.craftWeldType)+"\n";
+    write_laser_params += "spotWeld.spotWeldDurationLoc[2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n";
+    write_laser_params += "spotWeld.spotWeldIntervalLoc[2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n";
+    /// 送丝机参数
+    std::string set_WireFeeder_params = "wire_feeder_registers.operationModeLoc[2] = "+ std::to_string(curCraftInfo.craftModeSetting)+"\n";
+    set_WireFeeder_params += "wire_feeder_registers.smoothnessLoc[2] = "+ std::to_string(curCraftInfo.craftSmoothness)+"\n";
+    set_WireFeeder_params += "wire_feeder_registers.pulsePeriodLoc[2] = "+ std::to_string(curCraftInfo.craftPulsePeriod)+"\n";
+    //送丝速度
+    set_WireFeeder_params += "wire_feeder_registers.autoWireFeedSpeed[2] = "+ std::to_string(curCraftInfo.craftWeldingWireFeed)+"\n";
 
     bool isWeld = instListTransEnvironmentData.isWeld;      ///< 真的焊接（1）还是模拟
 
@@ -203,6 +240,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             {    // 工艺模板指令
                 bodyScriptText += "--CRAFT_SELECT--\n";
                 bodyScriptText += write_laser_params;
+
                 break;
             }
             case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
@@ -353,4 +391,16 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
     }
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+int distributionID(std::unordered_set<int> &IDSet)
+{
+    // 生成唯一ID
+    int instID = distribution(engine);
+    while(IDSet.count(instID) != 0)
+    {
+        instID = distribution(engine);
+    }
+    IDSet.insert(instID);
+    return instID;
 }

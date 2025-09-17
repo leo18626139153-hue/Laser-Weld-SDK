@@ -301,10 +301,10 @@ typedef struct MachineResource
     unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
     /*写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
-
     /* 写---- 连续模式下的送丝机参数---------- */
-    unsigned int pulsePeriodLoc;             ///<  脉冲周期地址 0x0107 263
+    unsigned int pulsePeriodLoc;             ///<  脉冲周期地址 0x0107 263    
     unsigned int smoothnessLoc;              ///<  平滑度地址  0x0108 264
+    unsigned int pulseSpeedLoc;              ///<  平均速度(脉冲模式下的速度)地址 0x0109 265
     unsigned int operationModeLoc;           ///<  送丝机模式设置地址 0x010C 268
 
     CgxiLaserHeadLaserSdk laserHeadParams;     ///< 激光头参数
@@ -325,9 +325,6 @@ enum Material
 //工艺参数
 struct CraftInfoLaserSdk
 {
-    Material material;   ///< 材质
-    double thickness;    //厚度
-
     WeldModeLaserSdk craftweldMode; //焊接模式
     WeldLineTypeLaserSdk craftWeldType; //点焊类型
     int craftSpotWeldDuration;   //点焊持续时间
@@ -391,8 +388,6 @@ struct LaserWeldStartData
     int craftNum;                                ///< 工艺信息列表长度
     PointDataLaserSdk *pointList;                ///< 路点数据列表
     int pointsNum;                               ///< 路点数据列表长度
-    bool isOpenWireBack; ///< 是否开启焊丝回抽
-    int wireBackTime;    ///< 焊丝回抽时间
     int *signalStepPointLocList; ///< 单步运行路点位置列表
     int signalStepPointNum;      ///< 单步运行路点位置列表长度
     int *breakPointLocList; ///< 断点位置列表
@@ -409,7 +404,7 @@ enum InstTypeLaserSdk
     CIRCLE_POINT_INST_LASER_WELD_SDK = 4,      // 圆弧定点指令
     JOINT_POINT_INST_LASER_WELD_SDK = 5,       // 关节运动指令
     SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  // 安全点指令 MoveL
-    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  // 安全点指令 MoveJ
+    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7  // 安全点指令 MoveJ
 };
 
 /// 焊接控制寄存器位///
@@ -426,17 +421,17 @@ enum WeldControlAddressLaserSdk
     BOOL_REG_SINGLE_STEP_RUN_616 = 616, ///< 单步运行状态位： 1 ： 有效 | 0 ： 无效
     BOOL_REG_RUN_BREAK_POINT_617 = 617, ///< 运行中断点状态位：1 触发 | 0 未触发
 
-    INT_REG_ARC_START_FAIL_673 = 673,   // 起弧异常信号
-    INT_REG_WELD_INTERRUPT_674 = 674,   // 焊接中断信号
-    INT_REG_ARC_END_FAIL_675 = 675,     // 收弧异常信号
+    INT_REG_ARC_START_FAIL_673 = 673,   ///< 起弧异常信号
+    INT_REG_WELD_INTERRUPT_674 = 674,   ///< 焊接中断信号
+    INT_REG_ARC_END_FAIL_675 = 675,     ///< 收弧异常信号
 
-    INT_REG_WELD_MODE_660 = 660,        // 执行模式：0.空状态 1.轨迹模拟 2.焊接
-    INT_REG_WELD_STATE_661 = 661,       // 非0表示上一个已经到达的路点在指令列表中的位置,为0表示不在起收弧中间
+    INT_REG_WELD_MODE_660 = 660,        ///< 执行模式：0.空状态 1.轨迹模拟 2.焊接
+    INT_REG_WELD_STATE_661 = 661,       ///< 非0表示上一个已经到达的路点在指令列表中的位置,为0表示不在起收弧中间
 
-    INT_REG_WELD_PATH_662 = 662,         // 焊接路径分段信息
-    INT_REG_ARRIVE_POINT_LOC_663 = 663,  // 轨迹模拟下已到达的定点指令位置 用于高亮显示
+    INT_REG_WELD_PATH_662 = 662,         ///< 焊接路径分段信息
+    INT_REG_ARRIVE_POINT_LOC_663 = 663,  ///< 轨迹模拟下已到达的定点指令位置 用于高亮显示
 
-    INT_REG_PRESENT_CRAFT_LOC_664 = 664, // 当前工艺指令在指令列表中的位置
+    INT_REG_PRESENT_CRAFT_LOC_664 = 664, ///< 当前工艺指令在指令列表中的位置
 
     // 激光通讯的交互
     INT_REG_WRITE_PARAMETER_62 = 62,
@@ -451,6 +446,9 @@ enum WeldControlAddressLaserSdk
 
     INT_REG_RESULT_77 = 77
 };
+
+
+
 
 //// WeldSdk XXX ////
 

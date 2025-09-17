@@ -29,8 +29,51 @@ std::string generateLuaScript(const std::string funcName, const std::string func
  */
 std::string readLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr);
 
+/**
+ * 定义通用写串口的Lua脚本的函数
+ */
+inline std::string writeLuaScript()
+{
+    std::string writeFunction =
+    R"(
+    ----------定义写入函数-----------
+    function write_value_port(parameter_value, port_address, function_code, port_num)
+        --------将通讯变量清零--------
+        for i=62,69,1 do
+            write_int16_register(i,0)
+        end
+        --------定义写入报文---------
+        mes_1=Lua_get_message({function_code,port_address,parameter_value})     --------整合设定报文(无校验码)，并处理为6维数组
+        mes_2=Lua_crc16(mes_1)											        --------计算CRC16校验码
+        parameter_value=swap_bytes_for_word(parameter_value)				    --------参数高低位互换
+        mes_3={swap_bytes_for_word(function_code),swap_bytes_for_word(port_address),parameter_value,mes_2}
+        --------写入报文写入通讯变量---------
+        for i=1,4,1 do
+            write_int16_register(i+61,mes_3[i])
+        end
+        --------发送报文------
+        serial_send(port_num,4,1,62)
+    end
+    )";
+    return writeFunction;
+}
 
-bool strToChar(char* script, int* scriptLen, std::string& generatedScript);
+/**
+ * 对应通用写串口的Lua脚本的函数的调用
+ * @param paramValue 写入值
+ * @param addr 地址
+ * @param functionCode 功能码
+ * @param portNum 从站地址
+ */
+inline std::string writeLuaScript(const std::string paramValue, const std::string addr, const std::string functionCode, const std::string portNum)
+{
+    std::ostringstream writeScript ;
+    writeScript << "write_value_port(" << paramValue << "," << addr << "," << functionCode << "," << portNum << ")\n";
+    return writeScript.str();
+}
+
+
+bool strToChar(char* script, int* scriptLen, const std::string& generatedScript);
 
 /**
  * 通过throw抛出问题LaserSdkResult

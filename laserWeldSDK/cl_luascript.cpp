@@ -537,7 +537,7 @@ function write_value_port(parameter_value, port_address, function_code, port_num
     mes_1=Lua_get_message({function_code,port_address,parameter_value})            --------整合设定报文(无校验码)，并处理为6维数组
     mes_2=Lua_crc16(mes_1)											        --------计算CRC16校验码
     parameter_value=swap_bytes_for_word(parameter_value)				    --------参数高低位互换
-    mes_3={swap_bytes_for_word(),swap_bytes_for_word(port_address),parameter_value,mes_2}
+    mes_3={swap_bytes_for_word(function_code),swap_bytes_for_word(port_address),parameter_value,mes_2}
     --------写入报文写入通讯变量---------
     for i=1,4,1 do
         write_int16_register(i+61,mes_3[i])
@@ -587,3 +587,25 @@ laser_write_register(spotWeld)
 --
 wireFeeder_write_register()
 )"  ;
+
+std::string writeFunction =
+R"(
+----------定义写入函数-----------
+function write_value_port(parameter_value, port_address, function_code, port_num)
+    --------将通讯变量清零--------
+    for i=62,69,1 do
+        write_int16_register(i,0)
+    end
+    --------定义写入报文---------
+    mes_1=Lua_get_message({function_code,port_address,parameter_value})     --------整合设定报文(无校验码)，并处理为6维数组
+    mes_2=Lua_crc16(mes_1)											        --------计算CRC16校验码
+    parameter_value=swap_bytes_for_word(parameter_value)				    --------参数高低位互换
+    mes_3={swap_bytes_for_word(function_code),swap_bytes_for_word(port_address),parameter_value,mes_2}
+    --------写入报文写入通讯变量---------
+    for i=1,4,1 do
+        write_int16_register(i+61,mes_3[i])
+    end
+    --------发送报文------
+    serial_send(port_num,4,1,62)
+end
+)";

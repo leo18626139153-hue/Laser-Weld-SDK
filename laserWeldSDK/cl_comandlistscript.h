@@ -14,9 +14,11 @@ public:
     cl_comandListScript(){};
 };
 
+//生成唯一ID
+int distributionID(std::unordered_set<int>& IDSet);
+
 //计算交融半径
 LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r);
-
 
 //返回相应的工艺通讯类
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase*& craftCommuClass);
