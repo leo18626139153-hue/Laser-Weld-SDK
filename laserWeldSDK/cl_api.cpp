@@ -814,3 +814,279 @@ LaserSdkResult cl_craft_circle_back_point_cal(RollbackCircleData* rollbackCircle
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
+
+//缓升起弧
+LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        //配置串口信息
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+
+    //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
+    // 开光功率为开光一瞬间的功率，是百分比值；
+    // 激光器功率为激光器希望激光所能到达到的功率，开光功率的百分比就是乘的激光器功率
+    // 峰值功率为激光头所限制激光器的最大功率
+    std::vector<unsigned int> laserPowerVec =
+    {
+        machineResource.gasONDelayLoc,              ///<  开气延时地址 0x0235  先等送气结束
+        machineResource.laserOnPowerLoc,            ///<  开光功率百分比地址 0x0231 561
+        machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 569
+
+        machineResource.laserHeadXOffsetLoc,        ///<  X轴偏移地址 0x023b 571
+        machineResource.laserHeadYScaleLoc,         ///<  Y轴放大地址 0x0238 568
+        machineResource.laserHeadXScaleLoc,         ///<  X轴放大地址 0x023a 570
+        machineResource.laserHeadYOffsetLoc         ///<  Y轴偏移地址 0x0239 578
+    };
+
+
+    //需要设置的激光头地址参数 - 扫描速度 - 扫描宽 - 峰值功率 - 占空比 - 脉冲频率 - 扫描高度 - 旋转角度 - 图形切换
+    std::vector<unsigned int> laserHeadVec =
+    {
+        machineResource.laserHeadPatternIdLoc,      //图形首位
+        machineResource.laserHeadScanSpeedLoc,
+        machineResource.laserHeadScanWidthLoc,
+        machineResource.laserHeadPeakPowerLoc,      ///<  峰值功率
+        machineResource.laserHeadDutyCycleLoc,
+        machineResource.laserHeadFrequencyLowLoc,   ///<  脉冲频率 : 15~0位地址  0x0005  5
+        machineResource.laserHeadFrequencyHighLoc,  ///<  脉冲频率 : 31~16位地址 0x0004  4
+        machineResource.laserHeadScanHeightLoc,     ///<  扫描高度地址 0x0006 6
+        machineResource.laserHeadRotationAngleLoc,  ///<  旋转角度地址 0x0007 7
+    };
+
+    //送丝机地址参数
+    std::vector<unsigned int> wireFeedVec =
+    {
+        machineResource.wireFeederStatusLoc,       ///<  送丝使能 0x0115
+        machineResource.wireFeedSignalLoc,         ///<  送丝信号开 0x0032
+        machineResource.operationModeLoc,          ///<  写模式 0x010c
+        machineResource.autoWireFeedSpeedLoc,      ///<  自动送丝速度 0x0100
+    };
+
+    CgxiLaserHeadLaserSdk &laserHeadParams  = machineResource.laserHeadParams;
+    CgxiWireFeederLaserSdk &wireFeederParams  = machineResource.wireFeederParams;
+    CgxiLaserPowerLaserSdk &laserPowerParams  = machineResource.laserPowerParams;
+    int time = laserPowerParams.gasStartupAdvanceTime;
+
+    //获取脚本
+    std::string scriptGet;
+
+    try
+    {
+
+        //激光器
+        checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
+        //送丝机
+        checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
+        //激光图案
+        checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
+
+        std::string arcStartProgram1 = "function arcStartProgram()\n";
+        std::string arcStartParam =
+                "laserPower = " + std::to_string(laserPowerParams.laserPower) + "\n" +
+                "openPower = " + std::to_string(laserPowerParams.laserPowerOpen) + "\n" +
+                "openLightTime = " + std::to_string(laserPowerParams.laserRampUpTime) + "\n" +
+                "wirefeedeOpenSendSpeed = " + std::to_string(wireFeederParams.wireFeederStartMotorSpeed) + "\n" +
+                "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed);
+        std::ostringstream oss ;
+        oss<<R"(
+            function slow_ascent(laserPower, openPower, wirefeedeOpenSendSpeed, wirefeedeWeldSendSpeed, openLightTime)
+                -- 计算功率差，送丝速度差
+                local v = laserPower - openPower
+                local s = wirefeedeWeldSendSpeed - wirefeedeOpenSendSpeed
+
+                -- 计算降几次
+                local num = openLightTime // 200
+
+                -- 计算每次降多少
+                local powerSingle = math.floor(v / num)
+                local speedSingle = math.floor(s / num)
+
+                -- 循环逐步调整功率和送丝速度
+                for i = 1, num + 1 do
+                    print("power: ", i)
+                    write_laser_power(openPower + (powerSingle * i))    -- 调整激光功率
+                    wait(100)  -- 等待 100 毫秒
+                    write_wirefeede_auto_send_speed(wirefeedeOpenSendSpeed + (speedSingle * i))  -- 调整送丝速度
+                    wait(10)   -- 等待 10 毫秒
+                end
+            end
+
+            i = 0
+            res = false
+            while (i<5) and (not res) do
+                i=i+1
+                set_configurable_digital_out(0,true)
+                res = get_configurable_digital_out(1)
+                print("res:",res)
+                wait(5)
+            end
+            if(not res) then
+                print("启动失败")
+                return
+            end
+            --开气的延迟等待，不需要继续往下走
+            wait(" << time << ")  -- 替换动态变量
+            ask_thread = task_create(slow_ascent)
+        )";
+
+        std::string arcStartProgram = oss.str();
+        std::string arcStartProgram2 = "end\n"
+                                       "arcStartProgram_Result=task_create(arcStartProgram)\n";
+        scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        //scriptGet = funcScript + scriptGet;
+        //脚本赋值
+        if(!strToChar(scripts, scriptLen, scriptGet))
+        {
+            return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+//缓降收弧
+LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        //配置串口信息
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+
+    //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
+    // 开光功率为开光一瞬间的功率，是百分比值；
+    // 激光器功率为激光器希望激光所能到达到的功率，开光功率的百分比就是乘的激光器功率
+    // 峰值功率为激光头所限制激光器的最大功率
+    std::vector<unsigned int> laserPowerVec =
+    {
+        machineResource.gasOffDelayLoc,             ///<  关气延迟地址 0x0236
+        machineResource.laserOffPowerLoc,           ///<  关光功率百分比地址 0x0230 569
+    };
+
+    //送丝机地址参数
+    std::vector<unsigned int> wireFeedVec =
+    {
+        machineResource.autoWireFeedSpeedLoc,      ///<  自动送丝速度 0x0100
+        machineResource.wirefeederCompensateDelay,  ///<  补丝延迟 0x0106
+        machineResource.wireRetractLengthLoc,       ///<  回抽丝长度 0x0104
+        machineResource.wireFeedLengthLoc           ///<  补丝长度 0x0105
+    };
+
+    CgxiLaserHeadLaserSdk &laserHeadParams  = machineResource.laserHeadParams;
+    CgxiWireFeederLaserSdk &wireFeederParams  = machineResource.wireFeederParams;
+    CgxiLaserPowerLaserSdk &laserPowerParams  = machineResource.laserPowerParams;
+
+
+    //获取脚本
+    std::string scriptGet;
+
+    try
+    {
+
+        //激光器
+        checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
+        //送丝机
+        checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
+
+        std::string arcStartProgram1 = "function arcStartProgram()\n";
+        std::string arcStartParam =
+                "laserPower = " + std::to_string(laserPowerParams.laserPower) + "\n" +
+                "closePower  = " + std::to_string(laserPowerParams.laserPowerClose) + "\n" +
+                "closeLightTime  = " + std::to_string(laserPowerParams.laserRampDownTime) + "\n" +
+                "wirefeedeCloseSendSpeed = " + std::to_string(wireFeederParams.wireFeederStopMotorSpeed) + "\n" +
+                "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed);
+        std::string arcStartProgram =
+        R"(
+            function slow_descent(laserPower, closePower, wirefeedeCloseSendSpeed, wirefeedeWeldSendSpeed, closeLightTime)
+                -- 计算功率差，送丝速度差
+                local v = laserPower - closePower
+                local s = wirefeedeWeldSendSpeed - wirefeedeCloseSendSpeed
+
+                -- 计算降几次
+                local num = closeLightTime // 200
+
+                -- 计算每次降多少
+                local powerSingle = math.floor(v / num)
+                local speedSingle = math.floor(s / num)
+
+                -- 循环逐步调整功率和送丝速度
+                for i = 1, num + 1 do
+                    print("power: ", i)
+                    write_laser_power((laserPower - (powerSingle * i))    -- 调整激光功率
+                    wait(100)  -- 等待 100 毫秒
+                    write_wirefeede_auto_send_speed((wirefeedeWeldSendSpeed - (speedSingle * i))  -- 调整送丝速度
+                    wait(10)   -- 等待 10 毫秒
+                end
+            end
+
+            ask_thread = task_create(slow_descent)
+
+            i = 0
+            res = true --收弧前判断条件
+            while (i<5) and (res) do
+                i = i+1
+                set_configurable_digital_out(0,false)
+                res = get_configurable_digital_out(1)
+                print("res2:",res)
+                wait(5)
+            end
+        )";
+        std::string arcStartProgram2 = "end\n"
+                                       "arcStartProgram_Result=task_create(arcStartProgram)\n";
+        scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        //scriptGet = funcScript + scriptGet;
+        //脚本赋值
+        if(!strToChar(scripts, scriptLen, scriptGet))
+        {
+            return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
