@@ -193,7 +193,7 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
     BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
-    WeldFuncLaserSdk wireFeedFunction;        ///< 送丝机模式设置(0	连续  1	脉冲) 0x010C R/W
+    //WeldFuncLaserSdk wireFeedFunction;        ///< 送丝机模式设置(0	连续  1	脉冲) 0x010C R/W
     //WeldFuncLaserSdk wireCutFunction;    断丝模式 0：常规 1：高速（仅步进有效）0x010D R/W
 
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
@@ -290,7 +290,6 @@ typedef struct MachineResource
     unsigned int waterCoolerAlarmCodeLoc;      ///<  水冷机报警代码地址 (0 低电平，正常 || 1 高电平，报警) 0x023d → ​​573​
     unsigned int airPressureAlarmCodeLoc;      ///<  气压报警代码地址 (0 低电平，正常 || 1 高电平，报警).0x023e → ​​574​
 
-
     /* 读|写---------- 送丝机参数 ---------- */
     unsigned int autoWireFeedSpeedLoc;       ///<  自动送丝速度地址 0x0100 256
     unsigned int manualWireFeedSpeedLoc;     ///<  手动送丝速度地址 0x0101 257
@@ -301,11 +300,6 @@ typedef struct MachineResource
     unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
     /*写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
-    /* 写---- 连续模式下的送丝机参数---------- */
-    unsigned int pulsePeriodLoc;             ///<  脉冲周期地址 0x0107 263    
-    unsigned int smoothnessLoc;              ///<  平滑度地址  0x0108 264
-    unsigned int pulseSpeedLoc;              ///<  平均速度(脉冲模式下的速度)地址 0x0109 265
-    unsigned int operationModeLoc;           ///<  送丝机模式设置地址 0x010C 268
 
     CgxiLaserHeadLaserSdk laserHeadParams;     ///< 激光头参数
     CgxiLaserPowerLaserSdk laserPowerParams;   ///< 激光器参数
@@ -327,38 +321,35 @@ struct CraftInfoLaserSdk
 {
     WeldModeLaserSdk craftweldMode; //焊接模式
     WeldLineTypeLaserSdk craftWeldType; //点焊类型
-    int craftSpotWeldDuration;   //点焊持续时间
-    int craftSpotWeldInterval;   //点焊间隔时间
+    int craftSpotWeldDuration;      //点焊持续时间
+    int craftSpotWeldInterval;      //点焊间隔时间
 
     SpotPatternLaserSdk graphicsSwitching;  //图形切换
-    double craftScanWidth;   //扫描宽度
-    double craftScanHeight;  //扫描高度
-    int craftScanSpeed;   //扫描速度
-    int craftRotationAngle;    //旋转角度
+    double craftScanWidth;      //扫描宽度
+    double craftScanHeight;     //扫描高度
+    int craftScanSpeed;         //扫描速度
+    int craftRotationAngle;     //旋转角度
 
-    double craftYAxisZoom;    //Y轴放大
-    double craftXAxisZoom;    //X轴放大
+    double craftYAxisZoom;     //Y轴放大
+    double craftXAxisZoom;     //X轴放大
     double craftYAxisOffset;   //Y轴偏移
     double craftXAxisOffset;   //X轴偏移
 
-    int craftPreGasTime;      //提前送气时间
-    int craftPostGasTime;     //滞后送气时间
-    int craftLeadInPower;     //开光功率
-    int craftLeadInRampTime;  //开光渐进时间
-    int craftLaserPower;      //激光器焊接功率
+    int craftPreGasTime;        //提前送气时间
+    int craftPostGasTime;       //滞后送气时间
+    int craftLeadInPower;       //开光功率
+    int craftLeadInRampTime;    //开光渐进时间
+    int craftLaserPower;        //激光器焊接功率
     double craftWeldingSpeed;   //焊接速度
     int craftLeadOutPower;      //关光功率
     int craftLeadOutRampDistance;   //关光渐进距离
     int craftRetractionDistance;    //提前回抽距离
 
-    WeldFuncLaserSdk craftModeSetting;  //送丝机模式设置
-    int craftSmoothness;                //平滑度
-    int craftPulsePeriod;               //脉冲周期
-    int craftLeadInWireFeed;            //开光送丝
-    int craftWeldingWireFeed;           //焊接送丝
-    int craftLeadOutWireFeed;           //关光送丝
-    int craftEndingWireRetraction;      //收尾抽丝
-    int craftEndLoopbackLength;         //收尾回送长度
+    int craftLeadInWireFeed;            //开光送丝     送丝速度
+    int craftWeldingWireFeed;           //焊接送丝     送丝速度
+    int craftLeadOutWireFeed;           //关光送丝     送丝速度
+    int craftEndingWireRetraction;      //收尾抽丝     回抽长度
+    int craftEndLoopbackLength;         //收尾回送长度 补丝长度
 };
 
 /* ---指令列表--- */
@@ -449,10 +440,9 @@ enum WeldControlAddressLaserSdk
 
 
 
-
 //// WeldSdk XXX ////
-
-//计算俯仰角
+/*
+ //计算俯仰角
 struct PitchAngleData
 {
     double waypoint1[3];                ///<焊缝路径上的第一个点
@@ -473,6 +463,7 @@ enum AdvanceAngleType
     USE_INPUT_POSE = 2,            //起点和终点的前进角由输入参数指定
 
 };
+*/
 
 //计算回退点 - 圆弧
 struct RollbackCircleData

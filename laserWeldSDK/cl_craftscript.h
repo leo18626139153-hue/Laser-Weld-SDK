@@ -9,10 +9,9 @@
 
 class CommuBase
 {
-    protected:
+protected:
     //功能函数脚本内容
     std::string loadLuaFunctionScript;
-
 public:
     CommuBase(){};
     virtual ~CommuBase(){}
@@ -23,10 +22,10 @@ public:
     //激光器
 
     //获取设置开光脚本 CO1
-    virtual LaserSdkResult craft_script_laser_on_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
+    virtual LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
 
     //获取设置起焊脚本 CO2
-    virtual LaserSdkResult craft_script_start_weld_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
+    virtual LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
     
     //激光器参数设置脚本
     virtual LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
@@ -54,13 +53,10 @@ public:
 
 public:
     //----与具体通讯形式无关的功能函数
-    //预留
-    LaserSdkResult craft_script_control_stability_voltage_current_script_get(bool operate, std::string& script);
     //获取判断当前是否进行单步运行脚本
     LaserSdkResult craft_script_judge_signal_setp_run_script_get(int instLoc, std::string& script);
     //获取判断当前是否在断点脚本
     LaserSdkResult craft_script_judge_break_point_script_get(int instLoc, std::string& script);
-
     std::string loadLuaFunctionScriptOut();
 };
 
@@ -73,25 +69,33 @@ public:
 
 private:
     CommuRS485();
-
     static CommuRS485* s_commuRS485;
-    // initFlag >>> 保证单例对象只被初始化一次，且线程安全
-    static std::once_flag initFlag;
+    static std::once_flag initFlag; ///< initFlag >>> 保证单例对象只被初始化一次，且线程安全
+
+private:
+    std::string swap_bytes;      ///< 高低字节交换函数
+    std::string modbus_crc16;    ///< modbus crc16校验函数
+    std::string Lua_split;       ///< lua字符串分割函数
+    std::string register_clear; ///< lua寄存器清零函数
+    std::string Lua_data_get;   ///< 定义数据拆分整合函数
+    std::string concatenate_crc;    ///< 拼接crc校验函数
+    std::string parse_little_endian_bytes;  ///< 每2个字符为一组（1字节），转换为整数
+    std::string WriteHex2Commu_reg;     ///< 将数据写入通讯变量
+    std::string task_read_port; ///< 读取通讯变量
+    std::string task_write_port;    ///< 写入通讯变量
 
 
 public:
-    //出光控制 CO1
-    LaserSdkResult craft_script_laser_on_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
-    //获取设置起焊脚本 CO2
-    LaserSdkResult craft_script_start_weld_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
+    //起、收弧子程序
+    LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
+    //起收弧执行程序
+    LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
     
     //激光器设置脚本
     LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
-
     //激光头图案资源
     LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
-
-    //激光头图案资源读取
+   //激光头图案资源读取
     LaserSdkResult craft_laser_head_param_read_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
 
     //激光头设置页

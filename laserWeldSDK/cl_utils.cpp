@@ -356,10 +356,10 @@ std::string Double2String(double value, int precision, bool scientific)
     return result;
 }
 
-//bool isEqual(double a, double b) {
-//    // 计算两个浮点数的差值的绝对值
-//    return std::fabs(a - b) < EPSILON;
-//}
+bool isEqual(double a, double b) {
+    // 计算两个浮点数的差值的绝对值
+    return std::fabs(a - b) < EPSILON;
+}
 
 std::string PdoReadWriteBit(unsigned addr, int wireBitLoc, int writeValue)
 {
@@ -382,12 +382,12 @@ std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc, int writeValue)
     std::string returnVal ="returnVal";
     std::string scriptText;
     //读手动测试地址中的数据
-    scriptText += strReadModbusReplace(returnVal,addr);
+    scriptText += strReadInt16RegReplace(returnVal,addr);
 
     //给某个数的指定位（从1开始计数）写值  setLocBit函数在之前已经定义
     scriptText += strReplace("%1=setLocBit(%1, %2, %3)\n",std::vector<std::string>{returnVal, std::to_string(wireBitLoc-1),std::to_string(writeValue)});
     //重新写入值
-    scriptText += strWriteModbusReplace(addr, returnVal);
+    scriptText += strWriteInt16RegReplace(addr, returnVal);
     return scriptText;
 }
 
@@ -476,26 +476,6 @@ std::string decimalToHexStringStream(unsigned int value)
 std::string strSetStandardDigitalReplace(int srcStr, bool vecStr)
 {
     return strReplace(strReplace("set_standard_digital_out(%1,%2)\n", "%1", srcStr), "%2", vecStr);
-}
-
-
-
-template<typename X, typename Y, typename Z, typename N>
-std::string strMoveLReplace(X data1, Y data2, Z data3, N data4)
-{
-    return strReplace(strReplace(strReplace(strReplace("movel(%1,%2,%3,%4)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4);
-}
-
-template<typename X, typename Y, typename Z, typename N>
-std::string strMoveJReplace(X data1, Y data2, Z data3, N data4)
-{
-    return strReplace(strReplace(strReplace(strReplace("movej(%1,%2,%3,%4)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4);
-}
-
-template<typename X, typename Y, typename Z, typename N, typename M, typename P>
-std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6)
-{
-    return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4), "%5", data5), "%6", data6);
 }
 
 bool strToChar(char* script, int* scriptLen, const std::string& generatedScript)

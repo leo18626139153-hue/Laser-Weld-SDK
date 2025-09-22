@@ -168,8 +168,8 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         machineResource.laserHeadFrequencyHighLoc,  ///<  脉冲频率 : 31~16位地址 0x0004  4
         machineResource.laserHeadScanHeightLoc,     ///<  扫描高度地址 0x0006 6
         machineResource.laserHeadRotationAngleLoc,  ///<  旋转角度地址 0x0007 7
-//        machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
-//        machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
+        machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
+        machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
     };
 
     //送丝机地址参数 - 自动送丝速度
@@ -178,48 +178,23 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
         machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
         machineResource.wireFeedLengthLoc,          ///<  送丝长度地址 0x0105 261
-        machineResource.pulsePeriodLoc,             ///<  脉冲周期地址 0x0107 263
-        machineResource.smoothnessLoc,              ///<  平滑度地址  0x0108 264
-        machineResource.pulseSpeedLoc,
-        machineResource.operationModeLoc,           ///<  送丝机模式设置地址 0x010C 268
     };
     //获取脚本
     std::string scriptGet;
-
     try
     {
-
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
         //激光图案
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
-        std::string arcStartProgram1 = "function arcStartProgram()\n";
-        std::string arcStartProgram =
-        R"(
-        i = 0
-        res = false
-        while (i<5) and (not res) do
-            i=i+1
-            set_configurable_digital_out(0,true)
-            res = get_configurable_digital_out(1)
-            print("res:",res)
-            wait(5)
-        end
-        if(not res) then
-            print("启动失败")
-            return
-            end
-        --开气的延迟等待，不需要继续往下走
-        wait(2000)
-        )";
-        std::string arcStartProgram2 = "end\n"
-                                       "arcStartProgram_Result=task_create(arcStartProgram)\n";
-        scriptGet = arcStartProgram1 + scriptGet + arcStartProgram + arcStartProgram2;
-        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
-        //scriptGet = funcScript + scriptGet;
+        //起弧程序
+        checkLaserSdkResult(curCommuFunction->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
+        //起弧执行程序
+        checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
+        scriptGet = mainFuncProgram + scriptGet + mainFuncProgramEnd;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
@@ -262,7 +237,7 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     {
         machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
         machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
-        //machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
+//        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
     };
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
@@ -276,7 +251,6 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     {
         machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
         machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
-
     };
 
     //获取脚本
@@ -289,26 +263,14 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //关气 关送丝信号
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
-        std::string arcStopProgram1 = "function arcStopProgram()\n";
-        std::string arcStopProgram =
-        R"(
---收弧
-i = 0
-res = true --收弧前判断条件
-while (i<5) and (res) do
-    i = i+1
-    set_configurable_digital_out(0,false)
-    res = get_configurable_digital_out(1)
-    print("res2:",res)
-    wait(5)
-end
-)";
-        std::string arcStopProgram2 = "end\n"
-                                      "arcStopProgram_Result=task_create(arcStopProgram)\n";
-        scriptGet = arcStopProgram1 + scriptGet + arcStopProgram + arcStopProgram2;
-        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();          //功能函数
+        //收弧程序
+        checkLaserSdkResult(curCommuFunction->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, scriptGet));
+        //收弧执行程序
+        checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, scriptGet));
+        //收弧执行程序
         //scriptGet = funcScript + scriptGet;      //脚本赋值
-        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        scriptGet = mainFuncProgram + scriptGet + mainFuncProgramEnd;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
             return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
@@ -463,12 +425,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             case InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK:
                 listLocToTypeID[instLoc] = {instType, instID};
                 pointsMap[instID] = weldStartData.pointList[dataListLoc];
-                break;                
+                break;
             case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
             case InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK:
                 listLocToTypeID[instLoc] = {instType, instID};
                 break;
-        }    
+        }
     }
     // 建立点数据与ID的联系
     for(auto elem: pointsMap)
@@ -569,7 +531,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -584,7 +546,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movel(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -600,7 +562,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
+                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc + 1, bodyScriptText);
                     }
 
@@ -622,7 +584,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                                                                          });
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -743,8 +705,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     std::string script;
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
-    script += write_function;   //功能函数
-    script += strWriteModbusReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
+    script += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
     script += bodyScriptText;
 
     //测试代码scripts

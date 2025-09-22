@@ -23,19 +23,6 @@ extern  std::string Lua_data_combin; ///< 数据组合类
 extern std::string swap_bytes_for_word; ///< 交换字节的函数
 extern std::string readRespondOfWrite;  ///< 接收写入报文的应答报文
 
-extern std::string read_scanning_speed;  ///< 读取扫描速度的函数
-extern std::string read_scanning_width;  ///< 读取扫描宽度的函数
-extern std::string read_peak_power;      ///< 读取峰值功率的函数
-extern std::string read_duty_cycle;      ///< 读取占空比的函数
-extern std::string read_pulse_frequency;      ///< 读取脉冲频率的函数
-extern std::string read_scanning_height;      ///< 读取扫描高度的函数
-extern std::string read_rotation_angle;       ///< 读取旋转角度的函数
-extern std::string read_laser_graphics;       ///< 定义读取激光图形函数
-
-extern std::string write_function; //写参数定义
-extern std::string write_laser_params;  //写激光器参数
-extern std::string write_wire_params;   //写激光头参数
-
 
 
 #endif // CL_LUASCRIPT_H

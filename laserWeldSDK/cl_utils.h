@@ -32,27 +32,47 @@ std::string readLuaScript(const std::string funcName, const std::string funcPara
 /**
  * 定义通用写串口的Lua脚本的函数
  */
-inline std::string writeLuaScript()
+inline std::string writeLuaFuncScript()
 {
     std::string writeFunction =
     R"(
-    ----------定义写入函数-----------
-    function write_value_port(parameter_value, port_address, function_code, port_num)
+    --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执
+    function write_value_port(function_code, port_address, parameter_value, port_num, first_register_num)
         --------将通讯变量清零--------
-        for i=62,69,1 do
-            write_int16_register(i,0)
-        end
-        --------定义写入报文---------
-        mes_1=Lua_get_message({function_code,port_address,parameter_value})     --------整合设定报文(无校验码)，并处理为6维数组
-        mes_2=Lua_crc16(mes_1)											        --------计算CRC16校验码
-        parameter_value=swap_bytes_for_word(parameter_value)				    --------参数高低位互换
-        mes_3={swap_bytes_for_word(function_code),swap_bytes_for_word(port_address),parameter_value,mes_2}
-        --------写入报文写入通讯变量---------
+        register_clear(first_register_num, 8)
+        ----------高低字节拆分计算校验码---------    
+        local data1=Lua_split(function_code)    
+        local data2=Lua_split(port_address)     
+        local data3=Lua_split(parameter_value)  
+        local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
+        local mes_2=modbus_crc16(mes_1)    --计算CRC16校验码无反转
+        print(string.format("CRC校验值: 0x%04X", mes_2)) 
+        --构造报文，高低字节反转发送
+        mes_3 = {swap_bytes_for_word(function_code), swap_bytes_for_word(port_address), swap_bytes_for_word(parameter_value), mes_2}			
+        --写入报文写入通讯变量
         for i=1,4,1 do
-            write_int16_register(i+61,mes_3[i])
+            write_int16_register(i + first_register_num - 1,mes_3[i])
         end
+        --判断位 寄存器
+        write_bool_register(999,1)
         --------发送报文------
-        serial_send(port_num,4,1,62)
+        serial_send(port_num, 4, 1, first_register_num)
+        --------等待回执--------
+        local wait_times = 5 --等待次数
+        while(wait_times > 0) do
+            write_bool_register(999,1)
+            if(read_int16_register(first_register_num + 7)~=0)
+            then
+                write_bool_register(999,0)
+                ----读取成功，将数据写入通讯变量
+                break
+            else
+                wait_times = wait_times - 1
+                print("读取当前地址失败: 0x%04X", port_address)
+                write_bool_register(999,0)
+                ----读取失败，将数据写入通讯变量
+            end
+        end	
     end
     )";
     return writeFunction;
@@ -65,10 +85,10 @@ inline std::string writeLuaScript()
  * @param functionCode 功能码
  * @param portNum 从站地址
  */
-inline std::string writeLuaScript(const std::string paramValue, const std::string addr, const std::string functionCode, const std::string portNum)
+inline std::string writeLuaScript(const std::string functionCode , const std::string portAddress, const std::string paramValue, const std::string portNum, const std::string firstRegisterNum)
 {
     std::ostringstream writeScript ;
-    writeScript << "write_value_port(" << paramValue << "," << addr << "," << functionCode << "," << portNum << ")\n";
+    writeScript << "write_value_port(" << functionCode << "," << portAddress << "," << paramValue << "," << portNum << "," << firstRegisterNum <<")\n";
     return writeScript.str();
 }
 
@@ -129,13 +149,13 @@ inline std::string strReadPdoReplace(T returnStr, Y addrStr)
 }
 //write_int16_register
 template <typename T, typename Y>
-inline std::string strWriteModbusReplace(T srcStr, Y vecStr)
+inline std::string strWriteInt16RegReplace(T srcStr, Y vecStr)
 {
     return strReplace(strReplace("write_int16_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
 //read_int16_register
 template<typename T, typename Y>
-inline std::string strReadModbusReplace(T returnStr, Y addrStr)
+inline std::string strReadInt16RegReplace(T returnStr, Y addrStr)
 {
     return strReplace(strReplace("%1=read_int16_register(%2)\n", "%1", returnStr), "%2", addrStr);
 }
@@ -157,29 +177,33 @@ inline std::string strWriteBoolRegReplace(T srcStr, Y vecStr)
 {
     return strReplace(strReplace("write_bool_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
-
 /* --- 运动脚本 --- */
 //moveL
 template <typename X, typename Y, typename Z, typename N>
-std::string strMoveLReplace(X data1, Y data2, Z data3, N data4);
+std::string strMoveLReplace(X data1, Y data2, Z data3, N data4)
+{
+    return strReplace(strReplace(strReplace(strReplace("movel(%1,%2,%3,%4)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4);
+}
 //moveJ
 template <typename X, typename Y, typename Z, typename N>
-std::string strMoveJReplace(X data1, Y data2, Z data3, N data4);
+std::string strMoveJReplace(X data1, Y data2, Z data3, N data4)
+{
+    return strReplace(strReplace(strReplace(strReplace("movej(%1,%2,%3,%4)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4);
+}
 //moveC
 template <typename X, typename Y, typename Z, typename N, typename M, typename P>
-std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6);
+std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6)
+{
+    return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4), "%5", data5), "%6", data6);
+}
 
 /// 比较两个浮点数是否相等的函数
-//bool isEqual(double a, double b);
-
-
-
+bool isEqual(double a, double b);
 //对16位数据进行高低字节拆分
 std::tuple<int, int> splitHighLowByteValue(double value);
-
 //CRresult转LaserSdkResult
 LaserSdkResult crsdk_return_value_transfer(CRresult res);
-
+//十进制转16进制，输出为对应十六进制的字符串类型
 std::string decimalToHexStringStream(unsigned int value);
 
 #endif // CWUTILS_H

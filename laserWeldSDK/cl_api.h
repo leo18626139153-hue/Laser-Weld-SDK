@@ -100,7 +100,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineH
 /**
  * @brief getStartWeldScript    获取指令列表转换后脚本
  * @param laserMachineHandle    焊机资源句柄
- * @param LaserWeldStartData    指令列表数据结构体
+ * @param weldStartData    指令列表数据结构体
  * @param isWeld                是否进行焊接 false-轨迹模拟 true-开始焊接
  * @param scripts               指令列表LUA脚本 传出参数
  * @param scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
