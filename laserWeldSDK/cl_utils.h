@@ -88,7 +88,7 @@ inline std::string writeLuaFuncScript()
 inline std::string writeLuaScript(const std::string functionCode , const std::string portAddress, const std::string paramValue, const std::string portNum, const std::string firstRegisterNum)
 {
     std::ostringstream writeScript ;
-    writeScript << "write_value_port(" << functionCode << "," << portAddress << "," << paramValue << "," << portNum << "," << firstRegisterNum <<")\n";
+    writeScript << "    write_value_port(" << functionCode << "," << portAddress << "," << paramValue << "," << portNum << "," << firstRegisterNum <<")\n";
     return writeScript.str();
 }
 

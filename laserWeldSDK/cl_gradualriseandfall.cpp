@@ -25,7 +25,6 @@ LaserSdkResult getStraightLineSlowUpPoint(double p1[6], double p2[6], double bac
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-
 //圆弧收弧计算回退点为起点的三个示教点
 LaserSdkResult getCirclrSlowDownPoints(double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double stopMapP[3], double restartP[6], double midP[6], double endP[6])
 {

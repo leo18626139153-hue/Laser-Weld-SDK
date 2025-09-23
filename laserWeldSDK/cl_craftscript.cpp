@@ -80,7 +80,7 @@ CommuRS485::CommuRS485()
         -- 交换并组合
         return (low_byte << 8) | high_byte
     end
-                 )";
+    )";
     modbus_crc16 = R"(
     -- 2.CRC-16 (Modbus) 计算函数 无高低字节互转
     function modbus_crc16(data)
@@ -101,8 +101,7 @@ CommuRS485::CommuRS485()
         return crc
     end
     )";
-
-    Lua_split = R"(
+    lua_split = R"(
     --3.高低字节拆分 如0x1234 输出{0x12, 0x34}
     function Lua_split(dataSplit)
         -- 处理负数 转换为无符号16位整数
@@ -114,7 +113,6 @@ CommuRS485::CommuRS485()
         return {high_byte, low_byte}
     end
     )";    
-
     register_clear = R"(
     --4.定义寄存器清空函数(起始地址，清空位数)
     function register_clear(firstAddr, cleanNums)
@@ -130,8 +128,7 @@ CommuRS485::CommuRS485()
         end
     end
     )";
-
-    Lua_data_get = R"(
+    lua_data_get = R"(
     --5.定义数据拆分整合函数 如0x1234 0x5678 输出0x1278
     function Lua_data_get(data1, data2)
         -- 如果数值小于0，则转换为无符号数计算
@@ -158,17 +155,14 @@ CommuRS485::CommuRS485()
     function to_hex_string(number)
         return string.format("%02X", number)
     end
-    -- 7.遍历表中单字节数据拼接对应的十六进制字符串，输入 {0x09, 0x10, {0x1234}, {0x56}}，输出 "0910123456"
+    -- 7.遍历表中单字节数据拼接对应的十六进制字符串，输入 {0x09, 0x10, {0x1234}, {0x56}}，输出 0910123456
     function concatenate_crc(crc_mes)
         local result = ""
-        -- 遍历 crc_mes 中的每个元素
         for _, value in ipairs(crc_mes) do
             if type(value) == "number" then
-                -- 转换为十六进制并拼接
                 local hex_value = to_hex_string(value)
                 result = result .. hex_value
             elseif type(value) == "table" then
-                -- 如果是表，则表示该数据需要拆分成高低字节
                 local high, low = split_to_bytes(value[1])
                 local high_hex = to_hex_string(high)
                 local low_hex = to_hex_string(low)
@@ -177,7 +171,7 @@ CommuRS485::CommuRS485()
         end
         return result
     end
-    )";
+    )" ;
 
     parse_little_endian_bytes = R"(
     -- 每2个字符为一组(1字节)转换为整数
@@ -195,8 +189,7 @@ CommuRS485::CommuRS485()
         return bytes
     end
     )";
-
-    WriteHex2Commu_reg = R"(
+    writeHex2Commu_reg = R"(
     --将数据写入通讯变量
     local function WriteHex2Commu_reg(hex)
         local byte_values = parse_little_endian_bytes(hex)
@@ -208,136 +201,81 @@ CommuRS485::CommuRS485()
         return cnt
     end
     )";
-
-    task_read_port = R"(
-    --另开任务. 接受结果 (端口号，起始寄存器)
-    function task_read_port(port_num, first_register_num)
-        if(read_boolean_register(999))
-        then
-            serial_receive(port_num, 4, 1, first_register_num + 4, 300) --端口号，通讯变量个数，通讯变量类型，通讯变量起始偏移量，接收超时时间
-        end
-    end
-    ----------定义读取函数(功能码,地址,寄存器数量,从站号,起始偏移量,保存数据的寄存器)-----------
-    function read_value_port(function_code, port_address, register_nums ,port_num, first_register_num, save_register_num)
-        --------将通讯变量清零--------
-        register_clear(first_register_num, register_nums)
-        ----------高低字节拆分计算校验码---------
-        local data1=Lua_split(function_code)
-        local data2=Lua_split(port_address)
-        local data3=Lua_split(register_nums)
-        local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
-        local mes_2=modbus_crc16(mes_1)    --计算CRC16校验码无反转
-        print(string.format("CRC校验值: 0x%04X", mes_2))
-        --构造报文，高低字节反转发送
-        mes_3 = {swap_bytes(function_code), swap_bytes(port_address), swap_bytes(register_nums), mes_2}
-        --------读取报文写入通讯变量---------
-        for i=1,4,1 do
-            write_int16_register(i + first_register_num - 1, mes[i])
-        end
-
-        wait_times = 5 --等待次数
-        while(wait_times > 0) do
-            write_bool_register(999,1)
-            --------发送报文------
-            serial_send(port_num, register_nums, 1, first_register_num)
-            if(read_int16_register(first_register_num + register_nums - 1)~=0)
-            then
-                write_bool_register(999,0)
-                ----读取成功，将数据写入通讯变量
-                Lua_data_get(read_int16_register(first_register_num + 5),read_int16_register(first_register_num + 6))
-                write_int16_register(save_register_num, result1)
-                break
-            else
-                wait_times = wait_times - 1
-                print("读取当前地址失败: 0x%04X", port_address)
-                write_bool_register(999,0)
-                ----读取失败，将数据写入通讯变量
-                write_int16_register(save_register_num, -1)
-            end
-        end
-    end
-    )";
-
     task_write_port = R"(
-    comNo = 3 --端口号 RS485-2
-    first_register_num = 100 --通讯变量起始地址
-    SendDataType = 0 --bool位寄存器<通过bool寄存器发送字节数据
-    SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
     --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执
-    function write_value_port(function_code, port_address, parameter_value, port_num, first_register_num)
+    function write_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr)
         --------将通讯变量清零--------
-        register_clear(first_register_num, 8)
-        ----------高低字节拆分计算校验码---------
-        local data1=Lua_split(function_code)
-        local data2=Lua_split(port_address)
-        local data3=Lua_split(parameter_value)
+        register_clear(SendCommuRegAddr, 8)
+        ----------高低字节拆分计算校验码---------    
+        local data1=Lua_split(function_code)    
+        local data2=Lua_split(port_address)     
+        local data3=Lua_split(parameter_value)  
         local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
-        local mes_2=modbus_crc16(mes_1)    --计算CRC16校验码无反转
-        print(string.format("CRC校验值: 0x%04X", mes_2))
+        local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转    
+        print(string.format("CRC校验值: 0x%02X", mes_2[1], mes_2[2])) 
         --构造报文，高低字节反转发送
-        mes_3 = {swap_bytes(function_code), swap_bytes(port_address), swap_bytes(parameter_value), mes_2}
-        --写入报文写入通讯变量
-        for i=1,4,1 do
-            write_int16_register(i + first_register_num - 1,mes_3[i])
-        end
-        --判断位 寄存器
-        write_bool_register(999,1)
-        --------发送报文------
-        serial_send(port_num, 4, 1, first_register_num)
-        --------等待回执--------
-        local wait_times = 5 --等待次数
-        while(wait_times > 0) do
-            write_bool_register(999,1)
-            if(read_int16_register(first_register_num + 7)~=0)
-            then
-                write_bool_register(999,0)
-                ----读取成功，将数据写入通讯变量
-                break
-            else
-                wait_times = wait_times - 1
-                print(string.format("读取当前地址失败: 0x%04X", port_address))
-                write_bool_register(999,0)
-                ----读取失败，将数据写入通讯变量
-            end
-        end
-    end    
-    ---write_multi_value_port---
-    function write_multi_value_port(addr_value_map)
-        -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
-        bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
-        --local mes = {0x0910}
-        local crc_mes = {}
-        -- 2 寄存器首地址
-        local split_data_2 = Lua_split(addr_value_map[1][1])
-        -- 3 寄存器数量
-        local split_data_3 = Lua_split(#addr_value_map)
-        -- 4 字节数量
-        crc_mes = {0x09, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
-        -- 5. 将对应的变量进行高低字节拆分，放入mes中
-        for k, address  in ipairs(addr_value_map) do
-            local split_data_x = Lua_split(address[2])
-            table.insert(crc_mes, split_data_x[1])
-            table.insert(crc_mes, split_data_x[2])
-        end
-        --6. 计算校验码
-        --table.insert(mes, swap_bytes(modbus_crc16(crc_mes)))
-        local split_data_crc = Lua_split(swap_bytes(modbus_crc16(crc_mes)))
-        table.insert(crc_mes, split_data_crc[1])
-        table.insert(crc_mes, split_data_crc[2])
-        --7. 写入报文
-        local mes_string = concatenate_crc(crc_mes)
-        local CommuReg_n = WriteHex2Commu_reg(mes_string)
-        print("发送报文长度："..CommuReg_n)
-        print("发送报文："..mes_string)
-        print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
-        --8. 发送报文
-        serial_send(comNo, CommuReg_n, SendDataType, SendCommuRegAddr)
-        -- 回执格式
+        mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}	
+        local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串
+        print(tmp_string)
+        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
+        local timeout = 1   --超时时间
+        --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
+        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,timeout)
+        wait(10)
     end
+
+                      function write_multi_value_port(addr_value_map)
+                          -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
+                          bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
+                          local crc_mes = {}
+                          -- 2 寄存器首地址
+                          local split_data_2 = Lua_split(addr_value_map[1][1])
+                          -- 3 寄存器数量
+                          local split_data_3 = Lua_split(#addr_value_map)
+                          -- 4 字节数量
+                          crc_mes = {slave_addr, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
+                          -- 5. 将对应的变量进行高低字节拆分，放入mes中
+                          for k, address  in ipairs(addr_value_map) do
+                              local split_data_x = Lua_split(address[2])
+                              table.insert(crc_mes, split_data_x[1])
+                              table.insert(crc_mes, split_data_x[2])
+                          end
+                          --6. 计算校验码
+                          local split_data_crc = Lua_split(swap_bytes(modbus_crc16(crc_mes)))
+                          table.insert(crc_mes, split_data_crc[1])
+                          table.insert(crc_mes, split_data_crc[2])
+                          --7. 写入报文
+                          local mes_string = concatenate_crc(crc_mes)
+                          local CommuReg_n = WriteHex2Commu_reg(mes_string)
+                          print("发送报文长度："..CommuReg_n)
+                          print("发送报文："..mes_string)
+                          print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
+                          --8. 发送报文
+                          local waitTime = 1000
+                          -- 回执格式
+                          while waitTime > 0 do
+                              serial_send_receive(comNo, CommuReg_n, SendDataType, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
+                              wait(10)
+                              waitTime = waitTime - 10
+                              if read_int16_register(RecvCommuRegAddr) ~= 0 then
+                                  print("接收到回执")
+                                  break
+                              end
+                          end
+                      end
     )";
 
-    loadLuaFunctionScript = swap_bytes + modbus_crc16 + Lua_split + register_clear + Lua_data_get
-     + concatenate_crc + parse_little_endian_bytes + WriteHex2Commu_reg  + task_read_port + task_write_port;
+
+    startData = R"(
+    local SendDataType = 0 --bool位寄存器，通过bool寄存器发送字节数据
+    local RecvDataType = 1 --16位寄存器，接收到的数据放到16位寄存器中
+    local SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
+    local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
+    local RecvCommuReg_n = 20		--接收50个字节
+    )";
+
+    loadLuaFunctionScript = startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
+     + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port; 
                                                         
 }
 

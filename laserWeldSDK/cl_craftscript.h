@@ -75,20 +75,21 @@ private:
 private:
     std::string swap_bytes;      ///< 高低字节交换函数
     std::string modbus_crc16;    ///< modbus crc16校验函数
-    std::string Lua_split;       ///< lua字符串分割函数
+    std::string lua_split;       ///< lua字符串分割函数
     std::string register_clear; ///< lua寄存器清零函数
-    std::string Lua_data_get;   ///< 定义数据拆分整合函数
+    std::string lua_data_get;   ///< 定义数据拆分整合函数
     std::string concatenate_crc;    ///< 拼接crc校验函数
     std::string parse_little_endian_bytes;  ///< 每2个字符为一组（1字节），转换为整数
-    std::string WriteHex2Commu_reg;     ///< 将数据写入通讯变量
+    std::string writeHex2Commu_reg;     ///< 将数据写入通讯变量
     std::string task_read_port; ///< 读取通讯变量
     std::string task_write_port;    ///< 写入通讯变量
+    std::string startData;  ///< 起始变量
 
 
 public:
-    //起、收弧子程序
+    // 起 收弧子程序
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
-    //起收弧执行程序
+    // 起收弧执行程序
     LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
     
     //激光器设置脚本

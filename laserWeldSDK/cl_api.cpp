@@ -492,8 +492,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     double emptyRunJointAcc = robotParams.emptyRunJointAcc;            //空走关节加速度
     //double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
     //double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
-
-
     for(auto craftID: craftInstListCraftIDVec)
     {
         CraftInfoLaserSdk& craftInfo = craftsMap[craftID];      //当前工艺信息
@@ -504,7 +502,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         int weldInstListStartLoc = craftInstListStartLoc;    //当前焊接指令列表起始位置
         int weldInstListEndLoc;       //当前焊接指令列表终止位置
         int currentInstLoc = craftInstListStartLoc;         //当前指令位置
-
         //遍历一段工艺路径内的所有点
         while(true)
         {
@@ -516,9 +513,63 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                 //工艺选择指令
                 if (instType == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK)
                 {
-                    bodyScriptText += "--change present craft loc--\n";
+                    bodyScriptText += "--change present craft--\n";
                     // 当前工艺指令在指令列表中的位置
-                    bodyScriptText += strReplace("write_int16_register(%1, %2)\n", std::vector<int> {WeldControlAddressLaserSdk::INT_REG_PRESENT_CRAFT_LOC_664, currentInstLoc});
+                    //bodyScriptText += strReplace("write_int16_register(%1, %2)\n", std::vector<int> {WeldControlAddressLaserSdk::INT_REG_PRESENT_CRAFT_LOC_664, currentInstLoc});
+                    CraftInfoLaserSdk& curCraftInfo = craftInfo; ///< 当前工艺信息
+                    ///激光参数赋值
+                    std::string write_laser_params;
+                    write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";//激光功率
+                    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftLeadInPower)+"\n"; //开光功率
+                    write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInRampTime)+"\n";  //开光功率上升时间
+                    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(curCraftInfo.craftLeadOutPower)+"\n";    //关光功率
+                    //计算关光功率下降时间
+                    int tempTime = curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed;
+                    write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(tempTime)+"\n";  //关光功率下降时间
+                    write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";    //提前送气时间
+                    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n"; //气体关闭延时 --滞后送气时间
+                    //YXYX轴偏移量
+                    write_laser_params += "    locationCalibration[9][2] = "+ std::to_string(curCraftInfo.craftYAxisZoom)+"\n";        //激光头Y轴缩放
+                    write_laser_params += "    locationCalibration[10][2] = "+ std::to_string(curCraftInfo.craftYAxisOffset)+"\n";     //激光头Y轴偏移
+                    write_laser_params += "    locationCalibration[11][2] = "+ std::to_string(curCraftInfo.craftXAxisZoom)+"\n";       //激光头X轴缩放
+                    write_laser_params += "    locationCalibration[12][2] = "+ std::to_string(curCraftInfo.craftXAxisOffset)+"\n";     //激光头X轴偏移
+                    //点焊工艺
+                    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(curCraftInfo.craftWeldType)+"\n"; //点焊类型
+                    write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n"; //点焊时长
+                    write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n"; //点焊间隔
+                    // 送丝机参数
+                    write_laser_params += "    wireRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftEndingWireRetraction)+"\n"; //回抽长度
+                    write_laser_params += "    wireRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
+                    write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头扫描速度
+                    write_laser_params += "    laserHeadRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头扫描宽度
+                    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头扫描高度
+                    write_laser_params += "    laserHeadRegisterMap[8][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头旋转角度
+                    // 写入送丝机速度
+                    write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftLeadInWireFeed), "2", "99");
+                    // 写入焊接模式
+                    write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(curCraftInfo.craftweldMode), "3", "99");
+                    ///< 写入激光头参数
+                    if(curCraftInfo.graphicsSwitching != machineResource.laserHeadParams.laserSpotPattern)
+                    {
+                        // 写入图案
+                        machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
+                        write_laser_params += writeLuaScript("0x0906", "0x0030", std::to_string(curCraftInfo.graphicsSwitching), "3", "99");//激光头图形切换
+                    }
+                    //写入激光焊接参数、点焊参数、丝机参数
+                    std::string write_weld_params = R"(
+    comNo = 2 --端口号 RS485-1
+    first_register_num = 100 --通讯变量起始地址
+    SendDataType = 0         --bool位寄存器, 通过bool寄存器发送字节数据
+    SendCommuRegAddr = 0	 --发送指令从bool通讯变量的 0 地址开始存储
+    write_multi_value_port(laserRegisterMap)    --写入激光焊接参数
+    write_multi_value_port(laserHeadRegisterMap)     --写入激光头
+    write_multi_value_port(spotWeld)            --写入点焊参数
+    comNo = 3 --端口号 RS485-2
+    write_multi_value_port(wireRegisterMap)     --写入丝机参数
+
+                    )";
+                    bodyScriptText += write_laser_params;
+                    bodyScriptText += write_weld_params;
                 }
                 //安全点movej
                 else if (instType == InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK)
@@ -596,7 +647,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             {
                 break;
             }
-
             // 获取当前焊接路径的起始与结束位置
             weldInstListStartLoc = currentInstLoc;
             weldInstListEndLoc = weldInstListStartLoc;
@@ -616,7 +666,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             //拆分后路径的起始与终点位置
             int segWeldInstListStartLoc = weldInstListStartLoc; //起始位置
             int segWeldInstListEndLoc = weldInstListStartLoc;   //结束位置
-
             // 遍历一段起收弧相应焊接路径内所有的指令
             while (true)
             {
@@ -629,16 +678,13 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     }
                     segWeldInstListEndLoc++;
                 }
-
                 CraftInfoLaserSdk &segCraftInfo = craftsMap[instListTransEnvironmentData.craftID];
-
                 //指令列表转换接口
                 LaserSdkResult result = GetBasicCraftScript(laserMachineHandle, weldStartData, instListData, tempPointsMap, instListTransEnvironmentData, segWeldInstListStartLoc, segWeldInstListEndLoc, bodyScriptText);
                 if (result != LaserSdkResult::SUCCESS_LASER_SDK)
                 {
                     return result;
                 }
-
                 // 结束当前起收弧路径的转换或者继续遍历拆分后的下一段
                 if (segWeldInstListEndLoc >= weldInstListEndLoc)
                 {
@@ -650,15 +696,9 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     segWeldInstListStartLoc = segWeldInstListEndLoc;
                 }
             }
-
-
-
             currentInstLoc = weldInstListEndLoc+1;
         }
-
     }
-
-
 
     std::string breakPointListScript;
     std::string signalSetpPointLocListScript;
@@ -676,11 +716,11 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
         breakPointListScript = "breakPointLocList = {" + breakPointListScript + "}\n";
         breakPointListScript += R"(
-    breakPointLocListLookUp = {}
-    for k, v in pairs(breakPointLocList) do
-        breakPointLocListLookUp[v] = 1
-    end
-)";
+            breakPointLocListLookUp = {}
+            for k, v in pairs(breakPointLocList) do
+                breakPointLocListLookUp[v] = 1
+            end
+        )";
 
         // 进行单步运行路点地址列表的处理
         for (int i = 0; i < weldStartData.signalStepPointNum; i++)
@@ -694,20 +734,67 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
         signalSetpPointLocListScript = "signalSetpPointLocList = {" + signalSetpPointLocListScript + "}\n";
         signalSetpPointLocListScript += R"(
-    signalSetpPointLocListLookUp = {}
-    for k, v in pairs(signalSetpPointLocList) do
-        signalSetpPointLocListLookUp[v] = 1
-    end
-)";
+            signalSetpPointLocListLookUp = {}
+            for k, v in pairs(signalSetpPointLocList) do
+                signalSetpPointLocListLookUp[v] = 1
+            end
+        )";
     }
 
     //组装最终要下发执行的脚本
+    std::string commandListStartData = R"(
+            --激光器工艺
+                                       local laserRegisterMap = {
+                                           [1] = {0x0230, 2000},  -- 激光功率
+                                           [2] = {0x0231, 2000},  -- 开光功率
+                                           [3] = {0x0232, 50},    -- 开光功率上升时间
+                                           [4] = {0x0233, 1000},  -- 关光功率
+                                           [5] = {0x0234, 10},   -- 关光功率下降时间
+                                           [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间
+                                           [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间
+                                           [8] = {0x0237, 0},    -- 送丝延时 默认0
+                                           [9] = {0x0238, 0},    -- 激光头Y轴缩放
+                                           [10] = {0x0239, 0},   -- 激光头Y轴偏移
+                                           [11] = {0x023A, 0 },  -- 激光头X轴缩放
+                                           [12] = {0x023B, 0 },  -- 激光头X轴偏移
+                                       }
+            --送丝机参数
+                                       local wireRegisterMap = {
+                                           [1] = {0x0103, 0},      --自动送丝延时
+                                           [2] = {0x0104, 100},    --回抽长度
+                                           [3] = {0x0105, 100},    --补丝长度
+                                           [4] = {0x0106, 0},    --补丝延时
+                                           [100] = {0x0100, 123},  --自动送丝速度
+                                       }
+                                       --点焊工艺
+                                       local spotWeld = {
+                                           [1] = {0x0242, 0}, --点焊类型 1：鱼鳞焊 0：间断
+                                           [2] = {0x0243, 0}, --点焊持续时间  0 ~ 60000 ms
+                                           [3] = {0x0244, 0} --点焊间隔时间   0 ~ 60000 ms
+                                       }
+            -- 激光头控制参数
+                                       local laserHeadRegisterMap = {
+                                           [1] = { 0x0000, 2000},  -- 激光头扫描速度
+                                           [2] = { 0x0001, 25 },    -- 激光头扫描宽度
+                                           [3] = { 0x0002, 3000 },    -- 峰值功率，焊接功率
+                                           [4] = { 0x0003, 100},   -- 占空比
+                                           [5] = { 0x0004, 0 },
+                                           [6] = { 0x0005, 20000 },    --脉冲频率/工艺无控制
+                                           [7] = { 0x0006, 2.5 },    -- 激光头扫描高度
+                                           [8] = { 0x0007, 0 },    -- 激光头旋转角度
+                                       }
+                                       )";
+    std::string RobotProgramScriptStart = " function RobotProgram()\n";
+    std::string RobotProgramScriptEnd = "\n end\n"
+                                " -----RobotProgramEnd----\n"
+                                " RobotProgram_Result=task_create(RobotProgram)\n";
     std::string script;
+    script += commandListStartData; //起始参数
+    script += curCommuFunction->loadLuaFunctionScriptOut();//调用函数定义
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
     script += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
-    script += bodyScriptText;
-
+    script += RobotProgramScriptStart + bodyScriptText + RobotProgramScriptEnd;
     //测试代码scripts
     if(isWeld)
     {    std::ofstream file("./startWeldFun.txt");
