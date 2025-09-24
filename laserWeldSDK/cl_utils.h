@@ -205,6 +205,13 @@ std::tuple<int, int> splitHighLowByteValue(double value);
 LaserSdkResult crsdk_return_value_transfer(CRresult res);
 //十进制转16进制，输出为对应十六进制的字符串类型
 std::string decimalToHexStringStream(unsigned int value);
+/**
+ * @brief 将 double 转换为字符串，保留指定小数位数
+ * @param value 输入的浮点数
+ * @param precision 保留的小数位数（默认 2）
+ * @return 格式化后的字符串
+ */
+std::string double2str(double value, int precision);
 
 #endif // CWUTILS_H
 

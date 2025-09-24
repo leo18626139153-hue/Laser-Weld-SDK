@@ -204,76 +204,87 @@ CommuRS485::CommuRS485()
     task_write_port = R"(
     --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执
     function write_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr)
-        --------将通讯变量清零--------
-        register_clear(SendCommuRegAddr, 8)
+        bool_register_clear(SendCommuRegAddr, 8)
+        register_clear(RecvCommuRegAddr, RecvCommuReg_n)
         ----------高低字节拆分计算校验码---------    
         local data1=Lua_split(function_code)    
         local data2=Lua_split(port_address)     
         local data3=Lua_split(parameter_value)  
         local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
         local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转    
-        print(string.format("CRC校验值: 0x%02X", mes_2[1], mes_2[2])) 
-        --构造报文，高低字节反转发送
         mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}	
         local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串
         print(tmp_string)
-        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
-        local timeout = 1   --超时时间
-        --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
-        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,timeout)
-        wait(10)
+        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量
+        local timeout = 1000   --超时时间
+        while(read_int16_register(RecvCommuRegAddr) == 0 and timeout > 0) do
+            --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
+            serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,timeout)
+            wait(10)
+            timeout = timeout - 10
+            if timeout <= 0 then
+                print(string.format("超时地址 : 0x%04X", port_address))
+                break
+            end
+        end
     end
 
-                      function write_multi_value_port(addr_value_map)
-                          -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
-                          bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
-                          local crc_mes = {}
-                          -- 2 寄存器首地址
-                          local split_data_2 = Lua_split(addr_value_map[1][1])
-                          -- 3 寄存器数量
-                          local split_data_3 = Lua_split(#addr_value_map)
-                          -- 4 字节数量
-                          crc_mes = {slave_addr, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
-                          -- 5. 将对应的变量进行高低字节拆分，放入mes中
-                          for k, address  in ipairs(addr_value_map) do
-                              local split_data_x = Lua_split(address[2])
-                              table.insert(crc_mes, split_data_x[1])
-                              table.insert(crc_mes, split_data_x[2])
-                          end
-                          --6. 计算校验码
-                          local split_data_crc = Lua_split(swap_bytes(modbus_crc16(crc_mes)))
-                          table.insert(crc_mes, split_data_crc[1])
-                          table.insert(crc_mes, split_data_crc[2])
-                          --7. 写入报文
-                          local mes_string = concatenate_crc(crc_mes)
-                          local CommuReg_n = WriteHex2Commu_reg(mes_string)
-                          print("发送报文长度："..CommuReg_n)
-                          print("发送报文："..mes_string)
-                          print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
-                          --8. 发送报文
-                          local waitTime = 1000
-                          -- 回执格式
-                          while waitTime > 0 do
-                              serial_send_receive(comNo, CommuReg_n, SendDataType, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
-                              wait(10)
-                              waitTime = waitTime - 10
-                              if read_int16_register(RecvCommuRegAddr) ~= 0 then
-                                  print("接收到回执")
-                                  break
-                              end
-                          end
-                      end
+    function write_multi_value_port(addr_value_map)
+        -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
+        bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
+        local crc_mes = {}
+        -- 2 寄存器首地址
+        local split_data_2 = Lua_split(addr_value_map[1][1])
+        -- 3 寄存器数量
+        local split_data_3 = Lua_split(#addr_value_map)
+        -- 4 字节数量
+        crc_mes = {slave_addr, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
+        -- 5. 将对应的变量进行高低字节拆分，放入mes中
+        for k, address  in ipairs(addr_value_map) do
+            local split_data_x = Lua_split(address[2])
+            table.insert(crc_mes, split_data_x[1])
+            table.insert(crc_mes, split_data_x[2])
+        end
+        --6. 计算校验码
+        local split_data_crc = Lua_split(swap_bytes(modbus_crc16(crc_mes)))
+        table.insert(crc_mes, split_data_crc[1])
+        table.insert(crc_mes, split_data_crc[2])
+        --7. 写入报文
+        local mes_string = concatenate_crc(crc_mes)
+        local CommuReg_n = WriteHex2Commu_reg(mes_string)
+        print("发送报文长度："..CommuReg_n)
+        print("发送报文："..mes_string)
+        print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
+        --8. 发送报文
+        local waitTime = 1000
+        -- 回执格式
+        while waitTime > 0 do
+            serial_send_receive(comNo, CommuReg_n, SendDataType, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
+            wait(10)
+            if read_int16_register(RecvCommuRegAddr) ~= parse_little_endian_bytes(concatenate_crc({0x10, slave_addr})) and read_int16_register(RecvCommuRegAddr) ~= 0 then
+                print(string.format("回执错误，接收到回执: 0x%04X", read_int16_register(RecvCommuRegAddr)))
+                break
+            end
+            waitTime = waitTime - 10
+            if read_int16_register(RecvCommuRegAddr) ~= 0 then
+                print("接收到回执")
+                break
+            end
+        end
+    end
     )";
 
 
     startData = R"(
-    local SendDataType = 0 --bool位寄存器，通过bool寄存器发送字节数据
-    local RecvDataType = 1 --16位寄存器，接收到的数据放到16位寄存器中
-    local SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
-    local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
-    local RecvCommuReg_n = 20		--接收50个字节
+    comNo = 3 --端口号 RS485-2
+    slave_addr = 0x09    --从机地址
+    SendDataType = 0 --bool位寄存器  通过bool寄存器发送字节数据
+    RecvDataType = 1 --16位寄存器  接收到的数据放到16位寄存器中
+    SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
+    RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
+    RecvCommuReg_n = 20		--接收50个字节
     )";
-
+    
     loadLuaFunctionScript = startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port; 
                                                         
@@ -347,9 +358,9 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                 --检测开始信号
                 if(read_boolean_register(900)==true) then
                     --送气使能关
-                    write_value_port(0x0906, 0x0031, 0, 3, 62)
+                    write_value_port(0x0906, 0x0031, 0, 3, 0)
                     --送丝机使能关
-                    write_value_port(0x0906, 0x0032, 0, 3, 62)
+                    write_value_port(0x0906, 0x0032, 0, 3, 0)
                     set_configurable_digital_out(1, false)  ---CO1 = 1
                     wait(gasWaitTime) --等待送气结束
                     set_configurable_digital_out(0, false)  ---CO0 = 1
@@ -362,9 +373,9 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                         set_configurable_digital_out(1, false)  ---CO1 = 0
                         print("收弧异常")
                         --送气使能关
-                        write_value_port(0x0906, 0x0031, 0, 3, 62)
+                        write_value_port(0x0906, 0x0031, 0, 3, 0)
                         --送丝机使能关
-                        write_value_port(0x0906, 0x0032, 0, 3, 62)
+                        write_value_port(0x0906, 0x0032, 0, 3, 0)
                         write_integer_register(675, 1) --收弧异常信号
                         break
                     end
@@ -450,14 +461,14 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, comNo, SendCommuRegAddr)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, comNo, SendCommuRegAddr)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", comNo, SendCommuRegAddr)" << endstr;
             break;
         default:
             break;
@@ -581,14 +592,14 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, comNo, SendCommuRegAddr)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, comNo, SendCommuRegAddr)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", comNo, SendCommuRegAddr)" << endstr;
             break;
         default:
             break;
@@ -678,14 +689,14 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*10, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*10, 2, SendCommuRegAddr)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*100, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*100, 2, SendCommuRegAddr)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << ", 2, 62)" << endstr;
+            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << ", 2, SendCommuRegAddr)" << endstr;
             break;
         default:
             break;

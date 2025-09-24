@@ -473,6 +473,13 @@ std::string decimalToHexStringStream(unsigned int value)
     return "0x" + hexStr;
 }
 
+std::string double2str(double value, int precision)
+{
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(precision) << value;
+    return out.str();
+}
+
 std::string strSetStandardDigitalReplace(int srcStr, bool vecStr)
 {
     return strReplace(strReplace("set_standard_digital_out(%1,%2)\n", "%1", srcStr), "%2", vecStr);
