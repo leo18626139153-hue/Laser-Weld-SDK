@@ -110,18 +110,20 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMach
 
 /**
  * @brief getLapRollbackCirclePoint     获取直线轨迹——根据终点和降功率点获取新的起点和终点
+ * @param laserMachineHandle            激光器句柄
  * @param rollbackStraightLineData      直线回退参数
  * @return WeldSdkResult                处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(RollbackStraightLineData* rollbackStraightLineData);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackStraightLineData* rollbackStraightLineData);
 
 
 /**
  * @brief getLapRollbackCirclePoint     获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
+ * @param laserMachineHandle            激光器句柄
  * @param rollbackCircleData            圆弧回退参数
  * @return WeldSdkResult                处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(RollbackCircleData* rollbackCircleData);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData);
 
 
 /**
@@ -141,6 +143,17 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_slow_script(const LaserMachi
  * @return WeldSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
+
+
+/**
+ * @brief getLapRollbackCirclePoint     缓升缓降收弧
+ * @param laserMachineHandle            激光器句柄
+ * @param scripts                       起弧LUA脚本 传出参数
+ * @param scriptLen                     脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的起弧LUA脚本大小
+ * @return WeldSdkResult                处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
+
 
 #ifdef __cplusplus
 }

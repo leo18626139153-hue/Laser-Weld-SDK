@@ -787,8 +787,15 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
 
 //直线 计算 降功率点
-LaserSdkResult cl_craft_straight_line_back_point_cal(RollbackStraightLineData* rollbackStraightLineData)
+LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackStraightLineData* rollbackStraightLineData)
 {
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
     // 调用 getNewTeachPoints 方法计算新的起点和终点
     LaserSdkResult result = getStraightLineSlowUpPoint(
                                 rollbackStraightLineData->startPoint,
@@ -808,8 +815,15 @@ LaserSdkResult cl_craft_straight_line_back_point_cal(RollbackStraightLineData* r
 
 
 //圆弧 计算 降功率点
-LaserSdkResult cl_craft_circle_back_point_cal(RollbackCircleData* rollbackCircleData)
+LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData)
 {
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
     // 调用 getNewTeachPoints 方法计算新的起点和终点
     LaserSdkResult result = getCirclrSlowDownPoints(
                                 rollbackCircleData->startPoint,
@@ -912,12 +926,12 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
-        //激光图案
+        //激光头
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
 
         std::string arcStartProgram1 = "function arcStartProgram()\n";
         std::string arcStartParam =
-                "laserPower = " + std::to_string(laserPowerParams.laserPower) + "\n" +
+                "laserPower = " + std::to_string(laserHeadParams.laserHeadPeakPower) + "\n" +
                 "openPower = " + std::to_string(laserPowerParams.laserPowerOpen) + "\n" +
                 "openLightTime = " + std::to_string(laserPowerParams.laserRampUpTime) + "\n" +
                 "wirefeedeOpenSendSpeed = " + std::to_string(wireFeederParams.wireFeederStartMotorSpeed) + "\n" +
@@ -960,7 +974,7 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
                 return
             end
             --开气的延迟等待，不需要继续往下走
-            wait(" << time << ")  -- 替换动态变量
+            wait()" << time << R"()  -- 替换动态变量
             ask_thread = task_create(slow_ascent)
         )";
 
@@ -1047,14 +1061,15 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
 
         std::string arcStartProgram1 = "function arcStartProgram()\n";
         std::string arcStartParam =
-                "laserPower = " + std::to_string(laserPowerParams.laserPower) + "\n" +
+                "laserPower = " + std::to_string(laserHeadParams.laserHeadPeakPower) + "\n" +
                 "closePower  = " + std::to_string(laserPowerParams.laserPowerClose) + "\n" +
                 "closeLightTime  = " + std::to_string(laserPowerParams.laserRampDownTime) + "\n" +
                 "wirefeedeCloseSendSpeed = " + std::to_string(wireFeederParams.wireFeederStopMotorSpeed) + "\n" +
                 "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed);
         std::string arcStartProgram =
         R"(
-            function slow_descent(laserPower, closePower, wirefeedeCloseSendSpeed, wirefeedeWeldSendSpeed, closeLightTime)
+            --laserPower, closePower, wirefeedeCloseSendSpeed, wirefeedeWeldSendSpeed, closeLightTime
+            function slow_descent()
                 -- 计算功率差，送丝速度差
                 local v = laserPower - closePower
                 local s = wirefeedeWeldSendSpeed - wirefeedeCloseSendSpeed
@@ -1094,6 +1109,146 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
         scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
         //scriptGet = funcScript + scriptGet;
+        //脚本赋值
+        if(!strToChar(scripts, scriptLen, scriptGet))
+        {
+            return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+
+//设备状态监控
+LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        //配置串口信息
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+
+
+    try
+    {
+        //脚本
+        std::string globalVar = "local SendDataType = 0 --bool位寄存器，通过bool寄存器发送字节数据\n"
+                                "local RecvDataType = 1 --16位寄存器，接收到的数据放到16位寄存器中\n"
+                                "local SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储\n"
+                                "local SendCommuReg_n = 16		--发送指令从bool通讯变量的 0 地址开始存储\n"
+                                "local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储\n"
+                                "local RecvCommuReg_n = 	60		--接收50个字节\n"
+                                "local alarm_bits_list = {0, 1, 2, 4, 5, 10, 11, 14}	-- 报警比特类型\n";
+
+        std::string scriptGet="while true do\n"
+                              "    -- 激光头系统未使能状态，有无总报警\n"
+                              "    read_value_port(0x0903, 0x2000 , 0x0003, 3, SendCommuRegAddr, 16)\n"
+                              "    local report = read_registers_as_hex(30, 60)\n"
+                              "    print(\"拼接报文:\", report)\n"
+                              "    local swapReport = get_swap_report(report)\n"
+                              "    local val = get_register_value(swapReport,1)\n"
+                              "    print(\"激光头系统未使能状态:\", val)\n"
+                              "    write_integer_register(802, val)\n"
+                              "    local val = get_register_value(swapReport,2)\n"
+                              "    print(\"有无总报警:\", val)\n"
+                              "    write_integer_register(803, val)\n"
+                              "    local val = get_register_value(swapReport,3)\n"
+                              "    parse_alarm_word(val)\n"
+                              "    print(\"有无总报警2:\", val)\n"
+                              "\n"
+                              "    -- 激光器扳机状态，激光器报警状态，安全地锁输入状态，气压报警输入状态，送丝使能状态，pwm输出状态，气阀输出状态，DAC模拟量输出状态\n"
+                              "    read_value_port(0x0903, 0x0409 , 0x000a, 3, SendCommuRegAddr, 16)\n"
+                              "    local report = read_registers_as_hex(30, 60)\n"
+                              "    print(\"拼接报文:\", report)\n"
+                              "    local swapReport = get_swap_report(report)\n"
+                              "    local val = get_register_value(swapReport,1)\n"
+                              "    print(\"激光器扳机状态:\", val)\n"
+                              "    write_integer_register(814, val)\n"
+                              "    local val = get_register_value(swapReport,2)\n"
+                              "    print(\"激光器报警状态:\", val)\n"
+                              "    write_integer_register(815, val)\n"
+                              "    local val = get_register_value(swapReport,3)\n"
+                              "    print(\"安全地锁输入状态:\", val)\n"
+                              "    write_integer_register(816, val)\n"
+                              "    local val = get_register_value(swapReport,5)\n"
+                              "    print(\"气压报警输入状态:\", val)\n"
+                              "    write_integer_register(817, val)\n"
+                              "    local val = get_register_value(swapReport,6)\n"
+                              "    print(\"送丝使能状态:\", val)\n"
+                              "    write_integer_register(818, val)\n"
+                              "    local val = get_register_value(swapReport,7)\n"
+                              "    print(\"PWM输出状态:\", val)\n"
+                              "    write_integer_register(819, val)\n"
+                              "    local val = get_register_value(swapReport,9)\n"
+                              "    print(\"气阀输出状态:\", val)\n"
+                              "    write_integer_register(820, val)\n"
+                              "    local val = get_register_value(swapReport,10)\n"
+                              "    print(\"DAC模拟量输出状态:\", val)\n"
+                              "    write_integer_register(821, val)\n"
+                              "\n"
+                              "    -- 送丝机连接状态\n"
+                              "    read_value_port(0x0903, 0x042e, 0x0001, 3, SendCommuRegAddr, 16)\n"
+                              "    local report = read_registers_as_hex(30, 35)\n"
+                              "    print(\"拼接报文:\", report)\n"
+                              "    local swapReport = get_swap_report(report)\n"
+                              "    local val = get_register_value(swapReport,1)\n"
+                              "    print(\"送丝机连接状态:\", val)\n"
+                              "    write_integer_register(813, val)\n"
+                              "\n"
+                              "    -- 激光器状态，气压状态\n"
+                              "    read_value_port(0x0903, 0x023c, 0x0003, 3, SendCommuRegAddr, 16)\n"
+                              "    local report = read_registers_as_hex(30, 40)\n"
+                              "    print(\"拼接报文:\", report)\n"
+                              "    local swapReport = get_swap_report(report)\n"
+                              "    local val = get_register_value(swapReport,1)\n"
+                              "    print(\"激光器状态:\", val)\n"
+                              "    write_integer_register(822, val)\n"
+                              "    local val = get_register_value(swapReport,3)\n"
+                              "    print(\"气压状态:\", val)\n"
+                              "    write_integer_register(823, val)\n"
+                              "\n"
+                              "    --送丝机过流，送丝机运行状态\n"
+                              "    read_value_port(0x0A03,0x0112,0x0004, 2,  SendCommuRegAddr, 16)\n"
+                              "    local report = read_registers_as_hex(30, 40)\n"
+                              "    print(\"拼接报文:\", report)\n"
+                              "    local swapReport = get_swap_report(report)\n"
+                              "    local val = get_register_value(swapReport,1)\n"
+                              "    print(\"送丝机过流:\", val)\n"
+                              "    write_integer_register(800, val)\n"
+                              "    local val = get_register_value(swapReport,4)\n"
+                              "    print(\"送丝机运行状态:\", val)\n"
+                              "    write_integer_register(801, val)\n"
+                              "\n"
+                              "    -- 等待200ms后继续循环\n"
+                              "    wait(200)\n"
+                              "end\n";
+        //功能函数
+        std::string funcScript = modbus_crc16+ Lua_split+register_clear+to_hex_string+concatenate_crc+parse_little_endian_bytes+
+                WriteHex2Commu_reg+read_value_port+hex_to_bytes+swap_bytes_to_table+get_swap_report+int16_to_hex+
+                read_registers_as_hex+get_register_value+parse_alarm_word;
+
+        scriptGet = mainFuncProgram + globalVar + funcScript + scriptGet + mainFuncProgramEnd;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
