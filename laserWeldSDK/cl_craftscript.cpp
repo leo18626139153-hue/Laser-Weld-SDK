@@ -205,7 +205,8 @@ CommuRS485::CommuRS485()
     --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执
     function write_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr)
         --------将通讯变量清零--------
-        register_clear(SendCommuRegAddr, 8)
+        bool_register_clear(SendCommuRegAddr, 8)
+        register_clear(RecvCommuRegAddr, RecvCommuReg_n)
         ----------高低字节拆分计算校验码---------    
         local data1=Lua_split(function_code)    
         local data2=Lua_split(port_address)     
@@ -217,52 +218,66 @@ CommuRS485::CommuRS485()
         mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}	
         local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串
         print(tmp_string)
-        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
-        local timeout = 1   --超时时间
-        --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
-        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,timeout)
-        wait(10)
+        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数  
+        --等待接收结果
+        local timeout = 1000
+        while(read_int16_register(RecvCommuRegAddr) == 0) do
+            --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
+            serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
+            wait(10)
+            timeout = timeout - 10
+            if timeout <= 0 then
+                print(string.format("超时地址 : 0x%04X", port_address))
+                break
+            end
+        end
+        
     end
-
-                      function write_multi_value_port(addr_value_map)
-                          -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
-                          bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
-                          local crc_mes = {}
-                          -- 2 寄存器首地址
-                          local split_data_2 = Lua_split(addr_value_map[1][1])
-                          -- 3 寄存器数量
-                          local split_data_3 = Lua_split(#addr_value_map)
-                          -- 4 字节数量
-                          crc_mes = {slave_addr, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
-                          -- 5. 将对应的变量进行高低字节拆分，放入mes中
-                          for k, address  in ipairs(addr_value_map) do
-                              local split_data_x = Lua_split(address[2])
-                              table.insert(crc_mes, split_data_x[1])
-                              table.insert(crc_mes, split_data_x[2])
-                          end
-                          --6. 计算校验码
-                          local split_data_crc = Lua_split(swap_bytes(modbus_crc16(crc_mes)))
-                          table.insert(crc_mes, split_data_crc[1])
-                          table.insert(crc_mes, split_data_crc[2])
-                          --7. 写入报文
-                          local mes_string = concatenate_crc(crc_mes)
-                          local CommuReg_n = WriteHex2Commu_reg(mes_string)
-                          print("发送报文长度："..CommuReg_n)
-                          print("发送报文："..mes_string)
-                          print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
-                          --8. 发送报文
-                          local waitTime = 1000
-                          -- 回执格式
-                          while waitTime > 0 do
-                              serial_send_receive(comNo, CommuReg_n, SendDataType, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
-                              wait(10)
-                              waitTime = waitTime - 10
-                              if read_int16_register(RecvCommuRegAddr) ~= 0 then
-                                  print("接收到回执")
-                                  break
-                              end
-                          end
-                      end
+    
+    function write_multi_value_port(addr_value_map)
+        -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
+        bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量    
+        register_clear(RecvCommuRegAddr, RecvCommuReg_n)
+        local crc_mes = {}
+        -- 2 寄存器首地址
+        local split_data_2 = Lua_split(addr_value_map[1][1]) 
+        -- 3 寄存器数量
+        local split_data_3 = Lua_split(#addr_value_map) 
+        -- 4 字节数量
+        crc_mes = {slave_addr, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
+        -- 5. 将对应的变量进行高低字节拆分 放入mes中
+        for k, address  in ipairs(addr_value_map) do
+            local split_data_x = Lua_split(address[2])
+            table.insert(crc_mes, split_data_x[1])
+            table.insert(crc_mes, split_data_x[2])
+        end
+        --6. 计算校验码
+        local split_data_crc = Lua_split(swap_bytes(modbus_crc16(crc_mes)))
+        table.insert(crc_mes, split_data_crc[1])
+        table.insert(crc_mes, split_data_crc[2])
+        --7. 写入报文
+        local mes_string = concatenate_crc(crc_mes)
+        local CommuReg_n = WriteHex2Commu_reg(mes_string)
+        print("发送报文长度："..CommuReg_n)
+        print("发送报文："..mes_string)
+        print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
+        --8. 发送报文
+        local timeout = 1000
+        while(read_int16_register(RecvCommuRegAddr) == 0) do
+            --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
+            serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
+            wait(10)
+            timeout = timeout - 10
+            if read_int16_register(RecvCommuRegAddr) ~= 0x1009 and read_int16_register(RecvCommuRegAddr) ~= 0 then
+                print(string.format("参数错误，回执: 0x%04X", read_int16_register(RecvCommuRegAddr)))
+                break
+            end
+            if timeout <= 0 then
+                print(string.format("超时地址 : 0x%04X", port_address))
+                break
+            end
+        end
+    end
     )";
 
 
@@ -749,6 +764,13 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
 //工艺参数设置脚本获取
 LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk &craftInfo, std::string &script)
 {
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
     CraftInfoLaserSdk curCraftInfo = craftInfo;
     ///激光参数赋值
     std::string write_laser_params;
@@ -814,14 +836,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_read_script_get(LaserMachineHa
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     //CgxiLaserHeadLaserSdk &laserHeadParams  = machineResource.laserHeadParams;
     std::stringstream use_write_data;
-    use_write_data << "read_scanning_speed()\n"
-                   << "read_peak_power()\n"
-                   << "read_scanning_width()\n"
-                   << "read_duty_cycle()\n"
-                   << "read_pulse_frequency()\n"
-                   << "read_scanning_height()\n"
-                   << "read_rotation_angle()\n"
-                   << "read_laser_graphics()\n";
+    use_write_data << "read_scanning_speed()\n";
     script += use_write_data.str();
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }

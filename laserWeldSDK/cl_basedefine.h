@@ -197,6 +197,8 @@ typedef struct CgxiWireFeederLaserSdk
     //WeldFuncLaserSdk wireCutFunction;    断丝模式 0：常规 1：高速（仅步进有效）0x010D R/W
 
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
+    int wireFeederStartMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
+    int wireFeederStopMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederManualFeedSpeed;             ///< 手动送丝速度 15~600cm/min 0x0101 R/W
     int wireFeederManualBackSpeed;             ///< 手动回抽速度 15~600 cm/min 0x0102 R/W
     int wireFeederFeedLength;                  ///< 补丝长度
