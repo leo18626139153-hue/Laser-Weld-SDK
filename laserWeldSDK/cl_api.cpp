@@ -483,7 +483,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     CraftInfoLaserSdk curCraftInfo = craftsMap[instID];
                     ///激光参数赋值
                     std::string write_laser_params;
-                    write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";   //激光功率
+                    write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(machineResource.laserPowerParams.laserPower)+"\n";   //激光功率
                     write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftLeadInPower)+"\n";  //开光功率
                     write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInRampTime)+"\n";  //开光功率上升时间
                     write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(curCraftInfo.craftLeadOutPower)+"\n";    //关光功率
@@ -505,19 +505,20 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     write_laser_params += "    wireRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftEndingWireRetraction)+"\n"; //回抽长度
                     write_laser_params += "    wireRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
                     write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头扫描速度
-                    write_laser_params += "    laserHeadRegisterMap[2][2] = "+ double2str(curCraftInfo.craftScanSpeed, 1)+"*10 \n";  //激光头扫描宽度
-                    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ double2str(curCraftInfo.craftScanSpeed, 1)+"*10 \n";  //激光头扫描高度
-                    write_laser_params += "    laserHeadRegisterMap[8][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头旋转角度
+                    write_laser_params += "    laserHeadRegisterMap[2][2] = "+ double2str(curCraftInfo.craftScanWidth, 1)+"*10 \n";  //激光头扫描宽度
+                    write_laser_params += "    laserHeadRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";  //焊接功率
+                    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ double2str(curCraftInfo.craftScanHeight, 1)+"*10 \n";  //激光头扫描高度
+                    write_laser_params += "    laserHeadRegisterMap[8][2] = "+ std::to_string(curCraftInfo.craftRotationAngle)+"\n"; //激光头旋转角度
                     // 写入送丝机速度
-                    write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftLeadInWireFeed), "2", "RecvCommuRegAddr");
+                    write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftWeldingWireFeed), "2", "SendCommuRegAddr");
                     // 写入焊接模式
-                    write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "RecvCommuRegAddr");
+                    write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr");
                     ///< 写入激光头参数
                     if(curCraftInfo.graphicsSwitching != machineResource.laserHeadParams.laserSpotPattern)
                     {
                         // 写入图案
                         machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
-                        write_laser_params += writeLuaScript("0x0906", "0x0030", std::to_string(curCraftInfo.graphicsSwitching), "3", "RecvCommuRegAddr");
+                        write_laser_params += writeLuaScript("0x0906", "0x0030", std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr");
                     }
                     //写入激光焊接参数、点焊参数、丝机参数
                     std::string write_weld_params = R"(
@@ -1273,4 +1274,22 @@ LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMach
     }
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
+{
+
+    std::string scriptGet="--状态监控--\n";
+    //脚本赋值
+    if(!strToChar(scripts, scriptLen, scriptGet))
+    {
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    }
+    return SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double *pose, const double *joint, const double liftDistance, double *liftPose, double *liftJoint)
+{
+    std::string scriptGet="--焊枪姿态调整--\n";
+    return SUCCESS_LASER_SDK;
 }

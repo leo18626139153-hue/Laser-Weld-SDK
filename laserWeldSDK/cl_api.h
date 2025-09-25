@@ -165,6 +165,28 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachin
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
 
+/**
+ * @brief         获取焊接状态监控脚本
+ * @param laserMachineHandle                 焊接资源句柄
+ * @param scripts                           焊接状态监控的LUA脚本 传出参数
+ * @param scriptLen                         脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的LUA脚本大小
+ * @return WeldSDKResult                    处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
+
+/**
+ * @brief calculate_liftPose    计算抬枪后的姿态
+ * @param laserMachineHandle     焊机资源句柄
+ * @param pose                  抬枪前的姿态(位置+轴角(角度))
+ * @param joint                 抬枪前参考关节角
+ * @param liftDistance          抬枪距离
+ * @param liftPose              抬枪后的姿态(位置+轴角(角度))
+ * @param liftJoint             抬枪后参考关节角
+ * @return WeldSdkResult        处理结果    
+ */
+LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double* pose, const double* joint, const double liftDistance, double* liftPose, double* liftJoint);
+
+
 
 #ifdef __cplusplus
 }
