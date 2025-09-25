@@ -152,7 +152,6 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
         //起弧执行程序
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
-        scriptGet = mainFuncProgram + scriptGet + mainFuncProgramEnd;
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
@@ -229,7 +228,6 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, scriptGet));
         //收弧执行程序
         //scriptGet = funcScript + scriptGet;      //脚本赋值
-        scriptGet = mainFuncProgram + scriptGet + mainFuncProgramEnd;
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
@@ -493,14 +491,14 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     int tempTime = curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed;
                     write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(tempTime)+"\n";  //关光功率下降时间
                     write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";      //提前送气时间
-                    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n"; //气体关闭延时 --滞后送气时间
+                    write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n"; //气体关闭延时 --滞后送气时间
                     //YXYX轴偏移量
-                    write_laser_params += "    locationCalibration[9][2] = "+ double2str(curCraftInfo.craftYAxisZoom, 2)+"*100 \n";        //激光头Y轴缩放
-                    write_laser_params += "    locationCalibration[10][2] = "+ double2str(curCraftInfo.craftYAxisOffset, 2)+"*100 \n";     //激光头Y轴偏移
-                    write_laser_params += "    locationCalibration[11][2] = "+ double2str(curCraftInfo.craftXAxisZoom, 2)+"*100 \n";       //激光头X轴缩放
-                    write_laser_params += "    locationCalibration[12][2] = "+ double2str(curCraftInfo.craftXAxisOffset, 2)+"*100 \n";     //激光头X轴偏移
+                    write_laser_params += "    laserRegisterMap[9][2] = "+ double2str(curCraftInfo.craftYAxisZoom, 2)+"*100 \n";        //激光头Y轴缩放
+                    write_laser_params += "    laserRegisterMap[10][2] = "+ double2str(curCraftInfo.craftYAxisOffset, 2)+"*100 \n";     //激光头Y轴偏移
+                    write_laser_params += "    laserRegisterMap[11][2] = "+ double2str(curCraftInfo.craftXAxisZoom, 2)+"*100 \n";       //激光头X轴缩放
+                    write_laser_params += "    laserRegisterMap[12][2] = "+ double2str(curCraftInfo.craftXAxisOffset, 2)+"*100 \n";     //激光头X轴偏移
                     //点焊工艺
-                    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(curCraftInfo.craftWeldType)+"\n"; //点焊类型
+                    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(static_cast<int>(curCraftInfo.craftWeldType))+"\n"; //点焊类型
                     write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n"; //点焊时长
                     write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n"; //点焊间隔
                     // 送丝机参数
@@ -511,21 +509,20 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     write_laser_params += "    laserHeadRegisterMap[7][2] = "+ double2str(curCraftInfo.craftScanSpeed, 1)+"*10 \n";  //激光头扫描高度
                     write_laser_params += "    laserHeadRegisterMap[8][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头旋转角度
                     // 写入送丝机速度
-                    write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftLeadInWireFeed), "2", "99");
+                    write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftLeadInWireFeed), "2", "RecvCommuRegAddr");
                     // 写入焊接模式
-                    write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(curCraftInfo.craftweldMode), "3", "99");
+                    write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "RecvCommuRegAddr");
                     ///< 写入激光头参数
                     if(curCraftInfo.graphicsSwitching != machineResource.laserHeadParams.laserSpotPattern)
                     {
                         // 写入图案
                         machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
-                        write_laser_params += writeLuaScript("0x0906", "0x0030", std::to_string(curCraftInfo.graphicsSwitching), "3", "99");//激光头图形切换
+                        write_laser_params += writeLuaScript("0x0906", "0x0030", std::to_string(curCraftInfo.graphicsSwitching), "3", "RecvCommuRegAddr");
                     }
                     //写入激光焊接参数、点焊参数、丝机参数
                     std::string write_weld_params = R"(
     comNo = 3
     slave_addr = 0x09  
-    first_register_num = 100 --通讯变量起始地址
     SendDataType = 0         --bool位寄存器, 通过bool寄存器发送字节数据
     SendCommuRegAddr = 0	 --发送指令从bool通讯变量的 0 地址开始存储
     write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
@@ -749,7 +746,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         [4] = { 0x0003, 100},   -- 占空比
         [5] = { 0x0004, 0 },
         [6] = { 0x0005, 20000 },    --脉冲频率/工艺无控制
-        [7] = { 0x0006, 2.5 },    -- 激光头扫描高度
+        [7] = { 0x0006, 25 },    -- 激光头扫描高度
         [8] = { 0x0007, 0 },    -- 激光头旋转角度
     }
     )";
@@ -785,6 +782,25 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     return SUCCESS_LASER_SDK;
 }
 
+LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
+{
+    std::string script;
+
+    int programStopArcEndAddress = WeldControlAddressLaserSdk::BOOL_REG_PROGRAM_STOP_ARC_END_614;   // 程序停止后自动收弧开启状态位：1 有效 0 无效
+    int signalSetpRunAddress = WeldControlAddressLaserSdk::BOOL_REG_SINGLE_STEP_RUN_616;  // 单步运行状态位：1 有效 0 无效
+
+    script += strWriteInt32RegReplace(programStopArcEndAddress, 0); // 程序停止后自动收弧关闭
+    script += strWriteInt32RegReplace(signalSetpRunAddress, 0);
+
+    if(script.size() + 1 > *scriptLen)
+    {
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    }
+    *scriptLen = script.size()+1;
+    memcpy(scripts, script.c_str(), script.size());
+    memcpy(scripts + script.size(), "\0", 1);
+    return SUCCESS_LASER_SDK;
+}
 
 //直线 计算 降功率点
 LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackStraightLineData* rollbackStraightLineData)
@@ -983,7 +999,7 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
@@ -1046,14 +1062,10 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
     CgxiLaserHeadLaserSdk &laserHeadParams  = machineResource.laserHeadParams;
     CgxiWireFeederLaserSdk &wireFeederParams  = machineResource.wireFeederParams;
     CgxiLaserPowerLaserSdk &laserPowerParams  = machineResource.laserPowerParams;
-
-
     //获取脚本
     std::string scriptGet;
-
     try
     {
-
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
@@ -1107,7 +1119,7 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))

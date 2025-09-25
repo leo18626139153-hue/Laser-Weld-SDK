@@ -213,17 +213,16 @@ CommuRS485::CommuRS485()
         local data3=Lua_split(parameter_value)  
         local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
         local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转    
-        print(string.format("CRC校验值: 0x%02X", mes_2[1], mes_2[2])) 
         --构造报文，高低字节反转发送
         mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}	
         local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串
         print(tmp_string)
-        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数  
+        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数 
+        --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
+        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1) 
         --等待接收结果
-        local timeout = 1000
-        while(read_int16_register(RecvCommuRegAddr) == 0) do
-            --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
-            serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
+        local timeout = 500
+        while(read_int16_register(RecvCommuRegAddr) == 0) do            
             wait(10)
             timeout = timeout - 10
             if timeout <= 0 then
@@ -263,12 +262,12 @@ CommuRS485::CommuRS485()
         print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
         --8. 发送报文
         local timeout = 1000
+        --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
+        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
         while(read_int16_register(RecvCommuRegAddr) == 0) do
-            --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
-            serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
             wait(10)
             timeout = timeout - 10
-            if read_int16_register(RecvCommuRegAddr) ~= 0x1009 and read_int16_register(RecvCommuRegAddr) ~= 0 then
+            if read_int16_register(RecvCommuRegAddr) ~= 0x1009 and read_int16_register(RecvCommuRegAddr) ~= 0 and read_int16_register(RecvCommuRegAddr) ~= 0x100A then
                 print(string.format("参数错误，回执: 0x%04X", read_int16_register(RecvCommuRegAddr)))
                 break
             end
@@ -319,9 +318,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                 --检测开始信号
                 if(read_boolean_register(900)==true) then
                     --送气使能开
-                    write_value_port(0x0906, 0x0031, 1, 3, 62)
-                    --送丝机使能开
-                    write_value_port(0x0906, 0x0032, 1, 3, 62)
+                    write_value_port(0x0906, 0x0031, 1, 3, 30)
                     set_configurable_digital_out(0, true)  ---CO0 = 1
                     wait(gasWaitTime) --等待送气结束
                     set_configurable_digital_out(1, true)  ---CO1 = 1
@@ -334,9 +331,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                         set_configurable_digital_out(1, false)  ---CO1 = 0
                         print("起弧失败")
                         --送气使能开
-                        write_value_port(0x0906, 0x0031, 1, 3, 62)
-                        --送丝机使能开
-                        write_value_port(0x0906, 0x0032, 1, 3, 62)
+                        write_value_port(0x0906, 0x0031, 0, 3, 30)
                         write_integer_register(673, 1) --起弧异常信号
                         break
                     end
@@ -360,9 +355,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                 --检测开始信号
                 if(read_boolean_register(900)==true) then
                     --送气使能关
-                    write_value_port(0x0906, 0x0031, 0, 3, 62)
-                    --送丝机使能关
-                    write_value_port(0x0906, 0x0032, 0, 3, 62)
+                    write_value_port(0x0906, 0x0031, 0, 3, 30)
                     set_configurable_digital_out(1, false)  ---CO1 = 1
                     wait(gasWaitTime) --等待送气结束
                     set_configurable_digital_out(0, false)  ---CO0 = 1
@@ -375,9 +368,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                         set_configurable_digital_out(1, false)  ---CO1 = 0
                         print("收弧异常")
                         --送气使能关
-                        write_value_port(0x0906, 0x0031, 0, 3, 62)
-                        --送丝机使能关
-                        write_value_port(0x0906, 0x0032, 0, 3, 62)
+                        write_value_port(0x0906, 0x0031, 0, 3, 30)
                         write_integer_register(675, 1) --收弧异常信号
                         break
                     end
@@ -786,7 +777,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     write_laser_params += "    locationCalibration[11][2] = "+ double2str(curCraftInfo.craftXAxisZoom, 2)+"*100 \n";       //激光头X轴缩放
     write_laser_params += "    locationCalibration[12][2] = "+ double2str(curCraftInfo.craftXAxisOffset, 2)+"*100 \n";     //激光头X轴偏移
     //点焊工艺
-    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(curCraftInfo.craftWeldType)+"\n"; //点焊类型
+    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(static_cast<int>(curCraftInfo.craftWeldType))+"\n"; //点焊类型
     write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n"; //点焊时长
     write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n"; //点焊间隔
     // 送丝机参数
@@ -799,7 +790,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     // 写入送丝机速度
     write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftLeadInWireFeed), "2", "99");
     // 写入焊接模式
-    write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(curCraftInfo.craftweldMode), "3", "99");
+    write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "99");
     ///< 写入激光头参数
     if(curCraftInfo.graphicsSwitching != machineResource.laserHeadParams.laserSpotPattern)
     {
@@ -811,7 +802,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     std::string write_weld_params = R"(
 comNo = 3
 slave_addr = 0x09  
-first_register_num = 100 --通讯变量起始地址
 SendDataType = 0         --bool位寄存器, 通过bool寄存器发送字节数据
 SendCommuRegAddr = 0	 --发送指令从bool通讯变量的 0 地址开始存储
 write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
