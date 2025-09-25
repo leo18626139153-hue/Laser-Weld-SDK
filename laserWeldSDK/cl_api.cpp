@@ -783,6 +783,108 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     return SUCCESS_LASER_SDK;
 }
 
+LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
+{
+    //句柄
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+
+    std::string endArcProtectionScript = R"(
+    function endArcing()
+        write_int16_register(608, 0)    ---开始焊接和模式地址 - 焊机准备、焊机模式
+
+        function _byte2bin(n)
+            local t = {}
+            for i = 7, 0, -1 do
+                t[#t + 1] = math.floor(n / 2^i)
+                n = n % 2^i
+            end
+            return t
+        end
+        Binary = {0, 0, 0, 0, 0, 0, 0, 0}
+        n = read_int16_register(673)     --起弧是否成功的判断
+        Binary = _byte2bin(n)
+        if (Binary[8] == 20) then
+            print("Unresumed arc")
+            for i = 1, 5 do
+                print("Rewrite the arcEnd")
+                write_int16_register(608, 0)    ---开始焊接和模式地址 -- weldEndVal
+                wait(100)
+                tempPdo = read_int16_register(673) --焊接反馈地址  - 判断是否起弧成功
+                Binary = _byte2bin(tempPdo)
+                if (Binary[8] == 0) then
+                    print("Re-arcEnd successful")
+                    break
+                end
+                -- 20次 ----------------------------
+                if (i == 20) then
+                    write_integer_register(675, 1)  -- 收弧异常信号
+                    print("Failed to re-arcEnd")
+                end
+            end
+        end
+        write_bool_register(600, 1)    -- 末端按钮拖动状态控制位设置有效
+    end
+    --程序停止后自动收弧
+    function stop_func()
+        if(read_integer_register(614) == 1) then -- 程序停止后自动收弧开启状态位
+            endArcing() -- 自动收弧程序
+            wait(1)
+            write_integer_register(674, 1)   -- 焊接中断信号
+            write_integer_register(614, 0)   -- 自动收弧状态位置为0
+        end
+    end
+    sysEvent_stop_func_1_Result = sys_event_register(1, stop_func)
+    --暂停后自动收弧
+    function pause_func()
+        while(true)
+        do
+            endArcing()
+            write_integer_register(614, 0)  -- 自动收弧结束
+            sync()
+        end
+    end
+    sysEvent_pause_func_2_Result = sys_event_register(2, pause_func)
+
+    function subResume()
+        write_bool_register(600, 0)     -- 末端按钮拖动位
+        write_integer_register(614, 1)  -- 自动收弧
+    end
+
+    function resume_func()
+        while(true)
+        do
+            subResume()
+            sync()
+        end
+    end
+    sysEvent_resume_func_3_Result = sys_event_register(3, resume_func)
+    )";
+
+    if(!strToChar(scripts, scriptLen, endArcProtectionScript))
+    {
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    }
+
+    return SUCCESS_LASER_SDK;
+}
+
 LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
 {
     std::string script;
