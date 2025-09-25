@@ -82,13 +82,13 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHan
 LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief cw_machine_resource_release    读激光头参数，测试用
+ * @brief cw_machine_resource_release    获取设置焊接工艺参数脚本 焊接过程中设置焊接参数
  * @param laserMachineHandle             焊机资源句柄
- * script
- * scriptLen
+ * @param script                         ArcSet脚本 传出参数
+ * @param scriptLen                      脚本长度 传入时为script参数申请的空间大小，传出时为生成的ArcSet脚本大小
  * @return LaserSdkResult                处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_laser_head_params_read(const LaserMachineHandle laserMachineHandle, char* script, int scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char* script, int scriptLen);
 
 /**
  * @brief cl_craft_weld_status_init      初始化所有焊接相关状态

@@ -71,7 +71,6 @@ private:
     CommuRS485();
     static CommuRS485* s_commuRS485;
     static std::once_flag initFlag; ///< initFlag >>> 保证单例对象只被初始化一次，且线程安全
-
 private:
     std::string swap_bytes;      ///< 高低字节交换函数
     std::string modbus_crc16;    ///< modbus crc16校验函数
@@ -84,8 +83,6 @@ private:
     std::string task_read_port; ///< 读取通讯变量
     std::string task_write_port;    ///< 写入通讯变量
     std::string startData;  ///< 起始变量
-
-
 public:
     // 起 收弧子程序
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
