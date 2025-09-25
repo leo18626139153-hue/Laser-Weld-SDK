@@ -152,7 +152,6 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
         //起弧执行程序
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
-        scriptGet = mainFuncProgram + scriptGet + mainFuncProgramEnd;
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
@@ -229,7 +228,6 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, scriptGet));
         //收弧执行程序
         //scriptGet = funcScript + scriptGet;      //脚本赋值
-        scriptGet = mainFuncProgram + scriptGet + mainFuncProgramEnd;
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
@@ -969,7 +967,7 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
@@ -1032,14 +1030,10 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
     CgxiLaserHeadLaserSdk &laserHeadParams  = machineResource.laserHeadParams;
     CgxiWireFeederLaserSdk &wireFeederParams  = machineResource.wireFeederParams;
     CgxiLaserPowerLaserSdk &laserPowerParams  = machineResource.laserPowerParams;
-
-
     //获取脚本
     std::string scriptGet;
-
     try
     {
-
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
@@ -1092,7 +1086,7 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
-        scriptGet = mainFuncProgram + funcScript + scriptGet + mainFuncProgramEnd;
+        scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
