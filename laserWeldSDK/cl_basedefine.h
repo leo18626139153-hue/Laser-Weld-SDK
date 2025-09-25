@@ -310,7 +310,7 @@ typedef struct MachineResource
 } MachineResource;
 
 //工艺-材质
-enum Material
+enum MaterialLaserSdk
 {
     STAINLESS_STEEL = 0,    // 不锈钢
     ALUMINUM_ALLOY = 1,     // 铝合金
@@ -439,8 +439,6 @@ enum WeldControlAddressLaserSdk
 
     INT_REG_RESULT_77 = 77
 };
-
-
 
 //// WeldSdk XXX ////
 /*

@@ -279,8 +279,6 @@ CommuRS485::CommuRS485()
         end
     end
     )";
-
-
     startData = R"(
     local SendDataType = 0 --bool位寄存器，通过bool寄存器发送字节数据
     local RecvDataType = 1 --16位寄存器，接收到的数据放到16位寄存器中
@@ -454,7 +452,6 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         //没有写入地址
         if(addr == 0xFFFFFFFF)
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
-        //设置等待时间
         std::string endstr = "\n";
         if(waitTime !=0)
             endstr = ")\nwait(" + std::to_string(waitTime) + ")\n";
