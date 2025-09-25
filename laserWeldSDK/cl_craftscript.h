@@ -66,6 +66,7 @@ class CommuRS485 : public CommuBase
 public:
     ~CommuRS485() override{}
     static CommuRS485* GetInstance();
+    static std::string abcd;//    static std::string abcd1;
 
 private:
     CommuRS485();
@@ -80,31 +81,26 @@ private:
     std::string concatenate_crc;    ///< 拼接crc校验函数
     std::string parse_little_endian_bytes;  ///< 每2个字符为一组（1字节），转换为整数
     std::string writeHex2Commu_reg;     ///< 将数据写入通讯变量
-    std::string task_read_port; ///< 读取通讯变量
+    //std::string task_read_port; ///< 读取通讯变量
     std::string task_write_port;    ///< 写入通讯变量
-    std::string startData;  ///< 起始变量
+    std::string startData;      ///< 起始变量
 public:
     // 起 收弧子程序
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
     // 起收弧执行程序
-    LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
-    
+    LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;  
     //激光器设置脚本
     LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
     //激光头图案资源
     LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
    //激光头图案资源读取
     LaserSdkResult craft_laser_head_param_read_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
-
     //激光头设置页
     LaserSdkResult craft_laser_head_setting_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
-
     //送丝机
     LaserSdkResult craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
-
     //工艺参数修改配置生效脚本
     LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) override;
-
     //获取配置焊机并起弧脚本
     //LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
 };
