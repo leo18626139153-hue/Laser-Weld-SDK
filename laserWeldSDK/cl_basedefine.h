@@ -419,7 +419,7 @@ enum WeldControlAddressLaserSdk
     INT_REG_ARC_END_FAIL_675 = 675,     ///< 收弧异常信号
 
     INT_REG_WELD_MODE_660 = 660,        ///< 执行模式：0.空状态 1.轨迹模拟 2.焊接
-    INT_REG_WELD_STATE_661 = 661,       ///< 非0表示上一个已经到达的路点在指令列表中的位置,为0表示不在起收弧中间
+    INT_REG_WELD_STATE_661 = 799,       ///< 非0表示上一个已经到达的路点在指令列表中的位置,为0表示不在起收弧中间
 
     INT_REG_WELD_PATH_662 = 662,         ///< 焊接路径分段信息
     INT_REG_ARRIVE_POINT_LOC_663 = 663,  ///< 轨迹模拟下已到达的定点指令位置 用于高亮显示

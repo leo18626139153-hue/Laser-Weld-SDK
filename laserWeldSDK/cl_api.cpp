@@ -484,9 +484,21 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     ///激光参数赋值
                     std::string write_laser_params;
                     write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(machineResource.laserPowerParams.laserPower)+"\n";   //激光功率
-                    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftLeadInPower)+"\n";  //开光功率
+                    int craftLeadInPowerPercent = (curCraftInfo.craftLeadInPower*100)/machineResource.laserPowerParams.laserPower;//开光功率百分比
+                    if(craftLeadInPowerPercent < 1 || craftLeadInPowerPercent > 100){
+                        craftLeadInPowerPercent = 1;
+                        std::cout << "craftLeadInPowerPercent out of range" << std::endl;
+                        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+                    }
+                    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(craftLeadInPowerPercent)+"\n";  
                     write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInRampTime)+"\n";  //开光功率上升时间
-                    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(curCraftInfo.craftLeadOutPower)+"\n";    //关光功率
+                    int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;//关光功率百分比
+                    if(craftLeadOutPowerPercent < 1 || craftLeadOutPowerPercent > 100){
+                        craftLeadOutPowerPercent = 1;
+                        std::cout << "craftLeadOutPowerPercent out of range" << std::endl;
+                        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+                    }
+                    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(craftLeadOutPowerPercent)+"\n";    //关光功率
                     //计算关光功率下降时间
                     int tempTime = curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed;
                     write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(tempTime)+"\n";  //关光功率下降时间
@@ -502,8 +514,8 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n"; //点焊时长
                     write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n"; //点焊间隔
                     // 送丝机参数
-                    write_laser_params += "    wireRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftEndingWireRetraction)+"\n"; //回抽长度
-                    write_laser_params += "    wireRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
+                    write_laser_params += "    wireRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftEndingWireRetraction)+"\n"; //回抽长度
+                    write_laser_params += "    wireRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
                     write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头扫描速度
                     write_laser_params += "    laserHeadRegisterMap[2][2] = "+ double2str(curCraftInfo.craftScanWidth, 1)+"*10 \n";  //激光头扫描宽度
                     write_laser_params += "    laserHeadRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";  //焊接功率
@@ -751,17 +763,14 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         [8] = { 0x0007, 0 },    -- 激光头旋转角度
     }
     )";
-    std::string RobotProgramScriptStart = " function RobotProgram()\n";
-    std::string RobotProgramScriptEnd = "\n end\n"
-                                " -----RobotProgramEnd----\n"
-                                " RobotProgram_Result=task_create(RobotProgram)\n";
+
     std::string script;
     script += commandListStartData; //起始参数
     script += curCommuFunction->loadLuaFunctionScriptOut();//调用函数定义
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
     script += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
-    script += RobotProgramScriptStart + bodyScriptText + RobotProgramScriptEnd;
+    script += bodyScriptText;
     //测试代码scripts
     if(isWeld)
     {    std::ofstream file("./startWeldFun.txt");
@@ -877,10 +886,15 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
     sysEvent_resume_func_3_Result = sys_event_register(3, resume_func)
     )";
 
-    if(!strToChar(scripts, scriptLen, endArcProtectionScript))
+    std::string scriptText;
+    scriptText += endArcProtectionScript;
+    if(scriptText.size() > *scriptLen)
     {
-        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        return MEMORY_ERROR_LASER_SDK;
     }
+    *scriptLen = scriptText.size()+1;
+    memcpy(scripts, scriptText.c_str(), *scriptLen);
+    memcpy(scripts + scriptText.size(), "\0", 1);
 
     return SUCCESS_LASER_SDK;
 }

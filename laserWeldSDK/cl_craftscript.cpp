@@ -272,7 +272,7 @@ CommuRS485::CommuRS485()
                 break
             end
             if timeout <= 0 then
-                print(string.format("超时地址 : 0x%04X", port_address))
+                print(string.format("超时首地址 : 0x%04X", addr_value_map[1][1]))
                 break
             end
         end

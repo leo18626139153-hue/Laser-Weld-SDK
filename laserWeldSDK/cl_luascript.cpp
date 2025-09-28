@@ -60,12 +60,12 @@ std::string Lua_crc16 = "function modbus_crc16(data)\n"
 
 
 std::string Lua_get_message = "function Lua_get_message(data5)\n"
-                          "\tresult5_1=Lua_split(data5[1])\n"
-                          "\tresult5_2=Lua_split(data5[2])\n"
-                          "\tresult5_3=Lua_split(data5[3])\n"
-                          "\tresult5={result5_1[1],result5_1[2],result5_2[1],result5_2[2],result5_3[1],result5_3[2]}\n"
-                          "\treturn result5\n"
-                          "end\n";
+                            "\tresult5_1=Lua_split(data5[1])\n"
+                            "\tresult5_2=Lua_split(data5[2])\n"
+                            "\tresult5_3=Lua_split(data5[3])\n"
+                            "\tresult5={result5_1[1],result5_1[2],result5_2[1],result5_2[2],result5_3[1],result5_3[2]}\n"
+                            "\treturn result5\n"
+                            "end\n";
 
 std::string Lua_data_combin = "function Lua_data_combin(data1,data2)\n"
                        "\tif(data1<0) then\n"
@@ -89,24 +89,24 @@ std::string Lua_data_combin = "function Lua_data_combin(data1,data2)\n"
                        "end\n";
 
 std::string readRespondOfWrite = "function readRespondOfWrite()\n"
-                             "print(\"enter readRespondOfWrite\")\n"
-                             "while(true)\n"
-                             "do\n"
-                             "isSendData=read_bool_register(33)\n"
-                             "if(isSendData==1)\n"
-                             "then\n"
-                             "print(\"read Respond Of Write\")\n"
-                             "serial_receive(3,4,1,66,300)\n"
-                             "end\n"
-                             "sync()  --sync()\n"
-                             "end\n"
-                             "end\n";
+                                "print(\"enter readRespondOfWrite\")\n"
+                                "while(true)\n"
+                                "do\n"
+                                "isSendData=read_bool_register(33)\n"
+                                "if(isSendData==1)\n"
+                                "then\n"
+                                "print(\"read Respond Of Write\")\n"
+                                "serial_receive(3,4,1,66,300)\n"
+                                "end\n"
+                                "sync()  --sync()\n"
+                                "end\n"
+                                "end\n";
 
 
 
 std::string modbus_crc16 = "function modbus_crc16(data)\n"
                            "    local crc = 0xFFFF  		-- CRC寄存器初始化为0xFFFF\n"
-                           "    local polynomial = 0xA001   -- CRC-16多项式（0x8005反转）\n"
+                           "    local polynomial = 0xA001   \n"
                            "    -- 对每个字节进行处理\n"
                            "    for _, byte in ipairs(data) do\n"
                            "        crc = crc ~ byte  -- 将字节与CRC寄存器进行异或\n"
