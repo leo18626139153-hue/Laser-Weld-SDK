@@ -1006,6 +1006,20 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         {
             return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
         }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+
+            // 关闭文件
+            outFile.close();
+        }
     }
     catch (const LaserSdkResult& errorResult)
     {
@@ -1125,6 +1139,20 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
             return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+
+            // 关闭文件
+            outFile.close();
         }
     }
     catch (const LaserSdkResult& errorResult)
@@ -1271,6 +1299,20 @@ LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMach
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
             return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+
+            // 关闭文件
+            outFile.close();
         }
     }
     catch (const LaserSdkResult& errorResult)
