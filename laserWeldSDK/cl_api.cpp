@@ -1123,6 +1123,20 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         {
             return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
         }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+
+            // 关闭文件
+            outFile.close();
+        }
     }
     catch (const LaserSdkResult& errorResult)
     {
@@ -1243,6 +1257,20 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         {
             return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
         }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+
+            // 关闭文件
+            outFile.close();
+        }
     }
     catch (const LaserSdkResult& errorResult)
     {
@@ -1291,6 +1319,10 @@ LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMach
                                 "local alarm_bits_list = {0, 1, 2, 4, 5, 10, 11, 14}	-- 报警比特类型\n";
 
         std::string scriptGet="while true do\n"
+                              "    -- 上锁\n"
+                              "    -- while(read_int16_register(900)~=0) do\n"
+                              "    --   wait(50)\n"
+                              "    -- end\n"
                               "    -- 激光头系统未使能状态，有无总报警\n"
                               "    read_value_port(0x0903, 0x2000 , 0x0003, 3, SendCommuRegAddr, 16)\n"
                               "    local report = read_registers_as_hex(30, 60)\n"
@@ -1369,8 +1401,10 @@ LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMach
                               "    print(\"送丝机运行状态:\", val)\n"
                               "    write_integer_register(801, val)\n"
                               "\n"
-                              "    -- 等待200ms后继续循环\n"
-                              "    wait(200)\n"
+                              "    -- 释放锁\n"
+                              "    -- write_int16_register(900,0)\n"
+                              "    -- 等待500ms后继续循环\n"
+                              "    wait(500)\n"
                               "end\n";
         //功能函数
         std::string funcScript = modbus_crc16+ Lua_split+register_clear+to_hex_string+concatenate_crc+parse_little_endian_bytes+
@@ -1382,6 +1416,20 @@ LaserSdkResult cl_equipment_status_monitoring(const LaserMachineHandle laserMach
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
             return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+
+            // 关闭文件
+            outFile.close();
         }
     }
     catch (const LaserSdkResult& errorResult)
