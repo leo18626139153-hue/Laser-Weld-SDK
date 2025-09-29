@@ -36,7 +36,12 @@ public:
     virtual LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) = 0;
     //参数检查
     virtual LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
-
+    //单词状态监控
+    virtual LaserSdkResult cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
+    //获取设置开光脚本 CO1
+    virtual LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
+    //获取设置起焊脚本 CO2
+    virtual LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
     //获取配置焊机并起弧脚本
     //virtual LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
 
@@ -73,6 +78,17 @@ private:
     //std::string task_read_port; ///< 读取通讯变量
     std::string task_write_port;    ///< 写入通讯变量
     std::string startData;      ///< 起始变量
+    std::string to_hex_string;
+    std::string WriteHex2Commu_reg;
+    std::string read_value_port;
+    std::string hex_to_bytes;
+    std::string swap_bytes_to_table;
+    std::string get_swap_report;
+    std::string int16_to_hex;
+    std::string read_registers_as_hex;
+    std::string get_register_value;
+    std::string parse_alarm_word;
+    std::string status_monitor_single;
 public:
     // 起 收弧子程序
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
@@ -92,6 +108,13 @@ public:
     //LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //参数检查
     LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    //单词脚本状态监控
+    LaserSdkResult cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    //缓升缓降 起 收弧子程序
+    LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
+    //缓升缓降 起收弧执行程序
+    LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
+
 };
 
 #endif // COMMUBASE_H
