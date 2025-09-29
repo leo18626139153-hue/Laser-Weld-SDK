@@ -18,35 +18,24 @@ public:
 
 public:
     //----与具体通讯形式有关的功能函数
-
-    //激光器
-
     //获取设置开光脚本 CO1
     virtual LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
-
     //获取设置起焊脚本 CO2
-    virtual LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
-    
+    virtual LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;    
     //激光器参数设置脚本
     virtual LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
-
     //激光头设置页
-    virtual LaserSdkResult craft_laser_head_setting_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
-    
+    virtual LaserSdkResult craft_laser_head_setting_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;    
     //水冷机
     //virtual LaserSdkResult craft_water_cooler_param_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
-
     //激光头
     virtual LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
-
-    //激光头参数读取
-    virtual LaserSdkResult craft_laser_head_param_read_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
-
     //送丝机
     virtual LaserSdkResult craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
-
     //工艺参数修改配置生效脚本
     virtual LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) = 0;
+    //参数检查
+    virtual LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
 
     //获取配置焊机并起弧脚本
     //virtual LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
@@ -93,8 +82,6 @@ public:
     LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
     //激光头图案资源
     LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
-   //激光头图案资源读取
-    LaserSdkResult craft_laser_head_param_read_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //激光头设置页
     LaserSdkResult craft_laser_head_setting_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //送丝机
@@ -103,6 +90,8 @@ public:
     LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) override;
     //获取配置焊机并起弧脚本
     //LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    //参数检查
+    LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
 };
 
 #endif // COMMUBASE_H

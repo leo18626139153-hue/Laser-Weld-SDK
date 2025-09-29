@@ -25,6 +25,9 @@
  */
 void vecCross(double xdir[3], double ydir[3], double result[3]);
 
+//计算交融半径
+LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r);
+
 //向量归一化
 void normalizeVector(double Fn[3]);
 #endif // CL_MATH_H

@@ -193,20 +193,15 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
     BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
-    //WeldFuncLaserSdk wireFeedFunction;        ///< 送丝机模式设置(0	连续  1	脉冲) 0x010C R/W
-    //WeldFuncLaserSdk wireCutFunction;    断丝模式 0：常规 1：高速（仅步进有效）0x010D R/W
 
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederStartMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
-    int wireFeederStopMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
+    int wireFeederStopMotorSpeed;              ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederManualFeedSpeed;             ///< 手动送丝速度 15~600cm/min 0x0101 R/W
     int wireFeederManualBackSpeed;             ///< 手动回抽速度 15~600 cm/min 0x0102 R/W
-    int wireFeederFeedLength;                  ///< 补丝长度
-    int wireFeederBackLength;                  ///< 抽丝长度
-    int wireFeederWaitTime;                    ///< 延时等待时间
-    int wireFeederSmoothness;                  ///< 平滑度 25 %~80 % 0x0108 R/W
-    int wireFeederPulsePeriod;                 ///< 脉冲周期
-
+    int wireFeederFeedLength;                  ///< 补丝长度    0~100 mm
+    int wireFeederBackLength;                  ///< 抽丝长度    0~100 mm
+    int wireFeederWaitTime;                    ///< 补丝延时    0~2000 ms
 } CgxiWireFeederLaserSdk;
 
 ///< 机械臂参数
