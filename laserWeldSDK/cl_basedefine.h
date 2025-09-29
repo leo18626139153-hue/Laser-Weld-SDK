@@ -196,7 +196,7 @@ typedef struct CgxiWireFeederLaserSdk
 
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederStartMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
-    int wireFeederStopMotorSpeed;              ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
+    int wireFeederStopMotorSpeed;              ///< 结束自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederManualFeedSpeed;             ///< 手动送丝速度 15~600cm/min 0x0101 R/W
     int wireFeederManualBackSpeed;             ///< 手动回抽速度 15~600 cm/min 0x0102 R/W
     int wireFeederFeedLength;                  ///< 补丝长度    0~100 mm

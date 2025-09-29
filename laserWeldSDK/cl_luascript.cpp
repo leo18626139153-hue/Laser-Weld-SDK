@@ -194,7 +194,7 @@ std::string WriteHex2Commu_reg =
 
 std::string read_value_port =
         "--Single parameter write (Function code(2 Byte), Register address(2 Bytes), Register value(2 Bytes), Port number, Start register), Receive receipt\n"
-        "function read_value_port(function_code, port_address, parameter_value, comNo)\n"
+        "function read_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr, SendCommuReg_n)\n"
         "	--------Clear communication variables--------\n"
         "	bool_register_clear(SendCommuRegAddr, SendCommuReg_n)\n"
         "	register_clear(RecvCommuRegAddr, RecvCommuReg_n)\n"
