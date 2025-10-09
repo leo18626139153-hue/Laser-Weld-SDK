@@ -3,8 +3,8 @@
 
 #include "cl_basedefine.h"
 #include "cl_internaldatadefine.h"
-
 #include <mutex>
+
 
 
 class CommuBase
@@ -24,10 +24,6 @@ public:
     virtual LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;    
     //激光器参数设置脚本
     virtual LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
-    //激光头设置页
-    virtual LaserSdkResult craft_laser_head_setting_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;    
-    //水冷机
-    //virtual LaserSdkResult craft_water_cooler_param_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
     //激光头
     virtual LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
     //送丝机
@@ -75,11 +71,9 @@ private:
     std::string concatenate_crc;    ///< 拼接crc校验函数
     std::string parse_little_endian_bytes;  ///< 每2个字符为一组（1字节），转换为整数
     std::string writeHex2Commu_reg;     ///< 将数据写入通讯变量
-    //std::string task_read_port; ///< 读取通讯变量
     std::string task_write_port;    ///< 写入通讯变量
     std::string startData;      ///< 起始变量
     std::string to_hex_string;
-    std::string WriteHex2Commu_reg;
     std::string read_value_port;
     std::string hex_to_bytes;
     std::string swap_bytes_to_table;
@@ -90,22 +84,18 @@ private:
     std::string parse_alarm_word;
     std::string status_monitor_single;
 public:
-    // 起 收弧子程序
+    // 起弧/收弧功能脚本
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
-    // 起收弧执行程序
-    LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;  
+    // 起弧/收弧执行程序
+    LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
     //激光器设置脚本
     LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
     //激光头图案资源
     LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
-    //激光头设置页
-    LaserSdkResult craft_laser_head_setting_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //送丝机
     LaserSdkResult craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
     //工艺参数修改配置生效脚本
     LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) override;
-    //获取配置焊机并起弧脚本
-    //LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //参数检查
     LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //单词脚本状态监控

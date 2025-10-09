@@ -88,7 +88,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHand
  * @param scriptLen                      脚本长度 传入时为script参数申请的空间大小，传出时为生成的ArcSet脚本大小
  * @return LaserSdkResult                处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char* script, int scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char* script, int *scriptLen);
 
 /**
  * @brief cl_craft_weld_status_init      初始化所有焊接相关状态
@@ -119,7 +119,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const 
 
 /**
  * @brief getAfterWeldEndOperateScript  获取焊接结束后操作的脚本
- * @param weldMachineHandle             焊机资源句柄
+ * @param laserMachineHandle            焊机资源句柄
  * @param scripts                       生成的LUA脚本 传出参数
  * @param scriptLen                     脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的LUA脚本大小
  * @return weldSDKResult                处理结果

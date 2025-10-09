@@ -242,7 +242,7 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char *script, int scriptLen)
+LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char *script, int *scriptLen)
 {
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
@@ -285,7 +285,7 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
         int weldInterruptAddress = WeldControlAddressLaserSdk::INT_REG_WELD_INTERRUPT_674;
         int arcEndFailAddress = WeldControlAddressLaserSdk::INT_REG_ARC_END_FAIL_675;
         int weldModeAddress = WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660;
-        int weldStateAddress = WeldControlAddressLaserSdk::INT_REG_WELD_STATE_661;
+        int weldStateAddress = WeldControlAddressLaserSdk::INT_REG_WELD_STATE_799;
         int weldPathAddress = WeldControlAddressLaserSdk::INT_REG_WELD_PATH_662;
         int arrivePointLocAddress = WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663;
         int presentCraftLocAddress = WeldControlAddressLaserSdk::INT_REG_PRESENT_CRAFT_LOC_664;
@@ -449,12 +449,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     std::string bodyScriptText;
     CommuTypeLaserSdk commuType = machineResource.commuType;
     CgxiRobotLaserSdk &robotParams = machineResource.robotParams;
-    double emptyRunTCPSpeed = robotParams.emptyRunTCPSpeed;            //空走TCP速度
-    double emptyRunTCPAcc = robotParams.emptyRunTCPAcc;              //空走TCP加速度
-    double emptyRunJointSpeed = robotParams.emptyRunJointSpeed;          //空走关节速度
-    double emptyRunJointAcc = robotParams.emptyRunJointAcc;            //空走关节加速度
-    //double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
-    //double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
+    double emptyRunTCPSpeed = machineResource.robotParams.emptyRunTCPSpeed;            //空走TCP速度
+    double emptyRunTCPAcc = machineResource.robotParams.emptyRunTCPAcc;              //空走TCP加速度
+    double emptyRunJointSpeed = machineResource.robotParams.emptyRunJointSpeed;          //空走关节速度
+    double emptyRunJointAcc = machineResource.robotParams.emptyRunJointAcc;            //空走关节加速度
+    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
+    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
     for(auto craftID: craftInstListCraftIDVec)
     {
         CraftInfoLaserSdk& craftInfo = craftsMap[craftID];      //当前工艺信息
@@ -469,7 +469,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         while(true)
         {
             // 遍历非焊接过程中的指令
-            while (currentInstLoc == craftInstListEndLoc || (currentInstLoc < craftInstListEndLoc && (listLocToTypeID.count(currentInstLoc + 1) != 0 
+            while (currentInstLoc == craftInstListEndLoc || (currentInstLoc < craftInstListEndLoc && (listLocToTypeID.count(currentInstLoc + 1) != 0
             && listLocToTypeID[currentInstLoc + 1].first != InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK)))
             {
                 int instType = listLocToTypeID[currentInstLoc].first;
@@ -496,7 +496,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -511,7 +511,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movel(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -527,7 +527,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc + 1, bodyScriptText);
                     }
 
@@ -549,7 +549,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                                                                          });
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -628,7 +628,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                 breakPointListScript += ", ";  // 逗号分隔
             }
         }
-
         breakPointListScript = "breakPointLocList = {" + breakPointListScript + "}\n";
         breakPointListScript += R"(
         breakPointLocListLookUp = {}
@@ -636,7 +635,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             breakPointLocListLookUp[v] = 1
         end
         )";
-
         // 进行单步运行路点地址列表的处理
         for (int i = 0; i < weldStartData.signalStepPointNum; i++)
         {
@@ -646,7 +644,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                 signalSetpPointLocListScript += ", ";
             }
         }
-
         signalSetpPointLocListScript = "signalSetpPointLocList = {" + signalSetpPointLocListScript + "}\n";
         signalSetpPointLocListScript += R"(
         signalSetpPointLocListLookUp = {}
@@ -657,7 +654,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     //组装最终要下发执行的脚本
-    std::string commandListStartData = 
+    std::string commandListStartData =
     R"(--激光器工艺
     local laserRegisterMap = {
         [1] = {0x0230, 2000},  -- 激光功率
@@ -683,7 +680,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
     --点焊工艺
     local spotWeld = {
-        [1] = {0x0242, 0}, --点焊类型 
+        [1] = {0x0242, 0}, --点焊类型
         [2] = {0x0243, 0}, --点焊持续时间  0 ~ 60000 ms
         [3] = {0x0244, 0} --点焊间隔时间   0 ~ 60000 ms
     }
@@ -705,11 +702,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     script += curCommuFunction->loadLuaFunctionScriptOut();//调用函数定义
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
-    script += strWriteInt16RegReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
+    script += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
     script += bodyScriptText;
     //测试代码scripts
     if(isWeld)
-    {    std::ofstream file("./startWeldFun.txt");
+    {    
+        std::ofstream file("./startWeldFun.txt");
         file << script;
         file.close();
     }
@@ -751,37 +749,23 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
     }
 
     std::string endArcProtectionScript = R"(
-    function endArcing()
-        write_int16_register(608, 0)    ---开始焊接和模式地址 - 焊机准备、焊机模式
+    function endArcing()        
         set_configurable_digital_out(0, false)  ---CO0 = 0
         set_configurable_digital_out(1, false)  ---CO1 = 0
-        --送气使能关
-        write_value_port(0x0906, 0x0031, 0, 3, 30)
-        function _byte2bin(n)
-            local t = {}
-            for i = 7, 0, -1 do
-                t[#t + 1] = math.floor(n / 2^i)
-                n = n % 2^i
-            end
-            return t
-        end
-        Binary = {0, 0, 0, 0, 0, 0, 0, 0}
-        n = read_int16_register(673)     --起弧是否成功的判断
-        Binary = _byte2bin(n)
-        if (Binary[8] == 20) then
-            print("Unresumed arc")
-            for i = 1, 20 do
+        write_bool_register(608, 0)    ---开始焊接复位
+        n = read_integer_register(673)     --起弧异常判断
+        if (n == 1) then
+            print("起弧异常判断")
+            for i = 1, 5 do
                 print("Rewrite the arcEnd")
-                write_int16_register(608, 0)    ---开始焊接和模式地址 -- weldEndVal
+                write_integer_register(608, 0)    ---开始焊接
                 wait(100)
-                tempPdo = read_int16_register(673) --焊接反馈地址  - 判断是否起弧成功
-                Binary = _byte2bin(tempPdo)
-                if (Binary[8] == 0) then
+                tempPdo = read_integer_register(673) --焊接反馈地址判断是否起弧成功
+                if (tempPdo == 0) then
                     print("Re-arcEnd successful")
                     break
                 end
-                -- 20次 ----------------------------
-                if (i == 20) then
+                if (i >= 5) then
                     write_integer_register(675, 1)  -- 收弧异常信号
                     print("Failed to re-arcEnd")
                 end
@@ -789,38 +773,34 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
         end
         write_bool_register(600, 1)    -- 末端按钮拖动状态控制位设置有效
     end
+
     --程序停止后自动收弧
     function stop_func()
         if(read_integer_register(614) == 1) then -- 程序停止后自动收弧开启状态位
-            endArcing() 
+            endArcing()
             wait(1)
             write_integer_register(674, 1)   -- 焊接中断信号
-            write_integer_register(614, 0)   -- 自动收弧状态位置为0
+            write_integer_register(614, 0)   -- 自动收弧复位
+            halt()
         end
     end
     sysEvent_stop_func_1_Result = sys_event_register(1, stop_func)
-    --暂停后自动收弧
+
+    --程序暂停 自动收弧
     function pause_func()
         while(true)
         do
             endArcing()
-            write_integer_register(614, 0)  -- 自动收弧结束
+            write_integer_register(614, 0)  -- 自动收弧复位
             sync()
         end
     end
     sysEvent_pause_func_2_Result = sys_event_register(2, pause_func)
 
-    function subResume()
-        write_bool_register(600, 0)     -- 末端按钮拖动位
-        write_integer_register(614, 1)  -- 自动收弧
-    end
-
     function resume_func()
-        while(true)
-        do
-            subResume()
-            sync()
-        end
+        write_bool_register(600, 0)     -- 末端按钮拖动位
+        write_integer_register(614, 1)  -- 自动收弧信号
+        sync()
     end
     sysEvent_resume_func_3_Result = sys_event_register(3, resume_func)
     )";
@@ -1339,7 +1319,7 @@ LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle 
                 WriteHex2Commu_reg+read_value_port+hex_to_bytes+swap_bytes_to_table+get_swap_report+int16_to_hex+
                 read_registers_as_hex+get_register_value+parse_alarm_word;
 
-        scriptGet = mainFuncProgram + globalVar + funcScript + scriptGet + mainFuncProgramEnd;
+        scriptGet = globalVar + funcScript + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
