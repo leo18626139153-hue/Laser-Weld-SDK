@@ -274,8 +274,8 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
     try
     {
         int terminalButtonAddress = WeldControlAddressLaserSdk::INT32_REG_TERMINAL_BUTTON_610;
-        int weldExtstructAddress = WeldControlAddressLaserSdk::INT32_REG_EXTSTRUCT_611;
-        int safeExtstructAddress = WeldControlAddressLaserSdk::INT32_REG_EXTSTRUCT_612;
+        int weldExtstructAddress = WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_611;
+        int safeExtstructAddress = WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_612;
         int weldStatusMonitor = WeldControlAddressLaserSdk::INT32_REG_WELD_STATUS_MONITOR_613;
         int programStopArcEndAddress = WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614;
         int singleStepRunAddress = WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616;
@@ -361,12 +361,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     InstListData instListData;//指令列表数据
-    std::unordered_map<int, std::pair<InstTypeLaserSdk, int>>& listLocToTypeID = instListData.listLocToTypeID;
+    std::unordered_map<int, std::pair<InstTypeLaserSdk, int> > & listLocToTypeID = instListData.listLocToTypeID;
     std::unordered_set<int>& IDSet = instListData.IDSet;
     std::unordered_map<int, CraftInfoLaserSdk>& craftsMap = instListData.craftsMap;
     std::unordered_map<int, PointDataLaserSdk>& pointsMap = instListData.pointsMap;
     std::vector<int>& craftInstListCraftIDVec = instListData.craftInstListCraftIDVec;
-    std::unordered_map<int, std::pair<int, int>>& craftInstListStartEndLoc = instListData.craftInstListStartEndLoc;
+    std::unordered_map<int, std::pair<int, int> >& craftInstListStartEndLoc = instListData.craftInstListStartEndLoc;
     std::unordered_map<int, PointDataLaserSdk> tempPointsMap;   //临时路点信息
     //生成唯一instID
     for(int instLoc = 0; instLoc < weldStartData.instNum; instLoc++)

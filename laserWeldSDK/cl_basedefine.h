@@ -407,8 +407,8 @@ enum WeldControlAddressLaserSdk
 {
     //Int32
     INT32_REG_TERMINAL_BUTTON_610 = 610,                     ///< 末端按钮拖动状态控制位：1 有效 0 无效，需要重置为1
-    INT32_REG_EXTSTRUCT_611 = 611,                           ///< 焊接触发信号
-    INT32_REG_EXTSTRUCT_612 = 612,                           ///< 安全点触发信号
+    BOOL_REG_EXTSTRUCT_611 = 611,                           ///< 焊接触发信号
+    BOOL_REG_EXTSTRUCT_612 = 612,                           ///< 安全点触发信号
     INT32_REG_WELD_STATUS_MONITOR_613 = 613,                 ///< 焊接中断检测开启状态位：1 有效 0 无效
     INT32_REG_PROGRAM_STOP_ARC_END_614 = 614,                ///< 程序停止后自动收弧开启状态位：1 有效 0 无效
     INT32_REG_SINGLE_STEP_RUN_616 = 616, ///< 单步运行状态位： 1 ： 有效 | 0 ： 无效

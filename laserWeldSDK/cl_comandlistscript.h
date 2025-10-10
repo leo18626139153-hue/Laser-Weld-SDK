@@ -11,6 +11,9 @@ int distributionID(std::unordered_set<int>& IDSet);
 //返回相应的工艺通讯类
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase*& craftCommuClass);
 
+//找点位
+LaserSdkResult GetPrePoints(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData);
+
 /**
  * @brief GetBasicCraftScript    基本工艺指令列表的转换
  * @param laserMachineHandle     焊机资源句柄
@@ -22,7 +25,7 @@ LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandl
  * @param bodyScriptText         脚本内容 传出参数
  * @return LaserSdkResult        处理结果
  */
-LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,LaserWeldStartData weldStartData, InstListData& instListData, std::unordered_map<int, PointDataLaserSdk> tempPointsMap,InstListTransEnvironmentData &instListTransEnvironmentData, int instListStartLoc, int instListEndLoc, std::string &bodyScriptText);
+LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, InstListData& instListData, std::unordered_map<int, PointDataLaserSdk> tempPointsMap,InstListTransEnvironmentData &instListTransEnvironmentData, int instListStartLoc, int instListEndLoc, std::string &bodyScriptText);
 
 
 #endif // CL_COMANDLISTSCRIPT_H
