@@ -273,22 +273,22 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
 
     try
     {
-        int terminalButtonAddress = WeldControlAddressLaserSdk::BOOL_REG_TERMINAL_BUTTON_610;
-        int weldExtstructAddress = WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_611;
-        int safeExtstructAddress = WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_612;
-        int weldStatusMonitor = WeldControlAddressLaserSdk::BOOL_REG_WELD_STATUS_MONITOR_613;
-        int programStopArcEndAddress = WeldControlAddressLaserSdk::BOOL_REG_PROGRAM_STOP_ARC_END_614;
-        int singleStepRunAddress = WeldControlAddressLaserSdk::BOOL_REG_SINGLE_STEP_RUN_616;
-        int runBreakPointAddress = WeldControlAddressLaserSdk::BOOL_REG_RUN_BREAK_POINT_617;
+        int terminalButtonAddress = WeldControlAddressLaserSdk::INT32_REG_TERMINAL_BUTTON_610;
+        int weldExtstructAddress = WeldControlAddressLaserSdk::INT32_REG_EXTSTRUCT_611;
+        int safeExtstructAddress = WeldControlAddressLaserSdk::INT32_REG_EXTSTRUCT_612;
+        int weldStatusMonitor = WeldControlAddressLaserSdk::INT32_REG_WELD_STATUS_MONITOR_613;
+        int programStopArcEndAddress = WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614;
+        int singleStepRunAddress = WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616;
+        int runBreakPointAddress = WeldControlAddressLaserSdk::INT32_REG_RUN_BREAK_POINT_617;
 
-        int arcStartFailAddress = WeldControlAddressLaserSdk::INT_REG_ARC_START_FAIL_673;
-        int weldInterruptAddress = WeldControlAddressLaserSdk::INT_REG_WELD_INTERRUPT_674;
-        int arcEndFailAddress = WeldControlAddressLaserSdk::INT_REG_ARC_END_FAIL_675;
-        int weldModeAddress = WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660;
-        int weldStateAddress = WeldControlAddressLaserSdk::INT_REG_WELD_STATE_799;
-        int weldPathAddress = WeldControlAddressLaserSdk::INT_REG_WELD_PATH_662;
-        int arrivePointLocAddress = WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663;
-        int presentCraftLocAddress = WeldControlAddressLaserSdk::INT_REG_PRESENT_CRAFT_LOC_664;
+        int arcStartFailAddress = WeldControlAddressLaserSdk::INT32_REG_ARC_START_FAIL_673;
+        int weldInterruptAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_INTERRUPT_674;
+        int arcEndFailAddress = WeldControlAddressLaserSdk::INT32_REG_ARC_END_FAIL_675;
+        int weldModeAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_MODE_660;
+        int weldStateAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799;
+        int weldPathAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_PATH_662;
+        int arrivePointLocAddress = WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663;
+        int presentCraftLocAddress = WeldControlAddressLaserSdk::INT32_REG_PRESENT_CRAFT_LOC_664;
 
         int writeParameter62Address = WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_62;
         int writeParameter63Address = WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_63;
@@ -376,7 +376,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         int instID = distributionID(IDSet); //生成唯一instID,同时添加到IDSet中
         //工艺模板指令
         switch (instType) {
-            //工艺模板指令
             case InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK:
                 listLocToTypeID[instLoc] = {instType, instID};
                 craftsMap[instID] = weldStartData.craftInfoList[dataListLoc];
@@ -496,7 +495,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -511,7 +510,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movel(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -527,7 +526,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0), std::to_string(0)});
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc + 1, bodyScriptText);
                     }
 
@@ -549,7 +548,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                                                                          });
                     if (!isWeld)
                     {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
@@ -702,7 +701,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     script += curCommuFunction->loadLuaFunctionScriptOut();//调用函数定义
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
-    script += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
+    script += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
     script += bodyScriptText;
     //测试代码scripts
     if(isWeld)
@@ -822,8 +821,8 @@ LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHand
 {
     std::string script;
 
-    int programStopArcEndAddress = WeldControlAddressLaserSdk::BOOL_REG_PROGRAM_STOP_ARC_END_614;   // 程序停止后自动收弧开启状态位：1 有效 0 无效
-    int signalSetpRunAddress = WeldControlAddressLaserSdk::BOOL_REG_SINGLE_STEP_RUN_616;  // 单步运行状态位：1 有效 0 无效
+    int programStopArcEndAddress = WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614;   // 程序停止后自动收弧开启状态位：1 有效 0 无效
+    int signalSetpRunAddress = WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616;  // 单步运行状态位：1 有效 0 无效
 
     script += strWriteInt32RegReplace(programStopArcEndAddress, 0); // 程序停止后自动收弧关闭
     script += strWriteInt32RegReplace(signalSetpRunAddress, 0);

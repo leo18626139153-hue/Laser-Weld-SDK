@@ -500,7 +500,7 @@ bool strToChar(char* script, int* scriptLen, const std::string& generatedScript)
         *scriptLen = static_cast<int>(requiredSize); // 通知调用者所需大小
         return false;
     }
-
+    //输入空字符串的情况
     if (generatedScript.empty())
     {
         script[0] = '\0'; // 明确设置空字符串
@@ -557,15 +557,17 @@ std::string generateLuaScript(const std::string funcName, const std::string func
     return luaCode.str();
 }
 
-std::string readLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr)
-{
-
-    return funcName;
-}
 
 void checkLaserSdkResult(LaserSdkResult result)
 {
     if (result != SUCCESS_LASER_SDK) {
         throw result;  // 异常抛出
     }
+}
+
+void writeLog(std::string recordingLog)
+{
+    std::ofstream file("./logRecord.txt");
+    file << recordingLog;
+    file.close();
 }

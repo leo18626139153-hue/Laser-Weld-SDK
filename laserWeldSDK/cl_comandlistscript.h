@@ -5,15 +5,6 @@
 #include "cl_craftscript.h"
 #include "cl_utils.h"
 
-
-#include <functional>
-
-class LogSystemTxt
-{
-public:
-    LogSystemTxt(){};
-};
-
 //生成唯一ID
 int distributionID(std::unordered_set<int>& IDSet);
 

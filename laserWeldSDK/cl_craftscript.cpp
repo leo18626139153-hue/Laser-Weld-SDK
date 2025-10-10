@@ -7,7 +7,6 @@
 #include <random>
 #include <memory>
 #include <unordered_map>
-//#pragma execution_character_set("utf-8")   //防止中文乱码
 
 //用于生成随机数，分配焊机句柄，保证唯一性和安全性。
 std::mt19937 engine;
@@ -23,7 +22,7 @@ std::once_flag CommuRS485::initFlag;
 //判断单步
 LaserSdkResult CommuBase::craft_script_judge_signal_setp_run_script_get(int instLoc, std::string &script)
 {
-    std::string signalSetpStatusLoc = std::to_string(WeldControlAddressLaserSdk::BOOL_REG_SINGLE_STEP_RUN_616);
+    std::string signalSetpStatusLoc = std::to_string(WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616);
     std::string scriptText = R"(
     if(read_integer_register(%1) == 1 and signalSetpPointLocListLookUp[%2] == 1)
     then
@@ -37,7 +36,7 @@ LaserSdkResult CommuBase::craft_script_judge_signal_setp_run_script_get(int inst
 //断点判断
 LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc, std::string &script)
 {
-    unsigned int runBreakPointStatusLoc = WeldControlAddressLaserSdk::BOOL_REG_RUN_BREAK_POINT_617;
+    unsigned int runBreakPointStatusLoc = WeldControlAddressLaserSdk::INT32_REG_RUN_BREAK_POINT_617;
 
     std::string scriptText = R"(
     if(breakPointLocListLookUp[%1] == 1)
@@ -147,7 +146,6 @@ CommuRS485::CommuRS485()
         return result
     end
     )";
-
     concatenate_crc = R"(
     -- 6.将十进制数转换为十六进制，并以两位字符表示
     function to_hex_string(number)
@@ -170,7 +168,6 @@ CommuRS485::CommuRS485()
         return result
     end
     )" ;
-
     parse_little_endian_bytes = R"(
     -- 每2个字符为一组(1字节)转换为整数
     local function parse_little_endian_bytes(hex_str)
@@ -228,10 +225,8 @@ CommuRS485::CommuRS485()
                 print(string.format("超时地址 : 0x%04X", port_address))
                 break
             end
-        end
-        
-    end
-    
+        end        
+    end    
     function write_multi_value_port(addr_value_map)
         -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
         bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量    
@@ -286,13 +281,11 @@ CommuRS485::CommuRS485()
     local RecvCommuReg_n = 60		--接收30个字节
     local alarm_bits_list = {0,1,2,4,5,10,11,14}		--接收50个字节
     )";
-
     to_hex_string =
         "function to_hex_string(number)\n"
         "    return string.format(\"%02X\", number)\n"
-        "end\n";
-        
-     read_value_port =
+        "end\n";        
+    read_value_port =
         "--单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执\n"
         "function read_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr,SendCommuReg_n)\n"
         "	--------将通讯变量清零--------\n"
@@ -506,12 +499,12 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     CRresult result;
     std::string writeFunction;
-    int gasWaitTime;
+    int gasWaitTime = 1;
     //获取脚本
     if (laserSwitch == SWITCH_ON_LASER_SDK)
     {
         gasWaitTime = machineResource.laserPowerParams.gasStartupAdvanceTime;
-        writeFunction = "   gasWaitTime =" + std::to_string(gasWaitTime);
+        writeFunction = "   gasWaitTime = " + std::to_string(gasWaitTime);
         writeFunction +=
         R"(
     function arc_start()
@@ -565,7 +558,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                     set_configurable_digital_out(1, false)  ---CO1 = 1
                     wait(gasWaitTime) --等待送气结束
                     set_configurable_digital_out(0, false)  ---CO0 = 1
-                    print("收弧正常")
+                    print("收弧成功")
                     break
                 else
                     retry_times = retry_times - 1
@@ -596,8 +589,6 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-
-    int laserSwitchIsOpen = 0 ;
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
@@ -617,30 +608,22 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     std::unordered_map<unsigned int, std::string> writeDataHash;
     //参数类型 - 参数值 - 地址
-    auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF, int waitTime = 0)
+    auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr)
     {
-        //没有写入地址
-        if(addr == 0xFFFFFFFF)
-            return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         std::string endstr = "\n";
-        if(waitTime !=0)
-            endstr = ")\nwait(" + std::to_string(waitTime) + ")\n";
-
         std::ostringstream useScript;
         switch (regType)
         {
         case float10Reg:
             useScript << std::setprecision(1);  //保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, comNo, SendCommuRegAddr)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);  //保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, comNo, SendCommuRegAddr)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 2, 62)" << endstr;
-            break;
-        default:
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", comNo, SendCommuRegAddr)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -725,8 +708,6 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
             break;
         case int16Reg:
             useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 2, 62)" << endstr;
-            break;
-        default:
             break;
         }
         writeDataHash.emplace(addr, useScript.str());

@@ -24,66 +24,13 @@
  * comNo        端口号：comNo 默认3
  */
 std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regTypr, unsigned int coAddr = 0x0906,int comNo = 3);
-/**
- * 生成读参数类型的Lua脚本的函数
- */
-std::string readLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr);
-
-/**
- * 定义通用写串口的Lua脚本的函数
- */
-inline std::string writeLuaFuncScript()
-{
-    std::string writeFunction =
-    R"(
-    --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执
-    function write_value_port(function_code, port_address, parameter_value, port_num, first_register_num)
-        --------将通讯变量清零--------
-        register_clear(first_register_num, 8)
-        ----------高低字节拆分计算校验码---------    
-        local data1=Lua_split(function_code)    
-        local data2=Lua_split(port_address)     
-        local data3=Lua_split(parameter_value)  
-        local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
-        local mes_2=modbus_crc16(mes_1)    --计算CRC16校验码无反转
-        print(string.format("CRC校验值: 0x%04X", mes_2)) 
-        --构造报文，高低字节反转发送
-        mes_3 = {swap_bytes_for_word(function_code), swap_bytes_for_word(port_address), swap_bytes_for_word(parameter_value), mes_2}			
-        --写入报文写入通讯变量
-        for i=1,4,1 do
-            write_int16_register(i + first_register_num - 1,mes_3[i])
-        end
-        --判断位 寄存器
-        write_bool_register(999,1)
-        --------发送报文------
-        serial_send(port_num, 4, 1, first_register_num)
-        --------等待回执--------
-        local wait_times = 5 --等待次数
-        while(wait_times > 0) do
-            write_bool_register(999,1)
-            if(read_int16_register(first_register_num + 7)~=0)
-            then
-                write_bool_register(999,0)
-                ----读取成功，将数据写入通讯变量
-                break
-            else
-                wait_times = wait_times - 1
-                print("读取当前地址失败: 0x%04X", port_address)
-                write_bool_register(999,0)
-                ----读取失败，将数据写入通讯变量
-            end
-        end	
-    end
-    )";
-    return writeFunction;
-}
 
 /**
  * 对应通用写串口的Lua脚本的函数的调用
- * @param paramValue 写入值
- * @param addr 地址
  * @param functionCode 功能码
- * @param portNum 从站地址
+ * @param portAddress 地址
+ * @param paramValue 写入值
+ * @param firstRegisterNum 寄存器首地址
  */
 inline std::string writeLuaScript(const std::string functionCode , const std::string portAddress, const std::string paramValue, const std::string portNum, const std::string firstRegisterNum)
 {
@@ -92,13 +39,24 @@ inline std::string writeLuaScript(const std::string functionCode , const std::st
     return writeScript.str();
 }
 
-
+/**
+ *字符串转字符
+ * @param script 输出字符
+ * @param scriptLen 输出字符长度
+ * @param generatedScript 输入字符串
+ * @return 当内存不够时返回false
+*/
 bool strToChar(char* script, int* scriptLen, const std::string& generatedScript);
 
 /**
  * 通过throw抛出问题LaserSdkResult
  */
 void checkLaserSdkResult(LaserSdkResult result);
+
+/**
+ * 将已知的问题写入到日志
+ */
+void writeLog(std::string recordingLog);
 
 //字符替换
 std::string strReplace(std::string srcStr, std::array<double,6> vecDouble);
