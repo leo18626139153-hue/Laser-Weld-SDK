@@ -347,7 +347,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         int instID = distributionID(IDSet); //生成唯一instID,同时添加到IDSet中
         //工艺模板指令
         switch (instType) {
-            case InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK:
+            case InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK://工艺选择指令
                 listLocToTypeID[instLoc] = {instType, instID};
                 craftsMap[instID] = weldStartData.craftInfoList[dataListLoc];
                 break;
@@ -361,6 +361,9 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                 break;
             case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
             case InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK:
+                listLocToTypeID[instLoc] = {instType, instID};
+                break;
+            case InstTypeLaserSdk::SLOW_DOWN_LASER_WELD_SDK://缓降·
                 listLocToTypeID[instLoc] = {instType, instID};
                 break;
         }
@@ -646,7 +649,9 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         [2] = {0x0104, 100},    --回抽长度
         [3] = {0x0105, 100},    --补丝长度
         [4] = {0x0106, 0},    --补丝延时
+        
         [100] = {0x0100, 123},  --自动送丝速度
+        [115] = {0x0115, 0},    --送丝机运行状态
     }
     --点焊工艺
     local spotWeld = {

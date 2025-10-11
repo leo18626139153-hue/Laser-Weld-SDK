@@ -83,6 +83,7 @@ std::string index2str(std::vector<int> index);
 //常用的LUA脚本语句组装
 //读取指定pdo地址的值后，给指定位写入值
 std::string PdoReadWriteBit(unsigned addr, int wireBitLoc,int writeValue);
+
 //读取指定int16地址的值后，给指定位写入值
 std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc,int writeValue);
 
@@ -170,12 +171,16 @@ std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6
 
 /// 比较两个浮点数是否相等的函数
 bool isEqual(double a, double b);
+
 //对16位数据进行高低字节拆分
 std::tuple<int, int> splitHighLowByteValue(double value);
+
 //CRresult转LaserSdkResult
 LaserSdkResult crsdk_return_value_transfer(CRresult res);
+
 //十进制转16进制，输出为对应十六进制的字符串类型
 std::string decimalToHexStringStream(unsigned int value);
+
 /**
  * @brief 将 double 转换为字符串，保留指定小数位数
  * @param value 输入的浮点数

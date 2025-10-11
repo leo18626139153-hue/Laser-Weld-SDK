@@ -4,6 +4,7 @@
 #include "cl_basedefine.h"
 #include "robotapi.h"
 #include "cl_internaldatadefine.h"
+#include "cl_utils.h"
 #include <stdio.h>
 #include <cmath>
 #include <iostream>
@@ -30,4 +31,8 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r);
 
 //向量归一化
 void normalizeVector(double Fn[3]);
+
+//使用tcp位姿进行逆解计算
+LaserSdkResult cr_kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM]);
+
 #endif // CL_MATH_H

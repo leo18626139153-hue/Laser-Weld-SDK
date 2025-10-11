@@ -3,6 +3,7 @@
 
 #include "cl_basedefine.h"
 #include "cl_internaldatadefine.h"
+#include <vector>
 #include <mutex>
 
 
@@ -26,6 +27,8 @@ public:
     virtual LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
     //激光头
     virtual LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
+    //激光器多参数设置脚本
+    virtual LaserSdkResult craft_laser_mul_params_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
     //送丝机
     virtual LaserSdkResult craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) = 0;
     //工艺参数修改配置生效脚本
@@ -34,9 +37,9 @@ public:
     virtual LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
     //单词状态监控
     virtual LaserSdkResult cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
-    //获取设置开光脚本 CO1
+
     virtual LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
-    //获取设置起焊脚本 CO2
+
     virtual LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
     //获取配置焊机并起弧脚本
     //virtual LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
@@ -61,6 +64,8 @@ private:
     static CommuRS485* s_commuRS485;
     static std::once_flag initFlag; ///< initFlag >>> 保证单例对象只被初始化一次，且线程安全
 private:
+    std::vector<std::string> startFuncscripts; ///< 起始函数声明
+    std::vector<std::string> startDatascripts; ///< 起始变量
     std::string swap_bytes;      ///< 高低字节交换函数
     std::string modbus_crc16;    ///< modbus crc16校验函数
     std::string lua_split;       ///< lua字符串分割函数
@@ -70,7 +75,7 @@ private:
     std::string parse_little_endian_bytes;  ///< 每2个字符为一组（1字节），转换为整数
     std::string writeHex2Commu_reg;     ///< 将数据写入通讯变量
     std::string task_write_port;    ///< 写入通讯变量
-    std::string startData;      ///< 起始变量
+    std::string startData;      ///< 
     std::string to_hex_string;
     std::string read_value_port;
     std::string hex_to_bytes;
@@ -86,8 +91,10 @@ public:
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
     // 起弧/收弧执行程序
     LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
-    //激光器设置脚本
+    //激光器设置脚本06
     LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
+    //激光器设置脚本10
+    LaserSdkResult craft_laser_mul_params_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //激光头图案资源设置脚本
     LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
     //送丝机设置脚本

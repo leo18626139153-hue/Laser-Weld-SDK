@@ -28,6 +28,32 @@ void normalizeVector(double Fn[3])
     Fn[2] /= length;
 }
 
+LaserSdkResult cr_kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM])
+{
+    TCPMsg tcpMsg;
+    double flangePose[ROB_AXIS_NUM];
+
+    CRresult result = cr_get_currentTCPmsg(robotHandle, &tcpMsg);
+    if(result != CRresult::sucess)
+    {
+        return crsdk_return_value_transfer(result);
+    }
+
+    result = cr_TcpToFlangePose(srcPose, tcpMsg.tcpOffset, flangePose);
+    if(result != CRresult::sucess)
+    {
+        return crsdk_return_value_transfer(result);
+    }
+
+    result = cr_kineInverse(robotHandle, flangePose, refJointPose, tarJointPose);
+    if(result != CRresult::sucess)
+    {
+        return crsdk_return_value_transfer(result);
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
 //计算交融半径
 LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r)
 {

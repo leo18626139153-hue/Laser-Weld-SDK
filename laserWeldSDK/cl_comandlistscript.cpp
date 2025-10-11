@@ -94,24 +94,23 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             case InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK:
             {    
                 // 工艺模板指令
-                bodyScriptText += "--工艺参数修改--\n";
+                bodyScriptText += "--CRAFT_SELECT--\n";
                 break;
             }
             case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
             {
-                isWelding = true; //设置焊接状态
-                // 生成起弧脚本
+                isWelding = true; //设置焊接状态                
                 bodyScriptText += "--ARC_START_LIST--\n";
                 if(isWeld)
                 {
                     std::string tmpScript ;
-                    result = craftCommu->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
+                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
                         return result;
                     }
 
-                    result = craftCommu->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
+                    result = craftCommu->craft_script_slow_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
 
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
@@ -140,6 +139,29 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     bodyScriptText += tmpScript;
                 }
                 
+                break;
+            }
+            case InstTypeLaserSdk::SLOW_DOWN_LASER_WELD_SDK:
+            {    
+                // 生成缓降脚本
+                bodyScriptText += " --SLOW_DOWN--\n";
+                if(isWeld)
+                {
+                    std::string tmpScript ;
+                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, tmpScript);
+                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
+                    {
+                        return result;
+                    }
+
+                    result = craftCommu->craft_script_slow_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, tmpScript);
+
+                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
+                    {
+                        return result;
+                    }
+                    bodyScriptText += tmpScript;
+                }
                 break;
             }
             case InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK:
@@ -182,10 +204,11 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     
                 }
                 prePointLoc = instLoc;
-            break;
+                break;
             }
             case InstTypeLaserSdk::CIRCLE_POINT_INST_LASER_WELD_SDK:
-            {    // 生成圆形定点指令
+            {    
+                // 生成圆形定点指令
                 bodyScriptText += " --MOVE_CIR--\n";
                 //
                 double transRadius = 0;
@@ -256,8 +279,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             
                 break;
             }
-            case InstTypeLaserSdk::SAFE_POINT_MOVEL_INST_LASER_WELD_SDK:
-                // 安全点指令 MoveL 预留
+            case InstTypeLaserSdk::SAFE_POINT_MOVEL_INST_LASER_WELD_SDK:    // 安全点指令 MoveL 预留
             case InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK:
                 // 移动安全点指令 MoveJ
                 bodyScriptText += "--safePointMoveJ--\n";
@@ -265,6 +287,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
                 //bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[typeID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0)});
                 break;
+            
             }
         }
     }

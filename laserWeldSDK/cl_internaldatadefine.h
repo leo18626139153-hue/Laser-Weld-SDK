@@ -81,8 +81,8 @@ struct InstListData
     std::unordered_map<int, CraftInfoLaserSdk> craftsMap;    ///< 工艺ID 到 工艺信息 的映射
     std::unordered_map<int, PointDataLaserSdk> pointsMap;    ///< 点ID 到 路点数据 的映射
     //std::unordered_map<int, PitchAngleData> pitchAnglesMap; ///<焊接俯仰角°角度信息
-    // std::unordered_map<int, CirclePitchAngleData> circlePitchAnglesMap; ///<圆弧俯仰角角度信息
-    // std::unordered_map<int, std::vector<int> >moreLayerRoadCraftIDToRoadCraftsID; ///<多层道工艺ID到道工艺ID的映射
+    //std::unordered_map<int, CirclePitchAngleData> circlePitchAnglesMap; ///<圆弧俯仰角角度信息
+    //std::unordered_map<int, std::vector<int> >moreLayerRoadCraftIDToRoadCraftsID; ///<多层道工艺ID到道工艺ID的映射
     std::vector<int> craftInstListCraftIDVec;   ///<道工艺实例列表
     std::unordered_map<int, std::pair<int, int> > craftInstListStartEndLoc;  ///< 道工艺实例列表起始结束位置
 };

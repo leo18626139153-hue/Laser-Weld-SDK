@@ -29,7 +29,7 @@ enum LaserSdkResult
     ARC_CALCULATE_FAILED_LASER_SDK = 15,                 ///< 圆弧计算失败(建议检查示教点)
     WELD_TYPE_ERROR_LASER_SDK = 16,                      ///< 焊接类型错误
     MOVEJ_TRAJECTORY_SPLIT_FAILED_LASER_SDK = 17,        ///< movej轨迹拆分失败
-    INTERMITTENT_ERROR_LASER_SDK = 18,                   ///< 间断焊接错误（焊接总长度小于一个焊接周期）
+    PARAM_WRITE_ERROR_LASER_SDK = 18,                    ///< 参数写入失败
     INSTLIST_ERROR_LASER_SDK = 19,                       ///< 指令列表错误
     PARAMETER_OUT_OF_RANGE_LASER_SDK =20,                ///< 激光焊参数设置越界
 
@@ -228,7 +228,6 @@ typedef struct MachineResource
     CommuTypeLaserSdk commuType;    ///< 通讯形式
     RobotHandle robotHandle;        ///< 机器人句柄
     WeldingProcessType weldingProcessType;     ///< 焊接工艺类型枚举
-
     /* 读---------- 输入状态地址 ---------- */
     //送丝机参数
     unsigned int wireFeederOvercurrentLoc;   ///< 送丝机过流告警地址 (1:告警 2:正常) 0x0112 → ​​274​
@@ -237,19 +236,18 @@ typedef struct MachineResource
     unsigned int laserHeadStatusLoc;         ///< 激光头系统状态地址 (0:出光（未使能） 1:出光（未使能）)  0x2000 → ​​8192​
     unsigned int globalAlarmLoc;             ///< 总报警状态地址 0x2001 → ​​8193​
     unsigned int infAlarmLoc;                ///< 报警信息地址 0x2002 → ​​8194​
-    //还没找到地址出处:
+    //
     unsigned int wireFeederConnectedLoc;     ///< 送丝机连接状态地址 (0:断开 1:已连接) 0x042e → ​​1070​
     unsigned int laserTriggerSignalLoc;      ///< 激光器扳机信号地址 (0:异常 1:正常)  0x0409 → ​​1033​
     unsigned int laserAlarmSignalLoc;        ///< 激光器报警信号地址 (0:异常 1:正常)  0x040a → ​​1034​
-    unsigned int safetyLockInputLoc;         ///<  安全地锁信号地址 (0:异常 1:正常) 0x040b → ​​1035​
-    unsigned int chillerAlarmInputLoc;       ///<  水冷机报警信号地址 (0:异常 1:正常) 0x040c → ​​1036​
+    unsigned int safetyLockInputLoc;         ///< 安全地锁信号地址 (0:异常 1:正常) 0x040b → ​​1035​
+    unsigned int chillerAlarmInputLoc;
     unsigned int airPressureAlarmLoc;        ///<  气压报警信号地址 (0:异常 1:正常) 0x040d → ​​1037​
     unsigned int wireFeedOutputLoc;          ///<  送丝输出信号地址 (0:关闭 1:送丝) 0x040e → ​​1038​
     unsigned int pwmOutputLoc;               ///<  PWM输出信号地址 (0:无输出 1:有输出) 0x040f → ​​1039​
     unsigned int laserEnableOutputLoc;       ///<  激光使能输出信号地址 (0:无输出 1:有输出) 0x0410 → ​​1040​
     unsigned int gasValveOutputLoc;          ///<  气阀输出信号地址 (0:无输出 1:有输出) 0x0411 → ​​1041​
     unsigned int dacVoltageLoc;              ///<  DAC模拟量输出电压地址 (0:无输出 1:有输出) 0x0412 → ​​1042
-
     /* 读|写------ 激光头 - 图案工艺参数 ------ */
     unsigned int laserHeadScanSpeedLoc;               ///<  扫描速度地址 0x0000 0
     unsigned int laserHeadScanWidthLoc;               ///<  扫描宽度地址 0x0001 1
@@ -260,14 +258,11 @@ typedef struct MachineResource
     unsigned int laserHeadScanHeightLoc;              ///<  扫描高度地址 0x0006 6
     unsigned int laserHeadRotationAngleLoc;           ///<  旋转角度地址 0x0007 7
     unsigned int laserHeadPatternIdLoc;               ///<  图形切换地址 0x0030 48
-
     unsigned int gasValveSignalLoc;            ///<  送气信号开关地址 0x0031 → ​​49​ 激光头厂家内控地址
     unsigned int wireFeedSignalLoc;            ///<  送丝信号开关地址 0x0032 → ​​50 激光头厂家内控地址
     /* 写---------- 焊接工艺 ---------- */
     unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
-
     /* 读|写 ------ 激光器 - 工艺参数 ------ */
-
     unsigned int laserPowerLoc;              ///<  激光器功率地址 0x0230 560
     unsigned int laserOnPowerLoc;            ///<  开光功率地址 0x0231 561
     unsigned int laserOnRampTimeLoc;         ///<  开光渐进时间地址 0x0232 562
@@ -300,7 +295,7 @@ typedef struct MachineResource
     unsigned int manualWireRetractSpeedLoc;  ///<  手动抽丝速度地址 0x0102 258
     unsigned int wireFeedLengthLoc;          ///<  补丝长度地址 0x0105 261
     unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
-    unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0	停    1	运行)  0x0140  320
+    unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0 停    1	运行)  0x0140  320
     unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
     /*写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
@@ -399,7 +394,8 @@ enum InstTypeLaserSdk
     CIRCLE_POINT_INST_LASER_WELD_SDK = 4,      // 圆弧定点指令
     JOINT_POINT_INST_LASER_WELD_SDK = 5,       // 关节运动指令
     SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  // 安全点指令 MoveL
-    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7  // 安全点指令 MoveJ
+    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  // 安全点指令 MoveJ
+    SLOW_DOWN_LASER_WELD_SDK = 8              // 缓降指令
 };
 
 /// 焊接控制寄存器位///
@@ -418,7 +414,7 @@ enum WeldControlAddressLaserSdk
     INT32_REG_SINGLE_STEP_RUN_616 = 616, ///< 单步运行状态位： 1 ： 有效 | 0 ： 无效
     INT32_REG_RUN_BREAK_POINT_617 = 617, ///< 运行中断点状态位：1 触发 | 0 未触发
 
-    INT32_REG_WELD_MODE_660 = 660,        ///< 执行模式：0.空状态 1.轨迹模拟 2.焊接    
+    INT32_REG_WELD_MODE_660 = 660,         ///< 执行模式：0.空状态 1.轨迹模拟 2.焊接
     INT32_REG_WELD_PATH_662 = 662,         ///< 焊接路径分段信息???
     INT32_REG_ARRIVE_POINT_LOC_663 = 663,  ///< 轨迹模拟下已到达的定点指令位置 用于高亮显示
     INT32_REG_PRESENT_CRAFT_LOC_664 = 664, ///< 当前工艺指令在指令列表中的位置
@@ -429,6 +425,7 @@ enum WeldControlAddressLaserSdk
     INT32_REG_ARC_END_FAIL_675 = 675,     ///< 收弧异常信号
 
     // 激光通讯的交互
+    INT_REG_WRITE_PARAMETER_30 = 30,    ///< 接收的数据从16位通讯变量的 30 地址开始存储
     INT_REG_WRITE_PARAMETER_62 = 62,
     INT_REG_WRITE_PARAMETER_63 = 63,
     INT_REG_WRITE_PARAMETER_64 = 64,
@@ -486,7 +483,7 @@ struct RollbackStraightLineData
     double startPoint[6];           ///<起点 基于基坐标系下固定路点的位姿
     double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
     double distance;                ///<延迟距离
-    double pointOut[6];        ///<降功率点 - 出参
+    double pointOut[6];             ///<降功率点 - 出参
 };
 
 
