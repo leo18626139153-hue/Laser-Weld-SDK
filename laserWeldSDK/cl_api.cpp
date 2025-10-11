@@ -1129,16 +1129,6 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
             end
 
             ask_thread = task_create(slow_descent)
-
-            i = 0
-            res = true --收弧前判断条件
-            while (i<5) and (res) do
-                i = i+1
-                set_configurable_digital_out(0,false)
-                res = get_configurable_digital_out(1)
-                print("res2:",res)
-                wait(5)
-            end
         )";
         std::string arcStartProgram2 = "end\n"
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
