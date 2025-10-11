@@ -30,4 +30,7 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r);
 
 //向量归一化
 void normalizeVector(double Fn[3]);
+
+//逆解
+LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM]);
 #endif // CL_MATH_H

@@ -2,6 +2,7 @@
 #include <sstream>
 #include <iomanip>
 #include"cl_gradualriseandfall.h"
+#include "cl_utils.h"
 
 //向量叉乘
 void vecCross(double xdir[3], double ydir[3], double result[3])
@@ -148,5 +149,32 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r)
     }
 
     *r =  radius;
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+// 机械臂位姿逆解
+LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM])
+{
+    TCPMsg tcpMsg;
+    double flangePose[ROB_AXIS_NUM];
+
+    CRresult result = cr_get_currentTCPmsg(robotHandle, &tcpMsg);
+    if(result != CRresult::sucess)
+    {
+        return crsdk_return_value_transfer(result);
+    }
+
+    result = cr_TcpToFlangePose(srcPose, tcpMsg.tcpOffset, flangePose);
+    if(result != CRresult::sucess)
+    {
+        return crsdk_return_value_transfer(result);
+    }
+
+    result = cr_kineInverse(robotHandle, flangePose, refJointPose, tarJointPose);
+    if(result != CRresult::sucess)
+    {
+        return crsdk_return_value_transfer(result);
+    }
+
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }

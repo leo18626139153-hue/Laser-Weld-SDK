@@ -419,26 +419,6 @@ std::string doubleArray2Str(double* array, int size)
     return pointStr;
 }
 
-
-LaserSdkResult crsdk_return_value_transfer(CRresult res)
-{
-    switch (res)
-    {
-        case sucess:
-            return SUCCESS_LASER_SDK;
-        case error:
-            return ERROR_LASER_SDK;
-        //        case thread_running:
-        //            return THREAD_RUNNING_CRSDK_WELD_SDK;
-        //        case operate_timeout:
-        //            return OPERATE_TIMEOUT_CRSDK_WELD_SDK;
-        //        case result_invalid:
-        //            return RESULT_INVALID_CRSDK_WELD_SDK;
-        default:
-            return UNDEFINDED_ERROR_CRSDK_LASER_SDK;
-    }
-}
-
 std::string decimalToHexStringStream(unsigned int value)
 {
     if (value == 0) {
@@ -570,4 +550,70 @@ void writeLog(std::string recordingLog)
     std::ofstream file("./logRecord.txt");
     file << recordingLog;
     file.close();
+}
+
+
+LaserSdkResult crsdk_return_value_transfer(CRresult res)
+{
+    switch (res)
+    {
+        case sucess:
+            return SUCCESS_LASER_SDK;
+        case error:
+            return ERROR_CRSDK_LASER_SDK;
+        case thread_running:
+            return THREAD_RUNNING_CRSDK_LASER_SDK;
+        case operate_timeout:
+            return OPERATE_TIMEOUT_CRSDK_LASER_SDK;
+        case result_invalid:
+            return RESULT_INVALID_CRSDK_LASER_SDK;
+        case out_of_range:
+            return OUT_OF_RANGE_CRSDK_LASER_SDK;
+        case mutex_invalid:
+            return MUTEX_INVALID_CRSDK_LASER_SDK;
+        case para_error:
+            return PARA_ERROR_CRSDK_LASER_SDK;
+        case no_result:
+            return NO_RESULT_CRSDK_LASER_SDK;
+        case no_assignTCPindex:
+            return NO_ASSIGNTCPINDEX_CRSDK_LASER_SDK;
+        case no_handle:
+            return NO_HANDLE_CRSDK_LASER_SDK;
+        case handle_repeat:
+            return HANDLE_REPEAT_CRSDK_LASER_SDK;
+        case repeat_name:
+            return REPEAT_NAME_CRSDK_LASER_SDK;
+        case delete_invalid:
+            return DELETE_INVALID_CRSDK_LASER_SDK;
+        case set_bit_reg_invalid:
+            return SET_BIT_REG_INVALID_CRSDK_LASER_SDK;
+        case repeat_id:
+            return REPEAT_ID_CRSDK_LASER_SDK;
+        case file_encryption:
+            return FILE_ENCRYPTION_CRSDK_LASER_SDK;
+        case robotmode_error:
+            return ROBOT_MODE_ERROR_CRSDK_LASER_SDK;
+        case move_error:
+            return  MOVE_ERROR_CRSDK_LASER_SDK;
+        case forcectrl_wrongpara:
+            return FORCECTRL_WRONGPARA_CRSDK_LASER_SDK;
+        case forcectrl_invaildcmd:
+            return FORCECTRL_INVAILDCMD_CRSDK_LASER_SDK;
+        case forcectrl_parablocked:
+            return FORCECTRL_PARABLOCKED_CRSDK_LASER_SDK;
+        case forcectrl_cmdblocked:
+            return FORCECTRL_CMDBLOCKED_CRSDK_LASER_SDK;
+        case forcectrl_configblocked:
+            return FORCECTRL_CONFIGBLOCKED_CRSDK_LASER_SDK;
+        case forcectrl_notenable:
+            return FORCECTRL_DISABLE_CRSDK_LASER_SDK;
+        case forcectrl_wrongsensor:
+            return FORCECTRL_WRONGSENSOR_CRSDK_LASER_SDK;
+        case outputrule_error:
+            return OUTPUT_RULE_ERROR_CRSDK_LASER_SDK;
+        case analoginputtype_error:
+            return ANALOG_INPUT_TYPE_ERROR_CRSDK_LASER_SDK;
+        default:
+            return UNDEFINDED_ERROR_CRSDK_LASER_SDK;
+    }
 }

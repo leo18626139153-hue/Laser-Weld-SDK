@@ -6,13 +6,16 @@
 
 /**
  * @brief getNewTeachPoints    整体圆形轨迹——根据停止点和回退距离获取新的起点和过渡点、终点
+ * @param robothandle          机械臂句柄
  * @param p1                   示教起点
  * @param p2                   示教终点
  * @param backDistance         回退距离
+ * @param refJoint               逆解参考关节角度
  * @param pointTrans             降功率点
+ * @param pointJointTrans        降功率点关节角度
  * @return WeldSdkResult       处理结果
  */
-LaserSdkResult getStraightLineSlowUpPoint(double p1[6], double p2[6], double backDistance, double pointTrans[6]);
+LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double p2[6], double backDistance, double refJoint[6], double pointTrans[6], double pointJointTrans[6]);
 
 /**
  * @brief getNewTeachPoints    整体圆形轨迹——根据停止点和回退距离获取新的起点和过渡点、终点
@@ -27,7 +30,7 @@ LaserSdkResult getStraightLineSlowUpPoint(double p1[6], double p2[6], double bac
  * @param endP                 原始终点
  * @return WeldSdkResult       处理结果
  */
-LaserSdkResult getCirclrSlowDownPoints(double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double stopMapP[3], double restartP[6], double midP[6], double endP[6]);
+LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6]);
 
 
 // 计算圆的半径、中心点和法向量
