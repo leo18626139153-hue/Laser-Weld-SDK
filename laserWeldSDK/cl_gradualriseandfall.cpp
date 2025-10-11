@@ -1,6 +1,7 @@
 ﻿#include "cl_gradualriseandfall.h"
+#include "cl_math.h"
 
-LaserSdkResult getStraightLineSlowUpPoint(double p1[6], double p2[6], double backDistance, double pointTrans[6])
+LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double p2[6], double backDistance, double refJoint[6], double pointTrans[6], double pointJointTrans[6])
 {
     // 向量 AB = B - A
     double vx = p2[0] - p1[0];
@@ -22,11 +23,16 @@ LaserSdkResult getStraightLineSlowUpPoint(double p1[6], double p2[6], double bac
     pointTrans[4] = p2[4];
     pointTrans[5] = p2[5];
     // std::cout << "point trans axis: " << px << ", " << py << ", " << pz << std::endl;
+    LaserSdkResult res;
+    res = kineInverse_tcpPose(robothandle, pointTrans, refJoint, pointJointTrans);
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+        return res;
+    }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 //圆弧收弧计算回退点为起点的三个示教点
-LaserSdkResult getCirclrSlowDownPoints(double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double stopMapP[3], double restartP[6], double midP[6], double endP[6])
+LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6])
 {
     double centerPoint[3], axisVec[3], radius;
     int result = circle3dCalc(p1, p2, p3, &radius, centerPoint, axisVec);
@@ -61,6 +67,21 @@ LaserSdkResult getCirclrSlowDownPoints(double p1[6], double p2[6], double p3[6],
     midP[3] = stopP[3];
     midP[4] = stopP[4];
     midP[5] = stopP[5];
+
+    LaserSdkResult res;
+
+    res = kineInverse_tcpPose(robothandle, restartP, refJoint, restartPJoint);
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+        return res;
+    }
+    res = kineInverse_tcpPose(robothandle, midP, refJoint, midPJoint);
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+        return res;
+    }
+    res = kineInverse_tcpPose(robothandle, endP, refJoint, endPJoint);
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+        return res;
+    }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 

@@ -470,11 +470,15 @@ struct RollbackCircleData
     double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
     double stopPoint[6];            ///<停止点
     double distance;            ///<延迟距离
+    double refJoint[6];         ///<参考关节角度
 
     double stopMappingPoint[6];     ///<停止点的映射点 - 出参
     double startPointOut[6];        ///<起点 基于基坐标系下固定路点的位姿 - 出参
     double transPointOut[6];        ///<过度点 基于基坐标系下固定路点的位姿 - 出参
     double endPointOut[6];          ///<终点 基于基坐标系下固定路点的位姿 - 出参
+    double startPointJointOut[6];        ///<起点 基于基坐标系下固定路点的关节角度 - 出参
+    double transPointJointOut[6];        ///<过度点 基于基坐标系下固定路点的关节角度 - 出参
+    double endPointJointOut[6];          ///<终点 基于基坐标系下固定路点的关节角度 - 出参
 };
 
 //计算回退点
@@ -483,7 +487,10 @@ struct RollbackStraightLineData
     double startPoint[6];           ///<起点 基于基坐标系下固定路点的位姿
     double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
     double distance;                ///<延迟距离
+    double refJoint[6];             ///<参考关节角度
+
     double pointOut[6];             ///<降功率点 - 出参
+    double pointJointOut[6];    ///<降功率点关节 - 出参
 };
 
 

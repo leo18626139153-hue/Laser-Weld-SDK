@@ -825,10 +825,13 @@ LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle la
 
     // 调用 getNewTeachPoints 方法计算新的起点和终点
     LaserSdkResult result = getStraightLineSlowUpPoint(
+                                machineResource.robotHandle,
                                 rollbackStraightLineData->startPoint,
                                 rollbackStraightLineData->endPoint,
                                 rollbackStraightLineData->distance,
-                                rollbackStraightLineData->pointOut
+                                rollbackStraightLineData->refJoint,
+                                rollbackStraightLineData->pointOut,
+                                rollbackStraightLineData->pointJointOut
                             );
 
     if (result != LaserSdkResult::SUCCESS_LASER_SDK)
@@ -853,15 +856,20 @@ LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMach
 
     // 调用 getNewTeachPoints 方法计算新的起点和终点
     LaserSdkResult result = getCirclrSlowDownPoints(
+                                machineResource.robotHandle,
                                 rollbackCircleData->startPoint,
                                 rollbackCircleData->transPoint,
                                 rollbackCircleData->endPoint,
                                 rollbackCircleData->stopPoint,
                                 rollbackCircleData->distance,
+                                rollbackCircleData->refJoint,
                                 rollbackCircleData->stopMappingPoint,
                                 rollbackCircleData->startPointOut,
                                 rollbackCircleData->transPointOut,
-                                rollbackCircleData->endPointOut
+                                rollbackCircleData->endPointOut,
+                                rollbackCircleData->startPointJointOut,
+                                rollbackCircleData->transPointJointOut,
+                                rollbackCircleData->endPointJointOut
                             );
 
     if (result != LaserSdkResult::SUCCESS_LASER_SDK)
