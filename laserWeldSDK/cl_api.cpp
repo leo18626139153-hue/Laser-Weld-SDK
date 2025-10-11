@@ -256,7 +256,6 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-
     CommuBase* curCommuFunction = nullptr;
     if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
     {
@@ -273,62 +272,34 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
 
     try
     {
-        int terminalButtonAddress = WeldControlAddressLaserSdk::INT32_REG_TERMINAL_BUTTON_610;
-        int weldExtstructAddress = WeldControlAddressLaserSdk::INT32_REG_EXTSTRUCT_611;
-        int safeExtstructAddress = WeldControlAddressLaserSdk::INT32_REG_EXTSTRUCT_612;
-        int weldStatusMonitor = WeldControlAddressLaserSdk::INT32_REG_WELD_STATUS_MONITOR_613;
-        int programStopArcEndAddress = WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614;
-        int singleStepRunAddress = WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616;
-        int runBreakPointAddress = WeldControlAddressLaserSdk::INT32_REG_RUN_BREAK_POINT_617;
-
-        int arcStartFailAddress = WeldControlAddressLaserSdk::INT32_REG_ARC_START_FAIL_673;
-        int weldInterruptAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_INTERRUPT_674;
-        int arcEndFailAddress = WeldControlAddressLaserSdk::INT32_REG_ARC_END_FAIL_675;
-        int weldModeAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_MODE_660;
-        int weldStateAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799;
-        int weldPathAddress = WeldControlAddressLaserSdk::INT32_REG_WELD_PATH_662;
-        int arrivePointLocAddress = WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663;
-        int presentCraftLocAddress = WeldControlAddressLaserSdk::INT32_REG_PRESENT_CRAFT_LOC_664;
-
-        int writeParameter62Address = WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_62;
-        int writeParameter63Address = WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_63;
-        int writeParameter64Address = WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_64;
-        int writeParameter65Address = WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_65;
-        int readParameter66Address = WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_66;
-        int readParameter67Address = WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_67;
-        int readParameter68Address = WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_68;
-        int readParameter69Address = WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_69;
-        int resultAddress = WeldControlAddressLaserSdk::INT_REG_RESULT_77;
-
         BOOL boolVal = FALSE;
-        int intVal = 0;
+        int  intVal  = 0;
 
-        cr_set_boolRegValue(machineResource.robotHandle, terminalButtonAddress, 1, &boolVal);
-        cr_set_boolRegValue(machineResource.robotHandle, weldExtstructAddress, 1, &boolVal);
-        cr_set_boolRegValue(machineResource.robotHandle, safeExtstructAddress, 1, &boolVal);
-        cr_set_boolRegValue(machineResource.robotHandle, weldStatusMonitor, 1, &boolVal);
-        cr_set_boolRegValue(machineResource.robotHandle, programStopArcEndAddress, 1, &boolVal);
-        cr_set_boolRegValue(machineResource.robotHandle, singleStepRunAddress, 1, &boolVal);
-        cr_set_boolRegValue(machineResource.robotHandle, runBreakPointAddress, 1, &boolVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_TERMINAL_BUTTON_610, 1, &intVal);
+        cr_set_boolRegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_611, 1, &boolVal);
+        cr_set_boolRegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_612, 1, &boolVal);
 
-        cr_set_int16RegValue(machineResource.robotHandle, arcStartFailAddress, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, weldInterruptAddress, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, arcEndFailAddress, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, weldModeAddress, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, weldStateAddress, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, weldPathAddress, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, arrivePointLocAddress, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, presentCraftLocAddress, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_STATUS_MONITOR_613, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_RUN_BREAK_POINT_617, 1, &intVal);
 
-        cr_set_int16RegValue(machineResource.robotHandle, writeParameter62Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, writeParameter63Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, writeParameter64Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, writeParameter65Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, readParameter66Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, readParameter67Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, readParameter68Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, readParameter69Address, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, resultAddress, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARC_START_FAIL_673, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_INTERRUPT_674, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARC_END_FAIL_675, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_MODE_660, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_PATH_662, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, 1, &intVal);
+        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_PRESENT_CRAFT_LOC_664, 1, &intVal);
+
+        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_62, 1, &intVal);
+        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_63, 1, &intVal);
+        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_64, 1, &intVal);
+        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_65, 1, &intVal);
+        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_68,  1, &intVal);
+        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_69,  1, &intVal);
+        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_RESULT_77,  1, &intVal);
     }
     catch (const LaserSdkResult& errorResult)
     {
@@ -361,12 +332,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     InstListData instListData;//指令列表数据
-    std::unordered_map<int, std::pair<InstTypeLaserSdk, int>>& listLocToTypeID = instListData.listLocToTypeID;
+    std::unordered_map<int, std::pair<InstTypeLaserSdk, int> > & listLocToTypeID = instListData.listLocToTypeID;
     std::unordered_set<int>& IDSet = instListData.IDSet;
     std::unordered_map<int, CraftInfoLaserSdk>& craftsMap = instListData.craftsMap;
     std::unordered_map<int, PointDataLaserSdk>& pointsMap = instListData.pointsMap;
     std::vector<int>& craftInstListCraftIDVec = instListData.craftInstListCraftIDVec;
-    std::unordered_map<int, std::pair<int, int>>& craftInstListStartEndLoc = instListData.craftInstListStartEndLoc;
+    std::unordered_map<int, std::pair<int, int> >& craftInstListStartEndLoc = instListData.craftInstListStartEndLoc;
     std::unordered_map<int, PointDataLaserSdk> tempPointsMap;   //临时路点信息
     //生成唯一instID
     for(int instLoc = 0; instLoc < weldStartData.instNum; instLoc++)
@@ -452,15 +423,15 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     double emptyRunTCPAcc = machineResource.robotParams.emptyRunTCPAcc;              //空走TCP加速度
     double emptyRunJointSpeed = machineResource.robotParams.emptyRunJointSpeed;          //空走关节速度
     double emptyRunJointAcc = machineResource.robotParams.emptyRunJointAcc;            //空走关节加速度
-    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
-    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
+//    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
+//    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
     for(auto craftID: craftInstListCraftIDVec)
     {
-        CraftInfoLaserSdk& craftInfo = craftsMap[craftID];      //当前工艺信息
+//        CraftInfoLaserSdk& craftInfo = craftsMap[craftID];      //当前工艺信息
+//        int pitchAngleID = -1;  //当前工艺的起弧指令ID
+//        int circlePitchAngleID = -1;    //当前工艺的圆弧起弧指令ID
         int craftInstListStartLoc = craftInstListStartEndLoc[craftID].first;    //当前工艺指令列表起始位置
         int craftInstListEndLoc = craftInstListStartEndLoc[craftID].second;     //当前工艺指令列表终止位置
-        int pitchAngleID = -1;  //当前工艺的起弧指令ID
-        int circlePitchAngleID = -1;    //当前工艺的圆弧起弧指令ID
         int weldInstListStartLoc = craftInstListStartLoc;    //当前焊接指令列表起始位置
         int weldInstListEndLoc;       //当前焊接指令列表终止位置
         int currentInstLoc = craftInstListStartLoc;         //当前指令位置
@@ -592,7 +563,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     }
                     segWeldInstListEndLoc++;
                 }
-                CraftInfoLaserSdk &segCraftInfo = craftsMap[instListTransEnvironmentData.craftID];
+                //CraftInfoLaserSdk &segCraftInfo = craftsMap[instListTransEnvironmentData.craftID];
                 //指令列表转换接口
                 LaserSdkResult result = GetBasicCraftScript(laserMachineHandle, weldStartData, instListData, tempPointsMap, instListTransEnvironmentData, segWeldInstListStartLoc, segWeldInstListEndLoc, bodyScriptText);
                 if (result != LaserSdkResult::SUCCESS_LASER_SDK)

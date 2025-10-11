@@ -405,22 +405,28 @@ enum InstTypeLaserSdk
 /// 焊接控制寄存器位///
 enum WeldControlAddressLaserSdk
 {
-    //Int32
+    // BOOL
+    BOOL_REG_EXTSTRUCT_600 = 600,
+    BOOL_REG_EXTSTRUCT_611 = 611,                           ///< 焊接触发信号
+    BOOL_REG_EXTSTRUCT_612 = 612,                           ///< 安全点触发信号
+
+    // Int32
     INT32_REG_TERMINAL_BUTTON_610 = 610,                     ///< 末端按钮拖动状态控制位：1 有效 0 无效，需要重置为1
-    INT32_REG_EXTSTRUCT_611 = 611,                           ///< 焊接触发信号
-    INT32_REG_EXTSTRUCT_612 = 612,                           ///< 安全点触发信号
+
     INT32_REG_WELD_STATUS_MONITOR_613 = 613,                 ///< 焊接中断检测开启状态位：1 有效 0 无效
     INT32_REG_PROGRAM_STOP_ARC_END_614 = 614,                ///< 程序停止后自动收弧开启状态位：1 有效 0 无效
     INT32_REG_SINGLE_STEP_RUN_616 = 616, ///< 单步运行状态位： 1 ： 有效 | 0 ： 无效
     INT32_REG_RUN_BREAK_POINT_617 = 617, ///< 运行中断点状态位：1 触发 | 0 未触发
+
+    INT32_REG_WELD_MODE_660 = 660,        ///< 执行模式：0.空状态 1.轨迹模拟 2.焊接    
+    INT32_REG_WELD_PATH_662 = 662,         ///< 焊接路径分段信息???
+    INT32_REG_ARRIVE_POINT_LOC_663 = 663,  ///< 轨迹模拟下已到达的定点指令位置 用于高亮显示
+    INT32_REG_PRESENT_CRAFT_LOC_664 = 664, ///< 当前工艺指令在指令列表中的位置
+    INT32_REG_WELD_STATE_799 = 799,       ///< 非0表示上一个已经到达的路点在指令列表中的位置,为0表示不在起收弧中间
+
     INT32_REG_ARC_START_FAIL_673 = 673,   ///< 起弧异常信号
     INT32_REG_WELD_INTERRUPT_674 = 674,   ///< 焊接中断信号
     INT32_REG_ARC_END_FAIL_675 = 675,     ///< 收弧异常信号
-    INT32_REG_WELD_MODE_660 = 660,        ///< 执行模式：0.空状态 1.轨迹模拟 2.焊接
-    INT32_REG_WELD_STATE_799 = 799,       ///< 非0表示上一个已经到达的路点在指令列表中的位置,为0表示不在起收弧中间
-    INT32_REG_WELD_PATH_662 = 662,         ///< 焊接路径分段信息
-    INT32_REG_ARRIVE_POINT_LOC_663 = 663,  ///< 轨迹模拟下已到达的定点指令位置 用于高亮显示
-    INT32_REG_PRESENT_CRAFT_LOC_664 = 664, ///< 当前工艺指令在指令列表中的位置
 
     // 激光通讯的交互
     INT_REG_WRITE_PARAMETER_62 = 62,

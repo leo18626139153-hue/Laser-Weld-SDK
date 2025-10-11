@@ -175,13 +175,13 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const
 
 /**
  * @brief cl_craft_lift_pose_cal    计算抬枪后的姿态
- * @param laserMachineHandle    焊机资源句柄
- * @param pose                  抬枪前的姿态(位置+轴角(角度))
- * @param joint                 抬枪前参考关节角
- * @param liftDistance          抬枪距离
- * @param liftPose              抬枪后的姿态(位置+轴角(角度))
- * @param liftJoint             抬枪后参考关节角
- * @return LaserSdkResult        处理结果    
+ * @param laserMachineHandle        焊机资源句柄
+ * @param pose                      抬枪前的姿态(位置+轴角(角度))
+ * @param joint                     抬枪前参考关节角
+ * @param liftDistance              抬枪距离
+ * @param liftPose                  抬枪后的姿态(位置+轴角(角度))
+ * @param liftJoint                 抬枪后参考关节角
+ * @return LaserSdkResult           处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double* pose, const double* joint, const double liftDistance, double* liftPose, double* liftJoint);
 
