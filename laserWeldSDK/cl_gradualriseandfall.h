@@ -50,4 +50,5 @@ void getMapPoint(double centerP[3], double Fn[3], double radius, double stopPoin
 
 void calculateP2Point(const double O[3], const double Fn[3], double r, const double P[3], double c, double P2[3]);
 
+double calculateAngle(const double v1[3], const double v2[3]);
 #endif // CL_CRAFTCAL_H
