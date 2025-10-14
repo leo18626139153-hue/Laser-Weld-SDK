@@ -239,8 +239,8 @@ CommuRS485::CommuRS485()
                 break
             end
             if timeout <= 0 then
-                print(string.format("超时首地址 : 0x%04X", addr_value_map[1][1]))
-                write_int16_register(RecvCommuRegAddr, addr_value_map[1][1]) 
+                print(string.format("超时首地址 : 0x%04X", data2[1]))
+                --write_int16_register(RecvCommuRegAddr, data2[1])
                 break
             end
         end        
@@ -1150,8 +1150,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
             )";
 
             std::string arcStartProgram = oss.str();
-            std::string arcStartProgram2 = "end\n"
-                                           "arcStartProgram_Result=task_create(slow_arc_start)\n";
+            std::string arcStartProgram2 = "end\n";
             script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
             return LaserSdkResult::SUCCESS_LASER_SDK;
         }
@@ -1169,7 +1168,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
 
         try
         {
-            std::string arcStartProgram1 = "function arcStartProgram()\n";
+            std::string arcStartProgram1 = "function slow_arc_stop()\n";
             std::string arcStartParam =
                     "laserPower = " + std::to_string(laserHeadParams.laserHeadPeakPower) + "\n" +
                     "closePower  = " + std::to_string(laserPowerParams.laserPowerClose) + "\n" +
@@ -1194,9 +1193,9 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num + 1 do
                         print("power: ", i)
-                        write_value_port(0x0906,0x0033,(laserPower - (powerSingle * i),3,0)
+                        write_value_port(0x0906,0x0033,(laserPower - (powerSingle * i)),3,0)
                         wait(50)
-                        write_value_port(0x0A06,0x0100,(wirefeedeWeldSendSpeed - (speedSingle * i),2,0)
+                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed - (speedSingle * i),2,0)
                         wait(50)
                     end
                 end
@@ -1211,8 +1210,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     wait(5)
                 end
             )";
-            std::string arcStartProgram2 = "end\n"
-                                           "arcStartProgram_Result=task_create(arcStartProgram)\n";
+            std::string arcStartProgram2 = "end\n";
             script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
             return LaserSdkResult::SUCCESS_LASER_SDK;
         }
