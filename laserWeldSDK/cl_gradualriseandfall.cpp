@@ -9,7 +9,7 @@ LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double 
     double vz = p2[2] - p1[2];
 
     double distance = sqrt(vx*vx + vy*vy + vz*vz);
-    if (distance < 1e-6) {
+    if (distance < 1e-6 || distance < backDistance) {
         return LaserSdkResult::BACK_DISTANCE_LIMIT_LASER_SDK;
     }
 
@@ -47,6 +47,20 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
         std::cout << "空间圆计算失败" << std::endl;
         return LaserSdkResult::ARC_CALCULATE_FAILED_LASER_SDK;
     }
+    // 计算向量
+    double vec1[3] = {p1[0] - centerPoint[0], p1[1] - centerPoint[1], p1[2] - centerPoint[2]};
+    double vec2[3] = {p2[0] - centerPoint[0], p2[1] - centerPoint[1], p2[2] - centerPoint[2]};
+    double vec3[3] = {p3[0] - centerPoint[0], p3[1] - centerPoint[1], p3[2] - centerPoint[2]};
+
+    // 计算夹角
+    double angle1 = calculateAngle(vec1, vec2);
+    double angle2 = calculateAngle(vec2, vec3);
+    double totalAngle = angle1 + angle2;
+    double distance = radius * totalAngle;
+    if(distance < backDistance){
+        return LaserSdkResult::ARC_CALCULATE_FAILED_LASER_SDK;
+    }
+
     getMapPoint(centerPoint, axisVec, radius, stopP, stopMapP);
     double tepP[3];
     calculateP2Point(centerPoint, axisVec, radius, stopMapP, backDistance, tepP);
@@ -242,4 +256,18 @@ void calculateP2Point(
     P2[0] = O[0] + OP2[0];
     P2[1] = O[1] + OP2[1];
     P2[2] = O[2] + OP2[2];
+}
+
+
+//圆形回退点
+double calculateAngle(const double v1[3], const double v2[3])
+{
+    double dot = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+        double mag1 = sqrt(v1[0]*v1[0] + v1[1]*v1[1] + v1[2]*v1[2]);
+        double mag2 = sqrt(v2[0]*v2[0] + v2[1]*v2[1] + v2[2]*v2[2]);
+
+        double cosTheta = dot / (mag1 * mag2);
+        // 处理浮点精度问题
+        cosTheta = std::max(-1.0, std::min(1.0, cosTheta));
+        return acos(cosTheta);
 }
