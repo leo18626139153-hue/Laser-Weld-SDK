@@ -921,7 +921,8 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         std::cout << "craftLeadInPowerPercent out of range" << std::endl;
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(craftLeadInPowerPercent)+"\n";
+    //
+    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(100)+"\n";
     write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInRampTime)+"\n";  //开光功率上升时间
     int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;//关光功率百分比
     if(craftLeadOutPowerPercent < 1 || craftLeadOutPowerPercent > 100){
@@ -929,18 +930,18 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         std::cout << "craftLeadOutPowerPercent out of range" << std::endl;
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(craftLeadOutPowerPercent)+"\n";    //关光功率    
-    machineResource.laserPowerParams.laserPowerOpen = craftLeadInPowerPercent;
-    machineResource.laserPowerParams.laserPowerClose = craftLeadOutPowerPercent;
+    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(100)+"\n";    //关光功率
+    machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;
+    machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
     // 计算关光功率下降时间
-    int tempTime = curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed;
+    int tempTime = static_cast<int>(curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed);
     write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(tempTime)+"\n";  //关光功率下降时间
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
-
-    write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";      //提前送气时间
+    // 提前送气时间
+    write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";
     machineResource.laserPowerParams.gasStartupAdvanceTime = curCraftInfo.craftPreGasTime;
-
-    write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n"; //气体关闭延时 --滞后送气时间
+    // 气体关闭延时 --滞后送气时间
+    write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n";
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
 
     
