@@ -1132,7 +1132,7 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
                 -- 循环逐步调整功率和送丝速度
                 for i = 1, num + 1 do
                     print("power: ", i)
-                    write_value_port(0x0906, 0x0033, (laserPower - (powerSingle * i), 3, 0)
+                    write_value_port(0x0906, 0x0033, (laserPower - (powerSingle * i)), 3, 0)
                     --write_laser_power((laserPower - (powerSingle * i))    -- 调整激光功率
                     wait(10)  -- 等待 10 毫秒
                     write_value_port(0x0A06, 0x0100, (wirefeedeWeldSendSpeed - (speedSingle * i)), 2, 0)
