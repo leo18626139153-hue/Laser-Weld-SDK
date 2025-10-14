@@ -58,6 +58,8 @@ void checkLaserSdkResult(LaserSdkResult result);
  */
 void writeLog(std::string recordingLog);
 
+
+
 //字符替换
 std::string strReplace(std::string srcStr, std::array<double,6> vecDouble);
 std::string strReplace(std::string srcStr, std::vector<double> vecDouble);

@@ -378,7 +378,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     int tempCraftInstListStartLoc = -1; //当前工艺实例指令列表起始位置
-    int tempCraftInstListEndLoc = -1;  //当前工艺实例指令列表终止位置
+    int tempCraftInstListEndLoc = -1;   //当前工艺实例指令列表终止位置
     bool tempIsWelding = false;         //当前是否在焊接状态
     int tempCraftID = -1;               //当前工艺ID
     //对指令列表进行预处理获取每个顶层工艺(区别于只进行arc set的工艺)所属指令的起点和终点位置
@@ -958,7 +958,6 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
 
     try
     {
-
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
@@ -1077,7 +1076,7 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
 
-    //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
+    // 需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
     // 开光功率为开光一瞬间的功率，是百分比值；
     // 激光器功率为激光器希望激光所能到达到的功率，开光功率的百分比就是乘的激光器功率
     // 峰值功率为激光头所限制激光器的最大功率
@@ -1090,7 +1089,7 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
     //送丝机地址参数
     std::vector<unsigned int> wireFeedVec =
     {
-        machineResource.autoWireFeedSpeedLoc,      ///<  自动送丝速度 0x0100
+        machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度 0x0100
         //machineResource.wirefeederCompensateDelay,  ///<  补丝延迟 0x0106
         machineResource.wireRetractLengthLoc,       ///<  回抽丝长度 0x0104
         machineResource.wireFeedLengthLoc           ///<  补丝长度 0x0105

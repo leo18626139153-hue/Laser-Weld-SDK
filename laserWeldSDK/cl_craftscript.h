@@ -51,6 +51,7 @@ public:
     LaserSdkResult craft_script_judge_signal_setp_run_script_get(int instLoc, std::string& script);
     //获取判断当前是否在断点脚本
     LaserSdkResult craft_script_judge_break_point_script_get(int instLoc, std::string& script);
+    //返回初始化函数定义、初始化变量的脚本，并清空已加载的startLuaScripts、startDataScripts中的脚本，在所有接口调用完后调用
     std::string loadLuaFunctionScriptOut();
 };
 
@@ -75,7 +76,7 @@ private:
     std::string parse_little_endian_bytes;  ///< 每2个字符为一组（1字节），转换为整数
     std::string writeHex2Commu_reg;     ///< 将数据写入通讯变量
     std::string task_write_port;    ///< 写入通讯变量
-    std::string startData;      ///< 
+    std::string startData;
     std::string to_hex_string;
     std::string read_value_port;
     std::string hex_to_bytes;
@@ -87,7 +88,8 @@ private:
     std::string parse_alarm_word;
     std::string status_monitor_single;
 public:
-
+    //--报文组件
+    static std::string get_laser_param_set_script(std::map<unsigned int, int> locVec);
 public:
     // 起弧/收弧功能脚本
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
