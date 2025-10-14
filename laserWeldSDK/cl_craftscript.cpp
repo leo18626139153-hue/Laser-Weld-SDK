@@ -503,7 +503,19 @@ CommuRS485::CommuRS485()
                                                         
 }
 
-//485- 起弧/收弧功能脚本
+std::string CommuRS485::get_laser_param_set_script(std::map<unsigned int, int> locVec)
+{
+    std::string script;
+    for (const auto& it : locVec)
+    {
+        unsigned int partId = it.first;
+        int partValue = it.second;
+        script += "write_integer_register(" + std::to_string(partId) + ", " + std::to_string(partValue) + ")\n";
+    }
+    return script;
+}
+
+// 485- 起弧/收弧功能脚本
 LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string &script)
 {
     //获取句柄对应的焊机资源对象
@@ -923,9 +935,11 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     // 计算关光功率下降时间
     int tempTime = curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed;
     write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(tempTime)+"\n";  //关光功率下降时间
+    machineResource.laserPowerParams.laserRampDownTime = tempTime;
 
     write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";      //提前送气时间
     machineResource.laserPowerParams.gasStartupAdvanceTime = curCraftInfo.craftPreGasTime;
+
     write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n"; //气体关闭延时 --滞后送气时间
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
 
@@ -988,6 +1002,8 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     // write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftWeldingWireFeed), "2", "SendCommuRegAddr");    // 写入送丝机速度
     machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;
     //machineResource.weldingProcessType = curCraftInfo.craftWeldingProcessType;
+    machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;//开光送丝
+    machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  //关光送丝
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
     {
