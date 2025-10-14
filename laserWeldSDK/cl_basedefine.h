@@ -227,7 +227,7 @@ typedef struct MachineResource
 {
     CommuTypeLaserSdk commuType;    ///< 通讯形式
     RobotHandle robotHandle;        ///< 机器人句柄
-    WeldingProcessType weldingProcessType;     ///< 焊接工艺类型枚举
+    WeldingProcessType weldingProcessType;     ///< 焊接工艺类型
     /* 读---------- 输入状态地址 ---------- */
     //送丝机参数
     unsigned int wireFeederOvercurrentLoc;   ///< 送丝机过流告警地址 (1:告警 2:正常) 0x0112 → ​​274​
@@ -320,6 +320,7 @@ struct CraftInfoLaserSdk
 {
     WeldModeLaserSdk craftweldMode; //焊接模式
     WeldLineTypeLaserSdk craftWeldType; //点焊类型
+    // WeldingProcessType craftWeldingProcessType;     ///< 焊接工艺类型
     int craftSpotWeldDuration;      //点焊持续时间
     int craftSpotWeldInterval;      //点焊间隔时间
 

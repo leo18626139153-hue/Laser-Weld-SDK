@@ -51,10 +51,21 @@ LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc,
 
 std::string CommuBase::loadLuaFunctionScriptOut()
 {
-
+    std::string tmpLuaScript;
+    for (auto it = startLuaScripts.begin(); it != startLuaScripts.end(); )
+    {
+        tmpLuaScript += it->second + "\n";
+        it = startLuaScripts.erase(it); // erase 自动返回下一个有效迭代器
+    }
+    std::string tmpLuaStartDataScript;
+    for (auto it = startDataScripts.begin(); it != startDataScripts.end(); )
+    {
+        tmpLuaScript = it->second + tmpLuaScript + "\n";
+        it = startDataScripts.erase(it); //加载后删除
+    }
     //static std::string currentLuaScript = std::move(loadLuaFunctionScript);
     //loadLuaFunctionScript = ""; //清空
-    return loadLuaFunctionScript;
+    return tmpLuaScript + loadLuaFunctionScript + tmpLuaStartDataScript;
 }
 
 CommuRS485 *CommuRS485::GetInstance()
@@ -65,6 +76,7 @@ CommuRS485 *CommuRS485::GetInstance()
     });
     return s_commuRS485;
 }
+
 CommuRS485::CommuRS485()
 {
     swap_bytes = R"(
@@ -129,7 +141,7 @@ CommuRS485::CommuRS485()
     lua_data_get = R"(
     --5.定义数据拆分整合函数 如0x1234 0x5678 输出0x1278
     function Lua_data_get(data1, data2)
-        -- 如果数值小于0，则转换为无符号数计算
+        -- 如果数值小于0,则转换为无符号数计算
         if data1 < 0 then
             data1 = 65536 + data1
         end
@@ -218,12 +230,17 @@ CommuRS485::CommuRS485()
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1) 
         --等待接收结果
-        local timeout = 500
+        local timeout = 100
         while(read_int16_register(RecvCommuRegAddr) == 0) do            
             wait(10)
             timeout = timeout - 10
+            if read_int16_register(RecvCommuRegAddr) == 0x8609 or read_int16_register(RecvCommuRegAddr) == 0x860A then
+                print(string.format("参数错误，回执: 0x%04X", read_int16_register(RecvCommuRegAddr)))
+                break
+            end
             if timeout <= 0 then
-                print(string.format("超时地址 : 0x%04X", port_address))
+                print(string.format("超时首地址 : 0x%04X", addr_value_map[1][1]))
+                write_int16_register(RecvCommuRegAddr, addr_value_map[1][1]) 
                 break
             end
         end        
@@ -495,15 +512,15 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    CRresult result;
     std::string writeFunction;
+    std::string dataFunction;
     int gasWaitTime = 1;
     //获取脚本
     if (laserSwitch == SWITCH_ON_LASER_SDK)
     {
-        gasWaitTime = machineResource.laserPowerParams.gasStartupAdvanceTime;
-        writeFunction = "   gasWaitTime = " + std::to_string(gasWaitTime);
-        writeFunction +=
+        dataFunction = "gasWaitTime =" + std::to_string(gasWaitTime) + "\n";
+        startDataScripts.emplace("gasWaitTime", dataFunction);//预置参数脚本
+        writeFunction =
         R"(
     function arc_start()
         --起弧脚本
@@ -515,7 +532,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                 --送气使能开
                 comNo = 3
                 SendCommuRegAddr = 30
-                write_value_port(0x0906, 0x0031, 1, 3, 30)
+                write_value_port(0x0906, 0x0031, 1, 3, SendCommuRegAddr)
                 set_configurable_digital_out(0, true)  ---CO0 = 1
                 wait(gasWaitTime) --等待送气结束
                 set_configurable_digital_out(1, true)  ---CO1 = 1
@@ -528,7 +545,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                     set_configurable_digital_out(0, false)  ---CO0 = 0
                     print("起弧失败")
                     --送气使能关
-                    write_value_port(0x0906, 0x0031, 0, 3, 30)
+                    write_value_port(0x0906, 0x0031, 0, 3, SendCommuRegAddr)
                     write_integer_register(673, 1) --起弧异常信号
                     break
                 end
@@ -536,12 +553,12 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         end
     end
         )";
-
+        startLuaScripts.emplace("arc_start", writeFunction); 
     }
     else if (laserSwitch == SWITCH_OFF_LASER_SDK)
     {
-        gasWaitTime = machineResource.laserPowerParams.gasShutoffDelayTime;
-        writeFunction = "gasWaitTime =" + std::to_string(gasWaitTime);
+        dataFunction = "gasWaitTime =" + std::to_string(gasWaitTime) + "\n";
+        startDataScripts.emplace("gasWaitTime", dataFunction);//预置参数脚本
         writeFunction +=
         R"(
         function arc_stop()
@@ -552,7 +569,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                 --检测开始信号
                 if(read_boolean_register(900)==true) then
                     --送气使能关
-                    write_value_port(0x0906, 0x0031, 0, 3, 30)
+                    write_value_port(0x0906, 0x0031, 0, 3, SendCommuRegAddr)
                     set_configurable_digital_out(1, false)  ---CO1 = 1
                     wait(gasWaitTime) --等待送气结束
                     set_configurable_digital_out(0, false)  ---CO0 = 1
@@ -565,7 +582,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                         set_configurable_digital_out(1, false)  ---CO1 = 0
                         print("收弧异常")
                         --送气使能关
-                        write_value_port(0x0906, 0x0031, 0, 3, 30)
+                        write_value_port(0x0906, 0x0031, 0, 3, SendCommuRegAddr)
                         write_integer_register(675, 1) --收弧异常信号
                         break
                     end
@@ -573,8 +590,8 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
             end
         end
         )";
+        startLuaScripts.emplace("arc_stop", writeFunction); //收弧脚本
     }
-    script += writeFunction;
     return LaserSdkResult::SUCCESS_LASER_SDK;
 
 }
@@ -586,14 +603,26 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
     {
         return HANDLE_ERROR_LASER_SDK;
     }
-
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
+        int gasWaitTime = machineResource.laserPowerParams.gasStartupAdvanceTime;
+        if (gasWaitTime < 0 || gasWaitTime > 3000)
+        {
+            writeLog("起弧预置延时参数异常 范围0~3000ms");
+            return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+        }
         script += "arc_start()\n";
     }
     else if (startSwitch == SWITCH_OFF_LASER_SDK)
     {
+        int gasWaitTime = machineResource.laserPowerParams.gasShutoffDelayTime;
+        if (gasWaitTime < 0 || gasWaitTime > 3000)
+        {
+            writeLog("收弧预置延时参数异常 范围0~3000ms");
+            return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+        }
         script += "arc_stop()\n";
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
@@ -691,16 +720,21 @@ LaserSdkResult CommuRS485::craft_laser_mul_params_set_script_get(LaserMachineHan
 
     // 生成脚本
     std::string useScript = R"(
-    --送丝机参数
-    local wireRegisterMap = {
-        [1] = {0x0103, 0},      --自动送丝延时
-        [2] = {0x0104, 100},    --回抽长度
-        [3] = {0x0105, 100},    --补丝长度
-        [4] = {0x0106, 0},    --补丝延时
-        
-        [100] = {0x0100, 123},  --自动送丝速度
-        [115] = {0x0115, 0},    --送丝机运行状态
-    })";
+    --激光器参数
+    local laserRegisterMap = {     
+    [1] = {0x0230, 2000},  -- 激光功率
+    [2] = {0x0231, 2000},  -- 开光功率
+    [3] = {0x0232, 50},    -- 开光功率上升时间
+    [4] = {0x0233, 1000},  -- 关光功率
+    [5] = {0x0234, re_length/weld_speed},   -- 关光功率下降时间
+    [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间    
+    [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间  
+    [8] = {0x0237, 0},    -- 送丝延时 默认0
+    [9] = {0x0238, 0},    -- 激光头Y轴缩放
+    [10] = {0x0239, 0},   -- 激光头Y轴偏移
+    [11] = {0x023A, 0 },  -- 激光头X轴缩放
+    [12] = {0x023B, 0 },  -- 激光头X轴偏移 
+})";
 
     return LaserSdkResult();
 }
@@ -782,10 +816,10 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     CgxiWireFeederLaserSdk &wireFeederParams = machineResource.wireFeederParams;
     // 存储所有函数定义和调用脚本的数据结构
     std::unordered_map<unsigned int, std::string> writeDataHash;
-    auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF)
+    auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr)
     {
         //没有写入地址
-        if(addr == 0xFFFFFFFF)
+        if(addr >= 0xFFFF)
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         std::string endstr = "\n";
         std::ostringstream useScript;
@@ -793,14 +827,14 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*10, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*10, 2, SendCommuRegAddr)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*100, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << "*100, 2, SendCommuRegAddr)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << ", 2, 62)" << endstr;
+            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << ", 2, SendCommuRegAddr)" << endstr;
             break;
         default:
             break;
@@ -922,27 +956,16 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n"; //点焊时长
     machineResource.laserPowerParams.spotWeldDurationTime = curCraftInfo.craftSpotWeldDuration;
     write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n"; //点焊间隔
-    machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;
-    // 送丝机参数
-    write_laser_params += "    wireRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftEndingWireRetraction)+"\n"; //回抽长度
-    machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftEndingWireRetraction;
-    write_laser_params += "    wireRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
-    machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;   
+    machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;    
     //写入激光焊接参数、点焊参数、丝机参数
     std::string write_weld_params = R"(
-comNo = 3
-slave_addr = 0x09
-write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
-write_multi_value_port(laserHeadRegisterMap)  --写入激光头
-write_multi_value_port(spotWeld)              --写入点焊参数
-comNo = 2
-slave_addr = 0x0A 
-write_multi_value_port(wireRegisterMap)     --写入丝机参数
-    )";
-
-    // 写入送丝机速度
-    write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftWeldingWireFeed), "2", "SendCommuRegAddr");
-    machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;
+    comNo = 3
+    slave_addr = 0x09
+    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
+    write_multi_value_port(laserHeadRegisterMap)  --写入激光头
+    write_multi_value_port(spotWeld)              --写入点焊参数
+    )";    
+    
     // 写入焊接模式
     write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr");
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
@@ -955,7 +978,24 @@ write_multi_value_port(wireRegisterMap)     --写入丝机参数
         machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
     }
     bodyScriptText += write_laser_params;
-    bodyScriptText += write_weld_params;    
+    bodyScriptText += write_weld_params;  
+    
+    // 送丝机参数
+    // write_laser_params += "    wireRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftEndingWireRetraction)+"\n"; //回抽长度
+    machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftEndingWireRetraction;
+    // write_laser_params += "    wireRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
+    machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;       
+    // write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftWeldingWireFeed), "2", "SendCommuRegAddr");    // 写入送丝机速度
+    machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;
+    //machineResource.weldingProcessType = curCraftInfo.craftWeldingProcessType;
+    //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
+    std::vector<unsigned int> wireFeedVec =
+    {
+        machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
+        machineResource.wireFeedLengthLoc,          //261 补丝长度地址
+        machineResource.autoWireFeedSpeedLoc,       //256 焊丝送丝速度
+    };
+    craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, bodyScriptText);
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
@@ -1051,9 +1091,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    CRresult result;
     std::string writeFunction;
-    int gasWaitTime;
     //获取脚本
     if (laserSwitch == SWITCH_ON_LASER_SDK)
     {
@@ -1088,9 +1126,9 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     for i = 1, num + 1 do
                         print("power: ", i)
                         write_value_port(0x0906,0x0033,openPower + (powerSingle * i),3,0)
-                        wait(50)
+                        wait(1)
                         write_value_port(0x0A06,0x0100,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
-                        wait(50)
+                        wait(1)
                     end
                 end
                 i = 0
@@ -1113,7 +1151,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
 
             std::string arcStartProgram = oss.str();
             std::string arcStartProgram2 = "end\n"
-                                           "arcStartProgram_Result=task_create(arcStartProgram)\n";
+                                           "arcStartProgram_Result=task_create(slow_arc_start)\n";
             script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
             return LaserSdkResult::SUCCESS_LASER_SDK;
         }

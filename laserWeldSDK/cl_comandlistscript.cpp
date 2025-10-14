@@ -58,19 +58,6 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
         return result;
     }
 
-//    CommuBase* curCommuFunction = nullptr;
-//    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
-//    {
-//        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-//        if (curCommuFunction == nullptr)
-//        {
-//            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
-//        }
-//    }
-//    else
-//    {
-//        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
-//    }
     
     std::unordered_map<int, std::pair<InstTypeLaserSdk, int>>& listLocToTypeID = instListData.listLocToTypeID; ///< 指令列表 指令类型 到 类型ID 的映射
     std::unordered_map<int, CraftInfoLaserSdk>& craftsMap = instListData.craftsMap;     ///< 工艺信息

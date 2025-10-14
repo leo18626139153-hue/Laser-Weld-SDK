@@ -12,6 +12,8 @@ class CommuBase
 {
 protected:
     //功能函数脚本内容
+    std::map<std::string, std::string> startLuaScripts;//初始化接口
+    std::map<std::string, std::string> startDataScripts; //初始化变量
     std::string loadLuaFunctionScript;
 public:
     CommuBase(){};
@@ -64,8 +66,6 @@ private:
     static CommuRS485* s_commuRS485;
     static std::once_flag initFlag; ///< initFlag >>> 保证单例对象只被初始化一次，且线程安全
 private:
-    std::vector<std::string> startFuncscripts; ///< 起始函数声明
-    std::vector<std::string> startDatascripts; ///< 起始变量
     std::string swap_bytes;      ///< 高低字节交换函数
     std::string modbus_crc16;    ///< modbus crc16校验函数
     std::string lua_split;       ///< lua字符串分割函数
@@ -86,6 +86,8 @@ private:
     std::string get_register_value;
     std::string parse_alarm_word;
     std::string status_monitor_single;
+public:
+
 public:
     // 起弧/收弧功能脚本
     LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
@@ -109,6 +111,7 @@ public:
     LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
     //缓升缓降 起收弧执行程序
     LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
+
 
 };
 

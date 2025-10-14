@@ -379,8 +379,8 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
     int tempCraftInstListStartLoc = -1; //当前工艺实例指令列表起始位置
     int tempCraftInstListEndLoc = -1;  //当前工艺实例指令列表终止位置
-    bool tempIsWelding = false; //当前是否在焊接状态
-    int tempCraftID = -1;       //当前工艺ID
+    bool tempIsWelding = false;         //当前是否在焊接状态
+    int tempCraftID = -1;               //当前工艺ID
     //对指令列表进行预处理获取每个顶层工艺(区别于只进行arc set的工艺)所属指令的起点和终点位置
     craftInstListCraftIDVec.clear();
     craftInstListStartEndLoc.clear();
