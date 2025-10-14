@@ -7,6 +7,12 @@ LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double 
     double vx = p2[0] - p1[0];
     double vy = p2[1] - p1[1];
     double vz = p2[2] - p1[2];
+
+    double distance = sqrt(vx*vx + vy*vy + vz*vz);
+    if (distance < 1e-6) {
+        return LaserSdkResult::BACK_DISTANCE_LIMIT_LASER_SDK;
+    }
+
     double temp[3] = {vx,vy,vz};
     // 归一化向量
     normalizeVector(temp);
@@ -32,7 +38,7 @@ LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double 
 }
 
 //圆弧收弧计算回退点为起点的三个示教点
-LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6])
+LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double newTransPoint[6], double newTransJointPoint[6], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6])
 {
     double centerPoint[3], axisVec[3], radius;
     int result = circle3dCalc(p1, p2, p3, &radius, centerPoint, axisVec);
@@ -61,15 +67,30 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
     double MidP[3];
     vecCross(PresPendVec, axisVec, MidP);
     double moerMidP = sqrt(pow(MidP[0], 2) + pow(MidP[1], 2) + pow(MidP[2], 2));
-    midP[0] = MidP[0] / moerMidP*radius + centerPoint[0];
+    midP[0] = MidP[0] / moerMidP * radius + centerPoint[0];
     midP[1] = MidP[1] / moerMidP * radius + centerPoint[1];
     midP[2] = MidP[2] / moerMidP * radius + centerPoint[2];
     midP[3] = stopP[3];
     midP[4] = stopP[4];
     midP[5] = stopP[5];
 
+    double PresPendVec2[3] = {restartP[0] - p1[0],restartP[1] - p1[1],restartP[2] - p1[2]};
+    double MidP2[3];
+    vecCross(PresPendVec2, axisVec, MidP2);
+    double moerMidP2 = sqrt(pow(MidP2[0], 2) + pow(MidP2[1], 2) + pow(MidP2[2], 2));
+    newTransPoint[0] = MidP2[0] / moerMidP2 * radius + centerPoint[0];
+    newTransPoint[1] = MidP2[1] / moerMidP2 * radius + centerPoint[1];
+    newTransPoint[2] = MidP2[2] / moerMidP2 * radius + centerPoint[2];
+    newTransPoint[3] = p2[3];
+    newTransPoint[4] = p2[4];
+    newTransPoint[5] = p2[5];
+
     LaserSdkResult res;
 
+    res = kineInverse_tcpPose(robothandle, newTransPoint, refJoint, newTransJointPoint);
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+        return res;
+    }
     res = kineInverse_tcpPose(robothandle, restartP, refJoint, restartPJoint);
     if (res != LaserSdkResult::SUCCESS_LASER_SDK){
         return res;

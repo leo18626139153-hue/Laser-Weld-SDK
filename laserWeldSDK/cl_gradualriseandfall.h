@@ -30,7 +30,7 @@ LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double 
  * @param endP                 原始终点
  * @return WeldSdkResult       处理结果
  */
-LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6]);
+LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double newTransPoint[6], double newTransJointPoint[6], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6]);
 
 
 // 计算圆的半径、中心点和法向量

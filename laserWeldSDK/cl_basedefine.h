@@ -474,6 +474,10 @@ struct RollbackCircleData
     double refJoint[6];         ///<参考关节角度
 
     double stopMappingPoint[6];     ///<停止点的映射点 - 出参
+
+    double newTransPoint[6];           ///<新过度点 基于基坐标系下固定路点的位姿
+    double newTransJointPoint[6];           ///<新过度点 基于基坐标系下固定路点的位姿
+
     double startPointOut[6];        ///<起点 基于基坐标系下固定路点的位姿 - 出参
     double transPointOut[6];        ///<过度点 基于基坐标系下固定路点的位姿 - 出参
     double endPointOut[6];          ///<终点 基于基坐标系下固定路点的位姿 - 出参

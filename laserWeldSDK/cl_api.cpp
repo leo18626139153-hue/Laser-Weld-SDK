@@ -864,6 +864,8 @@ LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMach
                                 rollbackCircleData->distance,
                                 rollbackCircleData->refJoint,
                                 rollbackCircleData->stopMappingPoint,
+                                rollbackCircleData->newTransPoint,
+                                rollbackCircleData->newTransJointPoint,
                                 rollbackCircleData->startPointOut,
                                 rollbackCircleData->transPointOut,
                                 rollbackCircleData->endPointOut,
@@ -988,9 +990,11 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
                 -- 循环逐步调整功率和送丝速度
                 for i = 1, num + 1 do
                     print("power: ", i)
-                    write_laser_power(openPower + (powerSingle * i))    -- 调整激光功率
+                    write_value_port(0x0906, 0x0033, (openPower + (powerSingle * i)), 3, 0)
+                    --write_laser_power(openPower + (powerSingle * i))    -- 调整激光功率
                     wait(100)  -- 等待 100 毫秒
-                    write_wirefeede_auto_send_speed(wirefeedeOpenSendSpeed + (speedSingle * i))  -- 调整送丝速度
+                    write_value_port(0x0A06, 0x0100, (wirefeedeOpenSendSpeed + (speedSingle * i)), 2, 0)
+                    --write_wirefeede_auto_send_speed(wirefeedeOpenSendSpeed + (speedSingle * i))  -- 调整送丝速度
                     wait(10)   -- 等待 10 毫秒
                 end
             end
@@ -1129,9 +1133,11 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
                 -- 循环逐步调整功率和送丝速度
                 for i = 1, num + 1 do
                     print("power: ", i)
-                    write_laser_power((laserPower - (powerSingle * i))    -- 调整激光功率
-                    wait(100)  -- 等待 100 毫秒
-                    write_wirefeede_auto_send_speed((wirefeedeWeldSendSpeed - (speedSingle * i))  -- 调整送丝速度
+                    write_value_port(0x0906, 0x0033, (laserPower - (powerSingle * i), 3, 0)
+                    --write_laser_power((laserPower - (powerSingle * i))    -- 调整激光功率
+                    wait(10)  -- 等待 10 毫秒
+                    write_value_port(0x0A06, 0x0100, (wirefeedeWeldSendSpeed - (speedSingle * i)), 2, 0)
+                    --write_wirefeede_auto_send_speed(wirefeedeWeldSendSpeed - (speedSingle * i))  -- 调整送丝速度
                     wait(10)   -- 等待 10 毫秒
                 end
             end
