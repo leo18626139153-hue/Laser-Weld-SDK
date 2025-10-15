@@ -515,7 +515,7 @@ std::string CommuRS485::get_laser_param_set_script(std::map<unsigned int, int> l
 }
 
 // 485- 起弧/收弧功能脚本
-LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch)
+LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string &script)
 {
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
@@ -615,7 +615,6 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    craft_script_arc_function_switch_script_get(laserMachineHandle, startSwitch);
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
@@ -1129,43 +1128,51 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed);
             std::ostringstream oss ;
             oss<<R"(
-        function slow_ascent(laserPower, openPower, wirefeedeOpenSendSpeed, wirefeedeWeldSendSpeed, openLightTime)
-            -- 计算功率差，送丝速度差
-            local v = laserPower - openPower
-            local s = wirefeedeWeldSendSpeed - wirefeedeOpenSendSpeed
+                function slow_ascent(laserPower, openPower, wirefeedeOpenSendSpeed, wirefeedeWeldSendSpeed, openLightTime)
+                    -- 计算功率差，送丝速度差
+                    local v = laserPower - openPower
+                    local s = wirefeedeWeldSendSpeed - wirefeedeOpenSendSpeed
 
-            -- 计算降几次
-            local num = openLightTime // 200
+                    -- 计算降几次
+                    local num = openLightTime // 200
+                    if num < 1 then
+                        --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
+                        write_value_port(0x0906,0x0033,laserPower,3,0)
+                        wait(1)
+                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed,2,0)
+                        wait(1)
+                        return
+                    end
+                    -- 计算每次降多少
+                    local powerSingle = math.floor(v / num)
+                    local speedSingle = math.floor(s / num)
 
-            -- 计算每次降多少
-            local powerSingle = math.floor(v / num)
-            local speedSingle = math.floor(s / num)
-
-            -- 循环逐步调整功率和送丝速度
-            for i = 1, num + 1 do
-                print("power: ", i)
-                write_value_port(0x0906,0x0033,openPower + (powerSingle * i),3,0)
-                wait(1)
-                write_value_port(0x0A06,0x0100,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
-                wait(1)
-            end
-        end
-        i = 0
-        res = false
-        while (i<5) and (not res) do
-            i=i+1
-            set_configurable_digital_out(0,true)
-            res = get_configurable_digital_out(1)
-            print("res:",res)
-            wait(5)
-        end
-        if(not res) then
-            print("启动失败")
-            return
-        end
-        --开气的延迟等待，不需要继续往下走
-        wait()" << time << R"()  -- 替换动态变量
-        ask_thread = task_create(slow_ascent)
+                    -- 循环逐步调整功率和送丝速度
+                    for i = 1, num + 1 do
+                        print("power: ", i)
+                        write_value_port(0x0906,0x0033,openPower + (powerSingle * i),3,0)
+                        wait(1)
+                        write_value_port(0x0A06,0x0100,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
+                        wait(1)
+                    end
+                end
+                i = 0
+                res = false
+                while (i<5) and (not res) do
+                    i=i+1
+                    set_configurable_digital_out(0,true)
+                    set_configurable_digital_out(1,true)
+                    res = get_configurable_digital_out(1)
+                    print("res:",res)
+                    wait(5)
+                end
+                if(not res) then
+                    print("启动失败")
+                    return
+                end
+                --开气的延迟等待，不需要继续往下走
+                wait()" << time << R"()  -- 替换动态变量
+                ask_thread = task_create(slow_ascent)
             )";
 
             std::string arcStartProgram = oss.str();
@@ -1204,7 +1211,12 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 计算降几次
                     local num = closeLightTime // 200
                     if num < 1 then
-                        num = 1
+                        --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
+                        write_value_port(0x0906,0x0033,laserPower,3,0)
+                        wait(1)
+                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed,2,0)
+                        wait(1)
+                        return
                     end
                     -- 计算每次降多少
                     local powerSingle = math.floor(v / num)
@@ -1223,7 +1235,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                 res = true --收弧前判断条件
                 while (i<5) and (res) do
                     i = i+1
-                    set_configurable_digital_out(0,false)
+                    set_configurable_digital_out(1, false)  ---CO1 = 0
                     res = get_configurable_digital_out(1)
                     print("res2 : ",res)
                     wait(5)
