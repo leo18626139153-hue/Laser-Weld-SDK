@@ -673,11 +673,11 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     // 2. 写入开光功率 (0-5000W, 整型)
     addParam( int16Reg, laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc);
     // 3. 写入开光渐进时间 (0~1000ms, 整型)
-    addParam( int16Reg, laserPowerParams.laserRampUpTime, machineResource.laserOnRampTimeLoc);
+    addParam( int16Reg, 0, machineResource.laserOnRampTimeLoc);
     // 4. 写入关光功率 (0-5000W, 整型)
     addParam( int16Reg, laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc);
     // 5. 写入关光渐进时间 (0~300mm, 整型)
-    addParam( int16Reg, laserPowerParams.laserRampDownTime, machineResource.laserOffRampTimeLoc);
+    addParam( int16Reg, 0, machineResource.laserOffRampTimeLoc);
     // 6. 写入开气延时函数 提前送气时间	0~3000ms
     addParam( int16Reg, laserPowerParams.gasStartupAdvanceTime, machineResource.gasONDelayLoc);
     // 7. 写入关气延时函数
@@ -937,7 +937,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
 
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
     // 计算关光功率下降时间
-    int tempTime = static_cast<int>(curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed);
+    double tempTime = static_cast<double>((curCraftInfo.craftLeadOutRampDistance * 1000)/ curCraftInfo.craftWeldingSpeed);
     write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(0)+"\n";  //关光功率下降时间
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
     // 提前送气时间

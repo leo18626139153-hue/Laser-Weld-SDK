@@ -131,7 +131,7 @@ typedef struct CgxiLaserPowerLaserSdk
     int laserPowerOpen;         ///< 开光功率 0-5000W
     int laserPowerClose;        ///< 关光功率 0-5000W
     int laserRampUpTime;        ///< 开光渐进时间 0~1000ms
-    int laserRampDownTime;      ///< 关光渐进时间{关光渐进距离 0~300mm, 根据机器人移动速度换算}
+    double laserRampDownTime;      ///< 关光渐进时间{关光渐进距离 0~300mm, 根据机器人移动速度换算}
     int wireFeedAdvanceTime;    ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
     int gasShutoffDelayTime;       ///< 关气渐进 滞后送气时间	0~3000ms
     int gasStartupAdvanceTime;     ///< 开气渐进 提前送气时间	0~3000ms
