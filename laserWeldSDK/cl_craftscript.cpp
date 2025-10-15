@@ -51,7 +51,7 @@ LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc,
 
 std::string CommuBase::loadLuaFunctionScriptOut()
 {
-    std::string tmpLuaScript;
+    std::string tmpLuaScript;   //接口函数
     for (auto it = startLuaScripts.begin(); it != startLuaScripts.end(); )
     {
         tmpLuaScript += it->second + "\n";
@@ -65,7 +65,7 @@ std::string CommuBase::loadLuaFunctionScriptOut()
     }
     //static std::string currentLuaScript = std::move(loadLuaFunctionScript);
     //loadLuaFunctionScript = ""; //清空
-    return tmpLuaScript + loadLuaFunctionScript + tmpLuaStartDataScript;
+    return tmpLuaStartDataScript + loadLuaFunctionScript + tmpLuaScript ;
 }
 
 CommuRS485 *CommuRS485::GetInstance()
