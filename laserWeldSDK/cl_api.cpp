@@ -148,8 +148,6 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
         //激光图案
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
-        //起弧程序
-        checkLaserSdkResult(curCommuFunction->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
         //起弧执行程序
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, scriptGet));
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
@@ -223,7 +221,6 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         //关气 关送丝信号
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
         //收弧程序
-        checkLaserSdkResult(curCommuFunction->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, scriptGet));
         //收弧执行程序
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, scriptGet));
         //收弧执行程序
@@ -269,37 +266,45 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
     {
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
-
+    auto checkCrSdkResult = [=](const CRresult& errorResult)
+    {
+        LaserSdkResult errorLaserResult = crsdk_return_value_transfer(errorResult);
+        if (errorLaserResult != LaserSdkResult::SUCCESS_LASER_SDK)
+        {
+            //res = CR_ERROR;
+            throw errorLaserResult;
+        }
+    };
     try
     {
         BOOL boolVal = FALSE;
         int  intVal  = 0;
 
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_TERMINAL_BUTTON_610, 1, &intVal);
-        cr_set_boolRegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_611, 1, &boolVal);
-        cr_set_boolRegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_612, 1, &boolVal);
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_TERMINAL_BUTTON_610, 1, &intVal));
+        checkCrSdkResult(cr_set_boolRegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_611, 1, &boolVal));
+        checkCrSdkResult(cr_set_boolRegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::BOOL_REG_EXTSTRUCT_612, 1, &boolVal));
 
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_STATUS_MONITOR_613, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_RUN_BREAK_POINT_617, 1, &intVal);
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_STATUS_MONITOR_613, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_RUN_BREAK_POINT_617, 1, &intVal));
 
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARC_START_FAIL_673, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_INTERRUPT_674, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARC_END_FAIL_675, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_MODE_660, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_PATH_662, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, 1, &intVal);
-        cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_PRESENT_CRAFT_LOC_664, 1, &intVal);
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARC_START_FAIL_673, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_INTERRUPT_674, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARC_END_FAIL_675, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_MODE_660, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_PATH_662, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, 1, &intVal));
+        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_PRESENT_CRAFT_LOC_664, 1, &intVal));
 
-        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_62, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_63, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_64, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_65, 1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_68,  1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_69,  1, &intVal);
-        cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_RESULT_77,  1, &intVal);
+        checkCrSdkResult(cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_62, 1, &intVal));
+        checkCrSdkResult(cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_63, 1, &intVal));
+        checkCrSdkResult(cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_64, 1, &intVal));
+        checkCrSdkResult(cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_WRITE_PARAMETER_65, 1, &intVal));
+        checkCrSdkResult(cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_68,  1, &intVal));
+        checkCrSdkResult(cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_READ_PARAMETER_69,  1, &intVal));
+        checkCrSdkResult(cr_set_int16RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT_REG_RESULT_77,  1, &intVal));
     }
     catch (const LaserSdkResult& errorResult)
     {

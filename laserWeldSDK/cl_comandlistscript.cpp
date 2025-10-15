@@ -113,7 +113,6 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 if (isWeld)
                 {
                     std::string tmpScript ;
-                    result = craftCommu->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, tmpScript);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
                         return result;
