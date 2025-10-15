@@ -1213,7 +1213,6 @@ LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle 
                                 "local RecvCommuRegAddr = 30		--Received data starts storing from address 30 of 16-bit communication variable\n"
                                 "local RecvCommuReg_n = 60		--Receive 50 bytes\n"
                                 "local alarm_bits_list = {0, 1, 2, 4, 5, 10, 11, 14}	-- Alarm bit types\n";
-
         std::string scriptGet=
                 "--Status Monitoring--\n"
                 "while true do\n"

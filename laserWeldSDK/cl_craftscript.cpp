@@ -239,8 +239,8 @@ CommuRS485::CommuRS485()
                 break
             end
             if timeout <= 0 then
-                print(string.format("超时首地址 : 0x%04X", data2[1]))
-                --write_int16_register(RecvCommuRegAddr, data2[1])
+                print(string.format("超时首地址 : 0x%04X", port_address))
+                --write_int16_register(RecvCommuRegAddr, port_address)
                 break
             end
         end        
@@ -269,9 +269,7 @@ CommuRS485::CommuRS485()
         --7. 写入报文
         local mes_string = concatenate_crc(crc_mes)
         local CommuReg_n = WriteHex2Commu_reg(mes_string)
-        print("发送报文长度："..CommuReg_n)
         print("发送报文："..mes_string)
-        print("端口号，".. comNo .."长度，"..CommuReg_n.."报文类型，"..SendDataType.." 起始地址：  "..SendCommuRegAddr)
         --8. 发送报文
         local timeout = 100
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
@@ -284,6 +282,7 @@ CommuRS485::CommuRS485()
                 break
             end
             if timeout <= 0 then
+                print("发送超时 | 端口号 - ".. comNo .."|长度 - "..CommuReg_n.."| 报文类型 - "..SendDataType.." |起始地址 - "..SendCommuRegAddr)
                 print(string.format("超时首地址 : 0x%04X", addr_value_map[1][1]))
                 write_int16_register(RecvCommuRegAddr, addr_value_map[1][1]) 
                 break
@@ -923,7 +922,9 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     }
     //
     write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(100)+"\n";
+    machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;
     write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInRampTime)+"\n";  //开光功率上升时间
+    machineResource.laserPowerParams.laserRampUpTime = curCraftInfo.craftLeadInRampTime;
     int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;//关光功率百分比
     if(craftLeadOutPowerPercent < 1 || craftLeadOutPowerPercent > 100){
         craftLeadOutPowerPercent = 1;
@@ -931,7 +932,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(100)+"\n";    //关光功率
-    machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;
+
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
     // 计算关光功率下降时间
     int tempTime = static_cast<int>(curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed);
@@ -1199,14 +1200,14 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 计算功率差，送丝速度差
                     local v = laserPower - closePower
                     local s = wirefeedeWeldSendSpeed - wirefeedeCloseSendSpeed
-
                     -- 计算降几次
                     local num = closeLightTime // 200
-
+                    if num < 1 then
+                        num = 1
+                    end
                     -- 计算每次降多少
                     local powerSingle = math.floor(v / num)
                     local speedSingle = math.floor(s / num)
-
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num + 1 do
                         print("power: ", i)
@@ -1223,7 +1224,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     i = i+1
                     set_configurable_digital_out(0,false)
                     res = get_configurable_digital_out(1)
-                    print("res2:",res)
+                    print("res2 : ",res)
                     wait(5)
                 end
             )";
