@@ -515,7 +515,7 @@ std::string CommuRS485::get_laser_param_set_script(std::map<unsigned int, int> l
 }
 
 // 485- 起弧/收弧功能脚本
-LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string &script)
+LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch)
 {
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
@@ -921,9 +921,9 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     //
-    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(100)+"\n";
+    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(100)+"\n";//开光功率，固定100，留给外控
     machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;
-    write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInRampTime)+"\n";  //开光功率上升时间
+    write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(0)+"\n";  //开光功率上升时间，脚本固定写0，留给外控
     machineResource.laserPowerParams.laserRampUpTime = curCraftInfo.craftLeadInRampTime;
     int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;//关光功率百分比
     if(craftLeadOutPowerPercent < 1 || craftLeadOutPowerPercent > 100){
@@ -936,7 +936,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
     // 计算关光功率下降时间
     int tempTime = static_cast<int>(curCraftInfo.craftLeadOutRampDistance / curCraftInfo.craftWeldingSpeed);
-    write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(tempTime)+"\n";  //关光功率下降时间
+    write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(0)+"\n";  //关光功率下降时间
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
     // 提前送气时间
     write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";
