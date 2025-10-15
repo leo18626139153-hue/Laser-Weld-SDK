@@ -1135,7 +1135,14 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
 
                     -- 计算降几次
                     local num = openLightTime // 200
-
+                    if num < 1 then
+                        --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
+                        write_value_port(0x0906,0x0033,laserPower,3,0)
+                        wait(1)
+                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed,2,0)
+                        wait(1)
+                        return
+                    end
                     -- 计算每次降多少
                     local powerSingle = math.floor(v / num)
                     local speedSingle = math.floor(s / num)
@@ -1154,6 +1161,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                 while (i<5) and (not res) do
                     i=i+1
                     set_configurable_digital_out(0,true)
+                    set_configurable_digital_out(1,true)
                     res = get_configurable_digital_out(1)
                     print("res:",res)
                     wait(5)
@@ -1203,7 +1211,12 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 计算降几次
                     local num = closeLightTime // 200
                     if num < 1 then
-                        num = 1
+                        --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
+                        write_value_port(0x0906,0x0033,laserPower,3,0)
+                        wait(1)
+                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed,2,0)
+                        wait(1)
+                        return
                     end
                     -- 计算每次降多少
                     local powerSingle = math.floor(v / num)
@@ -1222,7 +1235,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                 res = true --收弧前判断条件
                 while (i<5) and (res) do
                     i = i+1
-                    set_configurable_digital_out(0,false)
+                    set_configurable_digital_out(1, false)  ---CO1 = 0
                     res = get_configurable_digital_out(1)
                     print("res2 : ",res)
                     wait(5)
