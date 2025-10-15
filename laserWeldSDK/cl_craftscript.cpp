@@ -570,7 +570,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     {
         dataFunction = "gasWaitTime =" + std::to_string(gasWaitTime) + "\n";
         startDataScripts.emplace("gasWaitTime", dataFunction);//预置参数脚本
-        writeFunction +=
+        writeFunction =
         R"(
         function arc_stop()
             --收弧脚本
@@ -616,6 +616,8 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     //获取脚本
+    craft_script_arc_function_switch_script_get(laserMachineHandle, startSwitch);
+
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
         int gasWaitTime = machineResource.laserPowerParams.gasStartupAdvanceTime;
