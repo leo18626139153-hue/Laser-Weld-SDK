@@ -1128,7 +1128,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed);
             std::ostringstream oss ;
             oss<<R"(
-                function slow_ascent(laserPower, openPower, wirefeedeOpenSendSpeed, wirefeedeWeldSendSpeed, openLightTime)
+                function slow_ascent()
                     -- 计算功率差，送丝速度差
                     local v = laserPower - openPower
                     local s = wirefeedeWeldSendSpeed - wirefeedeOpenSendSpeed
