@@ -1169,8 +1169,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "openLightTime = " + std::to_string(laserPowerParams.laserRampUpTime) + "\n" +
                     "wirefeedeOpenSendSpeed = " + std::to_string(wireFeederParams.wireFeederStartMotorSpeed) + "\n" +
                     "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) +
-                    "write_value_port(0x0906,0x0033, openPower,3,0)" +
-                    "write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(, wirefeedeOpenSendSpeed,2,0)";
+                    "write_value_port(0x0906," + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + ", openPower,3,0)" +
+                    "write_value_port(0x0A06," + std::to_string(machineResource.autoWireFeedSpeedLoc) + ", wirefeedeOpenSendSpeed,2,0)";
             std::ostringstream oss ;
             oss<<R"(
                 function slow_ascent()
@@ -1183,7 +1183,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     print("num---------",num)
                     if num < 1 then
                         --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
-                        write_value_port(0x0906,0x0033,laserPower,3,0)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0)
                         wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0)
                         wait(1)
@@ -1196,7 +1196,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num do
                         print("power: ", i)
-                        write_value_port(0x0906,0x0033,openPower + (powerSingle * i),3,0)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,openPower + (powerSingle * i),3,0)
                         wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
                         wait(180)
@@ -1260,7 +1260,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     print("num2----------",num)
                     if num < 1 then
                         --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
-                        write_value_port(0x0906,0x0033,laserPower,3,0)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0)
                         wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0)
                         wait(1)
@@ -1271,13 +1271,13 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     local speedSingle = math.floor(s / num)
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num do
-                        write_value_port(0x0906,0x0033,(laserPower - (powerSingle * i)),3,0)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0)
                         wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0)
                         wait(180)
                     end
                     -- 保证功率降到关光功率
-                    write_value_port(0x0906,0x0033,closePower,3,0)
+                    write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,closePower,3,0)
                     -- 准备收弧
                     -- 设置送丝机回抽距离
                     write_value_port(0x0A06,)" + std::to_string(machineResource.wireRetractLengthLoc) + R"(,20,3,0)
