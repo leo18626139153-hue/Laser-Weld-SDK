@@ -498,8 +498,8 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     }
     else if (laserSwitch == SWITCH_OFF_LASER_SDK)
     {
-        dataFunction = "gasWaitTime =" + std::to_string(gasWaitTime) + "\n";
-        startDataScripts.emplace("gasWaitTime", dataFunction);//预置参数脚本
+//        dataFunction = "gasWaitTime =" + std::to_string(gasWaitTime) + "\n";
+//        startDataScripts.emplace("gasWaitTime", dataFunction);//预置参数脚本
         writeFunction =
         R"(
         function arc_stop()
@@ -510,9 +510,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                 --检测开始信号
                 if(read_boolean_register(900)==true) then
                     --送气使能关
-                    write_value_port(0x0906, 0x0031, 0, 3, SendCommuRegAddr)
                     set_configurable_digital_out(1, false)  ---CO1 = 1
-                    wait(gasWaitTime) --等待送气结束
                     set_configurable_digital_out(0, false)  ---CO0 = 1
                     print("收弧成功")
                     break
@@ -522,8 +520,6 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                         set_configurable_digital_out(0, false)  ---CO0 = 0
                         set_configurable_digital_out(1, false)  ---CO1 = 0
                         print("收弧异常")
-                        --送气使能关
-                        write_value_port(0x0906, 0x0031, 0, 3, SendCommuRegAddr)
                         write_integer_register(675, 1) --收弧异常信号
                         break
                     end

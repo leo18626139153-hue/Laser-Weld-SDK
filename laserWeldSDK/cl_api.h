@@ -98,6 +98,13 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_laser_current_craft_set_read(const LaserMa
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHandle);
 
 /**
+ * @brief cl_craft_weld_status_init      更改焊接设备状态
+ * @param laserMachineHandle             焊机资源句柄
+ * @return LaserSdkResult                处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle);
+
+/**
  * @brief getStartWeldScript    获取指令列表转换后脚本
  * @param laserMachineHandle    焊机资源句柄
  * @param weldStartData         指令列表数据结构体

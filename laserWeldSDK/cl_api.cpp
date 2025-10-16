@@ -1336,3 +1336,68 @@ LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandl
     std::string scriptGet="--焊枪姿态调整--\n";
     return SUCCESS_LASER_SDK;
 }
+
+LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+    //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
+    std::vector<unsigned int> laserPowerVec =
+    {        
+        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
+        machineResource.driverTempLoc,              ///<  驱动器温度值地址 0x023f 575
+        machineResource.protectiveWindowTempLoc,    ///<  保护镜温度值地址 0x0240 576
+        machineResource.collimatorTempLoc          ///<  准直镜温度值地址 0x0241 577
+    };
+
+    std::vector<unsigned int> laserHeadVec =
+    {
+        machineResource.laserHeadDutyCycleLoc,
+        machineResource.laserHeadFrequencyHighLoc,
+        machineResource.laserHeadFrequencyLowLoc,
+
+    };
+
+    //送丝机地址参数 - 自动送丝速度
+    std::vector<unsigned int> wireFeedVec =
+    {
+        machineResource.manualWireFeedSpeedLoc,       ///<  手动送丝速度地址 0x0101 257
+        machineResource.manualWireRetractSpeedLoc,       ///<  手动抽丝速度地址 0x0102 258
+    };
+
+    //获取脚本
+    std::string scriptGet;
+    try
+    {
+        checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
+        //激光器
+        checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
+        //送丝机
+        checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;     
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
