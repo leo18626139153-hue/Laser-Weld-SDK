@@ -425,80 +425,10 @@ CommuRS485::CommuRS485()
         "    end\n"
         "end\n";
 
-     status_monitor_single =
-                    "--单次状态监控--\n"
-                    "function status_monitor_single()\n"
-                    "    -- 激光头系统未使能状态，有无总报警\n"
-                    "    read_value_port(0x0903, 0x2000 , 0x0003, 3, 0, 16)\n"
-                    "    local report = read_registers_as_hex(30, 60)\n"
-                    "    print(\"拼接报文:\", report)\n"
-                    "    local swapReport = get_swap_report(report)\n"
-                    "    local val = get_register_value(swapReport,1)\n"
-                    "    print(\"激光头系统未使能状态:\", val)\n"
-                    "    write_integer_register(801, val)\n"
-                    "    local val = get_register_value(swapReport,2)\n"
-                    "    print(\"有无总报警:\", val)\n"
-                    "    write_integer_register(802, val)\n"
-                    "    local val = get_register_value(swapReport,3)\n"
-                    "    parse_alarm_word(val)\n"
-                    "    print(\"有无总报警2:\", val)\n"
-                    "\n"
-                    "    -- 激光器扳机状态,激光器报警状态,安全地锁输入状态,气压报警输入状态,送丝使能状态,pwm输出状态,气阀输出状态,DAC模拟量输出状态\n"
-                    "    read_value_port(0x0903, 0x0409 , 0x000a, 3, 0, 16)\n"
-                    "    local report = read_registers_as_hex(30, 60)\n"
-                    "    print(\"拼接报文:\", report)\n"
-                    "    local swapReport = get_swap_report(report)\n"
-                    "    local val = get_register_value(swapReport,1)\n"
-                    "    print(\"激光器扳机状态:\", val)\n"
-                    "    write_integer_register(813, val)\n"
-                    "    local val = get_register_value(swapReport,3)\n"
-                    "    print(\"安全地锁输入状态:\", val)\n"
-                    "    write_integer_register(814, val)\n"
-                    "    local val = get_register_value(swapReport,6)\n"
-                    "    print(\"送丝使能状态:\", val)\n"
-                    "    write_integer_register(815, val)\n"
-                    "    local val = get_register_value(swapReport,7)\n"
-                    "    print(\"PWM输出状态:\", val)\n"
-                    "    write_integer_register(816, val)\n"
-                    "    local val = get_register_value(swapReport,9)\n"
-                    "    print(\"气阀输出状态:\", val)\n"
-                    "    write_integer_register(817, val)\n"
-                    "    local val = get_register_value(swapReport,10)\n"
-                    "    print(\"DAC模拟量输出状态:\", val)\n"
-                    "    write_integer_register(818, val)\n"
-                    "\n"
-                    "    -- 送丝机连接状态\n"
-                    "    read_value_port(0x0903, 0x042e, 0x0001, 3, 0, 16)\n"
-                    "    local report = read_registers_as_hex(30, 35)\n"
-                    "    print(\"拼接报文:\", report)\n"
-                    "    local swapReport = get_swap_report(report)\n"
-                    "    local val = get_register_value(swapReport,1)\n"
-                    "    print(\"送丝机连接状态:\", val)\n"
-                    "    write_integer_register(812, val)\n"
-                    "\n"
-                    "    -- 激光器状态，气压状态\n"
-                    "    read_value_port(0x0903, 0x023c, 0x0001, 3, 0, 16)\n"
-                    "    local report = read_registers_as_hex(30, 40)\n"
-                    "    print(\"拼接报文:\", report)\n"
-                    "    local swapReport = get_swap_report(report)\n"
-                    "    local val = get_register_value(swapReport,1)\n"
-                    "    print(\"激光器状态:\", val)\n"
-                    "    write_integer_register(819, val)\n"
-                    "\n"
-                    "    --送丝机过流，送丝机运行状态\n"
-                    "    read_value_port(0x0A03,0x0115,0x0001, 2,  0, 16)\n"
-                    "    local report = read_registers_as_hex(30, 40)\n"
-                    "    print(\"拼接报文:\", report)\n"
-                    "    local swapReport = get_swap_report(report)\n"
-                    "    local val = get_register_value(swapReport,1)\n"
-                    "    print(\"送丝机运行状态:\", val)\n"
-                    "    write_integer_register(800, val)\n"
-                    "end\n";
-
     loadLuaFunctionScript = startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port
      + read_value_port + hex_to_bytes + swap_bytes_to_table + get_swap_report + int16_to_hex + read_registers_as_hex
-            + get_register_value + parse_alarm_word + status_monitor_single;
+            + get_register_value + parse_alarm_word;
                                                         
 }
 
@@ -1114,7 +1044,7 @@ LaserSdkResult CommuRS485::craft_script_value_check_script_get(LaserMachineHandl
 }
 
 //单词状态监控
-LaserSdkResult CommuRS485::cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle,  std::string &script)
+LaserSdkResult CommuRS485::cl_craft_weld_status_monitor_single_execute_script_get(LaserMachineHandle laserMachineHandle,  std::string &script)
 {
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
@@ -1122,6 +1052,94 @@ LaserSdkResult CommuRS485::cl_craft_weld_status_monitor_single_script_get(LaserM
         return HANDLE_ERROR_LASER_SDK;
     }
     script += "\n status_monitor_single()\n";
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+//单词状态监控脚本函数
+LaserSdkResult CommuRS485::cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle,  std::string &script)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    try
+    {
+        std::string arcStartProgram1 = "function status_monitor_single()\n";
+        std::string scriptGet=
+                "    read_value_port(0x0903, " + std::to_string(machineResource.laserHeadStatusLoc) + " , 0x0003, 3, 0, 16)\n"
+                "    local report = read_registers_as_hex(30, 60)\n"
+                "    print(\"Concatenated message:\", report)\n"
+                "    local swapReport = get_swap_report(report)\n"
+                "    local val = get_register_value(swapReport,1)\n"
+                "    print(\"Laser system not enabled status:\", val)\n"
+                "    write_integer_register(801, val)\n"
+                "    local val = get_register_value(swapReport,2)\n"
+                "    print(\"General alarm status:\", val)\n"
+                "    write_integer_register(802, val)\n"
+                "    local val = get_register_value(swapReport,3)\n"
+                "    parse_alarm_word(val)\n"
+                "    print(\"General alarm status 2:\", val)\n"
+                "\n"
+                "    -- Laser trigger status, Laser alarm status, Safety lock input status, Air pressure alarm input status, Wire feed enable status, PWM output status, Gas valve output status, DAC analog output status\n"
+                "    read_value_port(0x0903, " + std::to_string(machineResource.laserTriggerSignalLoc) + " , 0x000a, 3, 0, 16)\n"
+                "    local report = read_registers_as_hex(30, 60)\n"
+                "    print(\"Concatenated message:\", report)\n"
+                "    local swapReport = get_swap_report(report)\n"
+                "    local val = get_register_value(swapReport,1)\n"
+                "    print(\"Laser trigger status:\", val)\n"
+                "    write_integer_register(813, val)\n"
+                "    local val = get_register_value(swapReport,3)\n"
+                "    print(\"Safety lock input status:\", val)\n"
+                "    write_integer_register(814, val)\n"
+                "    local val = get_register_value(swapReport,6)\n"
+                "    print(\"Wire feed enable status:\", val)\n"
+                "    write_integer_register(815, val)\n"
+                "    local val = get_register_value(swapReport,7)\n"
+                "    print(\"PWM output status:\", val)\n"
+                "    write_integer_register(816, val)\n"
+                "    local val = get_register_value(swapReport,9)\n"
+                "    print(\"Gas valve output status:\", val)\n"
+                "    write_integer_register(817, val)\n"
+                "    local val = get_register_value(swapReport,10)\n"
+                "    print(\"DAC analog output status:\", val)\n"
+                "    write_integer_register(818, val)\n"
+                "\n"
+                "    -- Wire feeder connection status\n"
+                "    read_value_port(0x0903, " + std::to_string(machineResource.wireFeederConnectedLoc) + ", 0x0001, 3, 0, 16)\n"
+                "    local report = read_registers_as_hex(30, 35)\n"
+                "    print(\"Concatenated message:\", report)\n"
+                "    local swapReport = get_swap_report(report)\n"
+                "    local val = get_register_value(swapReport,1)\n"
+                "    print(\"Wire feeder connection status:\", val)\n"
+                "    write_integer_register(812, val)\n"
+                "\n"
+                "    -- Laser status, Air pressure status\n"
+                "    read_value_port(0x0903, " + std::to_string(machineResource.laserAlarmCodeLoc) + ", 0x0001, 3, 0, 16)\n"
+                "    local report = read_registers_as_hex(30, 40)\n"
+                "    print(\"Concatenated message:\", report)\n"
+                "    local swapReport = get_swap_report(report)\n"
+                "    local val = get_register_value(swapReport,1)\n"
+                "    print(\"Laser status:\", val)\n"
+                "    write_integer_register(819, val)\n"
+                "\n"
+                "    -- Wire feeder overcurrent, Wire feeder running status\n"
+                "    read_value_port(0x0A03," + std::to_string(machineResource.wireFeederStatusLoc) + ",0x0001, 2,  0, 16)\n"
+                "    local report = read_registers_as_hex(30, 40)\n"
+                "    print(\"Concatenated message:\", report)\n"
+                "    local swapReport = get_swap_report(report)\n"
+                "    local val = get_register_value(swapReport,1)\n"
+                "    print(\"Wire feeder running status:\", val)\n"
+                "    write_integer_register(800, val)\n";
+        std::string arcStartProgram2 = "end\n";
+        script += arcStartProgram1 + scriptGet + arcStartProgram2;
+        return LaserSdkResult::SUCCESS_LASER_SDK;
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -1152,7 +1170,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "wirefeedeOpenSendSpeed = " + std::to_string(wireFeederParams.wireFeederStartMotorSpeed) + "\n" +
                     "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) +
                     "write_value_port(0x0906,0x0033, openPower,3,0)" +
-                    "write_value_port(0x0A06,0x0100, wirefeedeOpenSendSpeed,2,0)";
+                    "write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(, wirefeedeOpenSendSpeed,2,0)";
             std::ostringstream oss ;
             oss<<R"(
                 function slow_ascent()
@@ -1167,7 +1185,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                         --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
                         write_value_port(0x0906,0x0033,laserPower,3,0)
                         wait(1)
-                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed,2,0)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0)
                         wait(1)
                         return
                     end
@@ -1180,7 +1198,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                         print("power: ", i)
                         write_value_port(0x0906,0x0033,openPower + (powerSingle * i),3,0)
                         wait(1)
-                        write_value_port(0x0A06,0x0100,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
                         wait(180)
                     end
                 end
@@ -1228,7 +1246,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "closePower  = " + std::to_string(laserPowerParams.laserPowerClose) + "\n" +
                     "closeLightTime  = " + std::to_string(laserPowerParams.laserRampDownTime) + "\n" +
                     "wirefeedeCloseSendSpeed = " + std::to_string(wireFeederParams.wireFeederStopMotorSpeed) + "\n" +
-                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed);
+                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) +
+                    "wireFeederWaitTime = " + std::to_string(wireFeederParams.wireFeederWaitTime) ;
             std::string arcStartProgram =
             R"(
                 --laserPower, closePower, wirefeedeCloseSendSpeed, wirefeedeWeldSendSpeed, closeLightTime
@@ -1243,7 +1262,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                         --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
                         write_value_port(0x0906,0x0033,laserPower,3,0)
                         wait(1)
-                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed,2,0)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0)
                         wait(1)
                         return
                     end
@@ -1254,9 +1273,20 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     for i = 1, num do
                         write_value_port(0x0906,0x0033,(laserPower - (powerSingle * i)),3,0)
                         wait(1)
-                        write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed - (speedSingle * i),2,0)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0)
                         wait(180)
                     end
+                    -- 保证功率降到关光功率
+                    write_value_port(0x0906,0x0033,closePower,3,0)
+                    -- 准备收弧
+                    -- 设置送丝机回抽距离
+                    write_value_port(0x0A06,)" + std::to_string(machineResource.wireRetractLengthLoc) + R"(,20,3,0)
+                    -- 设置补丝距离
+                    write_value_port(0x0A06,)" + std::to_string(machineResource.wireFeedLengthLoc) + R"(,15,3,0)
+                    -- 设置补丝延迟（回抽后间隔多久补丝）
+                    write_value_port(0x0A06,0x0106,wireFeederWaitTime,3,0)
+                    -- 出发送丝机信号开关
+                    write_value_port(0x0A06,)" + std::to_string(machineResource.wireFeedSignalLoc) + R"(, 0,3,0)
                 end
                 ask_thread = task_create(slow_descent)
             )";

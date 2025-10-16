@@ -37,8 +37,10 @@ public:
     virtual LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) = 0;
     //参数检查
     virtual LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
-    //单次状态监控
+    //单次状态监控子程序
     virtual LaserSdkResult cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
+    //单次状态监控
+    virtual LaserSdkResult cl_craft_weld_status_monitor_single_execute_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
 
     virtual LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
 
@@ -107,8 +109,10 @@ public:
     LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) override;
     //参数检查
     LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
-    //单次脚本状态监控
+    //单次状态监控子程序
     LaserSdkResult cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    //单次状态监控执行程序
+    LaserSdkResult cl_craft_weld_status_monitor_single_execute_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //缓升缓降 起 收弧子程序
     LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
     //缓升缓降 起收弧执行程序

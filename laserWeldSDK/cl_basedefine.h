@@ -232,7 +232,7 @@ typedef struct MachineResource
     /* 读---------- 输入状态地址 ---------- */
     //送丝机参数
     unsigned int wireFeederOvercurrentLoc;   ///< 送丝机过流告警地址 (1:告警 2:正常) 0x0112 → ​​274​
-    unsigned int wireFeederStatusLoc;        ///< 送丝机运行状态地址 (0:停止 1:运行) 0x0140 → ​​277
+    unsigned int wireFeederStatusLoc;        ///< 送丝机运行状态地址 (0:停止 1:运行) 0x0115 → ​​277
     //激光头参数
     unsigned int laserHeadStatusLoc;         ///< 激光头系统状态地址 (0:出光（未使能） 1:出光（未使能）)  0x2000 → ​​8192​
     unsigned int globalAlarmLoc;             ///< 总报警状态地址 0x2001 → ​​8193​
