@@ -1127,7 +1127,9 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "openPower = " + std::to_string(laserPowerParams.laserPowerOpen) + "\n" +
                     "openLightTime = " + std::to_string(laserPowerParams.laserRampUpTime) + "\n" +
                     "wirefeedeOpenSendSpeed = " + std::to_string(wireFeederParams.wireFeederStartMotorSpeed) + "\n" +
-                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed);
+                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) +
+                    "write_value_port(0x0906,0x0033, openPower,3,0)" +
+                    "write_value_port(0x0A06,0x0100, wirefeedeOpenSendSpeed,2,0)";
             std::ostringstream oss ;
             oss<<R"(
                 function slow_ascent()
@@ -1137,6 +1139,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
 
                     -- 计算降几次
                     local num = openLightTime // 200
+                    print("num---------",num)
                     if num < 1 then
                         --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
                         write_value_port(0x0906,0x0033,laserPower,3,0)
@@ -1150,12 +1153,12 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     local speedSingle = math.floor(s / num)
 
                     -- 循环逐步调整功率和送丝速度
-                    for i = 1, num + 1 do
+                    for i = 1, num do
                         print("power: ", i)
                         write_value_port(0x0906,0x0033,openPower + (powerSingle * i),3,0)
                         wait(1)
                         write_value_port(0x0A06,0x0100,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
-                        wait(1)
+                        wait(180)
                     end
                 end
                 i = 0
@@ -1212,6 +1215,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     local s = wirefeedeWeldSendSpeed - wirefeedeCloseSendSpeed
                     -- 计算降几次
                     local num = closeLightTime // 200
+                    print("num2----------",num)
                     if num < 1 then
                         --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
                         write_value_port(0x0906,0x0033,laserPower,3,0)
@@ -1224,24 +1228,14 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     local powerSingle = math.floor(v / num)
                     local speedSingle = math.floor(s / num)
                     -- 循环逐步调整功率和送丝速度
-                    for i = 1, num + 1 do
-                        print("power: ", i)
+                    for i = 1, num do
                         write_value_port(0x0906,0x0033,(laserPower - (powerSingle * i)),3,0)
-                        wait(50)
+                        wait(1)
                         write_value_port(0x0A06,0x0100,wirefeedeWeldSendSpeed - (speedSingle * i),2,0)
-                        wait(50)
+                        wait(180)
                     end
                 end
                 ask_thread = task_create(slow_descent)
-                i = 0
-                res = true --收弧前判断条件
-                while (i<5) and (res) do
-                    i = i+1
-                    set_configurable_digital_out(1, false)  ---CO1 = 0
-                    res = get_configurable_digital_out(1)
-                    print("res2 : ",res)
-                    wait(5)
-                end
             )";
             std::string arcStartProgram2 = "end\n";
             script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
