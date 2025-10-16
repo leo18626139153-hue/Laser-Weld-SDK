@@ -202,6 +202,7 @@ typedef struct CgxiWireFeederLaserSdk
     int wireFeederFeedLength;                  ///< 补丝长度    0~100 mm
     int wireFeederBackLength;                  ///< 抽丝长度    0~100 mm
     int wireFeederWaitTime;                    ///< 补丝延时    0~2000 ms
+    double lengthBack;                         ///< 焊丝回抽的距离
 } CgxiWireFeederLaserSdk;
 
 ///< 机械臂参数
@@ -348,7 +349,7 @@ struct CraftInfoLaserSdk
     int craftLeadInWireFeed;            //开光送丝     送丝速度
     int craftWeldingWireFeed;           //焊接送丝     送丝速度
     int craftLeadOutWireFeed;           //关光送丝     送丝速度
-    int craftEndingWireRetraction;      //收尾抽丝     回抽长度
+    int craftEndingWireRetraction;      //收尾抽丝     回抽速度
     int craftEndLoopbackLength;         //收尾回送长度 补丝长度
 };
 

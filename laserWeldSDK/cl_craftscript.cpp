@@ -999,12 +999,33 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     bodyScriptText += write_weld_params;  
     
     // 送丝机参数
-    // write_laser_params += "    wireRegisterMap[2][2] = "+ std::to_string(curCraftInfo.craftEndingWireRetraction)+"\n"; //回抽长度
-    machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftEndingWireRetraction;
+    //计算焊丝回抽的距离
+    double backVelocity = curCraftInfo.craftEndingWireRetraction * 100 / 60; //收尾抽丝速度 cm/min换算成 mm/s
+    int distance = curCraftInfo.craftRetractionDistance;    //回抽焊丝的过程距离 mm
+    machineResource.wireFeederParams.lengthBack = distance;
+    double speed = curCraftInfo.craftWeldingSpeed; //焊接速度   mm/s
+    //计算补丝延迟
+    int wireDelayTime = static_cast<int>(distance / speed); //计算补丝延迟
+    if ( wireDelayTime > 2000)
+    {
+        wireDelayTime = 2000;
+        writeLog("补丝延迟时间过大 自动调整为2000ms");
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
+    machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;
+    int backLength = static_cast<int>(wireDelayTime * backVelocity); //焊丝回抽长度0-100mm
+    if(backLength < 0 || backLength > 100)
+    {
+        backLength = curCraftInfo.craftEndLoopbackLength;
+        writeLog("回抽焊丝长度过大 自动调整为"+ std::to_string(backLength));
+    }
+    machineResource.wireFeederParams.wireFeederBackLength = backLength;
+
     // write_laser_params += "    wireRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
     machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;       
     // write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftWeldingWireFeed), "2", "SendCommuRegAddr");    // 写入送丝机速度
     machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;
+
     //machineResource.weldingProcessType = curCraftInfo.craftWeldingProcessType;
     machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;//开光送丝
     machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  //关光送丝
