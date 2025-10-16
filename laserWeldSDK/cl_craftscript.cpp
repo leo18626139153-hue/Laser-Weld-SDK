@@ -933,13 +933,15 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         std::cout << "craftLeadOutPowerPercent out of range" << std::endl;
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(100)+"\n";    //关光功率
 
+    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(100)+"\n";    //关光功率
+    write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(0)+"\n";  //关光功率下降时间
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
     // 计算关光功率下降时间
-    double tempTime = static_cast<double>((curCraftInfo.craftLeadOutRampDistance * 1000)/ curCraftInfo.craftWeldingSpeed);
-    write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(0)+"\n";  //关光功率下降时间
+    int  disX = curCraftInfo.craftLeadOutRampDistance - curCraftInfo.craftRetractionDistance ; //降功率的距离
+    double tempTime = static_cast<double>((disX * 1000)/ curCraftInfo.craftWeldingSpeed);
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
+
     // 提前送气时间
     write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";
     machineResource.laserPowerParams.gasStartupAdvanceTime = curCraftInfo.craftPreGasTime;

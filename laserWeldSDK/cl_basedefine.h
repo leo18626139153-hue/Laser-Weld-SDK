@@ -259,8 +259,9 @@ typedef struct MachineResource
     unsigned int laserHeadScanHeightLoc;              ///<  扫描高度地址 0x0006 6
     unsigned int laserHeadRotationAngleLoc;           ///<  旋转角度地址 0x0007 7
     unsigned int laserHeadPatternIdLoc;               ///<  图形切换地址 0x0030 48
-    unsigned int gasValveSignalLoc;            ///<  送气信号开关地址 0x0031 → ​​49​ 激光头厂家内控地址
-    unsigned int wireFeedSignalLoc;            ///<  送丝信号开关地址 0x0032 → ​​50 激光头厂家内控地址
+    unsigned int gasValveSignalLoc;                   ///<  送气信号开关地址 0x0031 → ​​49​ 激光头厂家内控地址
+    unsigned int wireFeedSignalLoc;                   ///<  送丝信号开关地址 0x0032 → ​​50 激光头厂家内控地址
+    unsigned int laserHeadPeakPowerQuickLoc;               ///<  峰值功率 0x0033 51 快速写入峰值功率
     /* 写---------- 焊接工艺 ---------- */
     unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
     /* 读|写 ------ 激光器 - 工艺参数 ------ */
@@ -294,6 +295,7 @@ typedef struct MachineResource
     unsigned int autoWireFeedSpeedLoc;       ///<  自动送丝速度地址 0x0100 256
     unsigned int manualWireFeedSpeedLoc;     ///<  手动送丝速度地址 0x0101 257
     unsigned int manualWireRetractSpeedLoc;  ///<  手动抽丝速度地址 0x0102 258
+    unsigned int wireFeedBackDelayLoc;       ///<  补丝延迟时间地址 0x0106 262
     unsigned int wireFeedLengthLoc;          ///<  补丝长度地址 0x0105 261
     unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
     unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0 停    1	运行)  0x0140  320
@@ -319,38 +321,38 @@ enum MaterialLaserSdk
 //工艺参数
 struct CraftInfoLaserSdk
 {
-    WeldModeLaserSdk craftweldMode; //焊接模式
-    WeldLineTypeLaserSdk craftWeldType; //点焊类型
+    WeldModeLaserSdk craftweldMode; ///< 焊接模式
+    WeldLineTypeLaserSdk craftWeldType; ///< 点焊类型
     // WeldingProcessType craftWeldingProcessType;     ///< 焊接工艺类型
-    int craftSpotWeldDuration;      //点焊持续时间
-    int craftSpotWeldInterval;      //点焊间隔时间
+    int craftSpotWeldDuration;      ///< 点焊持续时间
+    int craftSpotWeldInterval;      ///< 点焊间隔时间
 
-    SpotPatternLaserSdk graphicsSwitching;  //图形切换
-    double craftScanWidth;      //扫描宽度
-    double craftScanHeight;     //扫描高度
-    int craftScanSpeed;         //扫描速度
-    int craftRotationAngle;     //旋转角度
+    SpotPatternLaserSdk graphicsSwitching;  ///< 图形切换
+    double craftScanWidth;      ///< 扫描宽度
+    double craftScanHeight;     ///< 扫描高度
+    int craftScanSpeed;         ///< 扫描速度
+    int craftRotationAngle;     ///< 旋转角度
 
-    double craftYAxisZoom;     //Y轴放大
-    double craftXAxisZoom;     //X轴放大
-    double craftYAxisOffset;   //Y轴偏移
-    double craftXAxisOffset;   //X轴偏移
+    double craftYAxisZoom;     ///< Y轴放大
+    double craftXAxisZoom;     ///< X轴放大
+    double craftYAxisOffset;   ///< Y轴偏移
+    double craftXAxisOffset;   ///< X轴偏移
 
-    int craftPreGasTime;        //提前送气时间
-    int craftPostGasTime;       //滞后送气时间
-    int craftLeadInPower;       //开光功率
-    int craftLeadInRampTime;    //开光渐进时间
-    int craftLaserPower;        //激光器焊接功率
-    double craftWeldingSpeed;   //焊接速度
-    int craftLeadOutPower;      //关光功率
-    int craftLeadOutRampDistance;   //关光渐进距离
-    int craftRetractionDistance;    //提前回抽距离
+    int craftPreGasTime;        ///< 提前送气时间   ms
+    int craftPostGasTime;       ///< 滞后送气时间   ms
+    int craftLeadInPower;       ///< 开光功率
+    int craftLeadInRampTime;    ///< 开光渐进时间   ms
+    int craftLaserPower;        ///< 激光器焊接功率
+    double craftWeldingSpeed;   ///< 焊接速度 mm/s
+    int craftLeadOutPower;      ///< 关光功率   
+    int craftLeadOutRampDistance;   ///< 关光渐进距离 mm
+    int craftRetractionDistance;    ///< 提前回抽距离 mm
 
-    int craftLeadInWireFeed;            //开光送丝     送丝速度
-    int craftWeldingWireFeed;           //焊接送丝     送丝速度
-    int craftLeadOutWireFeed;           //关光送丝     送丝速度
-    int craftEndingWireRetraction;      //收尾抽丝     回抽速度
-    int craftEndLoopbackLength;         //收尾回送长度 补丝长度
+    int craftLeadInWireFeed;            ///< 开光送丝     送丝速度
+    int craftWeldingWireFeed;           ///< 焊接送丝     送丝速度
+    int craftLeadOutWireFeed;           ///< 关光送丝     送丝速度
+    int craftEndingWireRetraction;      ///< 收尾抽丝     回抽速度
+    int craftEndLoopbackLength;         ///< 收尾回送长度 补丝长度
 };
 
 /* ---指令列表--- */
