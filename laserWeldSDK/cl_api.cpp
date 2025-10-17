@@ -1379,6 +1379,7 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     //送丝机地址参数 - 自动送丝速度
     std::vector<unsigned int> wireFeedVec =
     {
+        0x0115,
         machineResource.manualWireFeedSpeedLoc,       ///<  手动送丝速度地址 0x0101 257
         machineResource.manualWireRetractSpeedLoc,       ///<  手动抽丝速度地址 0x0102 258
     };

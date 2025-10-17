@@ -582,14 +582,14 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         {
         case float10Reg:
             useScript << std::setprecision(1);  //保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, comNo, SendCommuRegAddr)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 3, SendCommuRegAddr)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);  //保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, comNo, SendCommuRegAddr)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 3, SendCommuRegAddr)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", comNo, SendCommuRegAddr)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -688,7 +688,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF, int waitTime = 0)
     {
         //没有写入地址
-        if(addr == 0xFFFFFFFF)
+        if(addr >= 0xFFFF)
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         std::string endstr = "\n";
         std::ostringstream useScript;
@@ -696,14 +696,14 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 3, SendCommuRegAddr))" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 3, SendCommuRegAddr))" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 2, 62)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -792,23 +792,25 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     {
         //送丝焊
         addParam(int16Reg, 1, 0x0115);  //自动送丝恢复
-        // 0x0100 自动送丝速度
-        addParam(int16Reg, wireFeederParams.wireFeederMotorSpeed, machineResource.autoWireFeedSpeedLoc);
-        // 0x0101手动送丝速度
-        addParam(int16Reg, wireFeederParams.wireFeederManualFeedSpeed, machineResource.manualWireFeedSpeedLoc);
-        // 0x0102手动抽丝速度
-        addParam(int16Reg, wireFeederParams.wireFeederManualBackSpeed, machineResource.manualWireRetractSpeedLoc);
-        // 0x0105 补丝长度
-        addParam(int16Reg, wireFeederParams.wireFeederFeedLength, machineResource.wireFeedLengthLoc);
-        // 0x0104 抽丝长度
-        addParam(int16Reg, wireFeederParams.wireFeederBackLength, machineResource.wireRetractLengthLoc);
-        // 0x0140 手动送丝开关
-        addParam(int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualFeedSwitch), machineResource.manualWireFeedSwitchLoc);
-        // 0x0141 手动回抽开关
-        addParam(int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc);
-        // 0x013F 是否保存当前送丝机数据 地址  → ​​319​
-        addParam(int16Reg, wireFeederParams.isWireFeederDataSave, machineResource.saveCurrentWireFeederDataLoc);
     }
+
+    // 0x0100 自动送丝速度
+    addParam(int16Reg, wireFeederParams.wireFeederMotorSpeed, machineResource.autoWireFeedSpeedLoc);
+    // 0x0101手动送丝速度
+    addParam(int16Reg, wireFeederParams.wireFeederManualFeedSpeed, machineResource.manualWireFeedSpeedLoc);
+    // 0x0102手动抽丝速度
+    addParam(int16Reg, wireFeederParams.wireFeederManualBackSpeed, machineResource.manualWireRetractSpeedLoc);
+    // 0x0105 补丝长度
+    addParam(int16Reg, wireFeederParams.wireFeederFeedLength, machineResource.wireFeedLengthLoc);
+    // 0x0104 抽丝长度
+    addParam(int16Reg, wireFeederParams.wireFeederBackLength, machineResource.wireRetractLengthLoc);
+    // 0x0140 手动送丝开关
+    addParam(int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualFeedSwitch), machineResource.manualWireFeedSwitchLoc);
+    // 0x0141 手动回抽开关
+    addParam(int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc);
+    // 0x013F 是否保存当前送丝机数据 地址  → ​​319​
+    addParam(int16Reg, wireFeederParams.isWireFeederDataSave, machineResource.saveCurrentWireFeederDataLoc);
+
         
     for (unsigned int addr : locVec)
     {
@@ -825,8 +827,6 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
         }
     }
 
-    
-    
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
