@@ -230,7 +230,7 @@ CommuRS485::CommuRS485()
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1) 
         --等待接收结果
-        local timeout = 100
+        local timeout = 30
         while(read_int16_register(RecvCommuRegAddr) == 0) do            
             wait(10)
             timeout = timeout - 10
@@ -940,7 +940,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.wireFeederParams.lengthBack = distance;
     double speed = curCraftInfo.craftWeldingSpeed; //焊接速度   mm/s
     //计算补丝延迟
-    int wireDelayTime = static_cast<int>(distance / speed); //计算补丝延迟
+    int wireDelayTime = static_cast<int>((distance / speed)*1000); //计算补丝延迟
     if ( wireDelayTime > 2000)
     {
         wireDelayTime = 2000;
@@ -1168,8 +1168,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "openPower = " + std::to_string(laserPowerParams.laserPowerOpen) + "\n" +
                     "openLightTime = " + std::to_string(laserPowerParams.laserRampUpTime) + "\n" +
                     "wirefeedeOpenSendSpeed = " + std::to_string(wireFeederParams.wireFeederStartMotorSpeed) + "\n" +
-                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) +
-                    "write_value_port(0x0906," + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + ", openPower,3,0)" +
+                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) + "\n" +
+                    "write_value_port(0x0906," + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + ", openPower,3,0)" + "\n" +
                     "write_value_port(0x0A06," + std::to_string(machineResource.autoWireFeedSpeedLoc) + ", wirefeedeOpenSendSpeed,2,0)";
             std::ostringstream oss ;
             oss<<R"(
@@ -1184,9 +1184,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     if num < 1 then
                         --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
                         write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0)
-                        wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0)
-                        wait(1)
                         return
                     end
                     -- 计算每次降多少
@@ -1197,10 +1195,10 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     for i = 1, num do
                         print("power: ", i)
                         write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,openPower + (powerSingle * i),3,0)
-                        wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeOpenSendSpeed + (speedSingle * i),2,0)
-                        wait(180)
+                        wait(100)
                     end
+                    print("缓升结束!")
                 end
                 i = 0
                 res = false
@@ -1246,8 +1244,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "closePower  = " + std::to_string(laserPowerParams.laserPowerClose) + "\n" +
                     "closeLightTime  = " + std::to_string(laserPowerParams.laserRampDownTime) + "\n" +
                     "wirefeedeCloseSendSpeed = " + std::to_string(wireFeederParams.wireFeederStopMotorSpeed) + "\n" +
-                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) +
-                    "wireFeederWaitTime = " + std::to_string(wireFeederParams.wireFeederWaitTime) ;
+                    "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) + "\n" +
+                    "wireDelayTime = " + std::to_string(wireFeederParams.wireFeederWaitTime);
             std::string arcStartProgram =
             R"(
                 --laserPower, closePower, wirefeedeCloseSendSpeed, wirefeedeWeldSendSpeed, closeLightTime
@@ -1261,9 +1259,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     if num < 1 then
                         --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
                         write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0)
-                        wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0)
-                        wait(1)
                         return
                     end
                     -- 计算每次降多少
@@ -1272,21 +1268,16 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num do
                         write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0)
-                        wait(1)
                         write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0)
-                        wait(180)
+                        wait(100)
                     end
+                    print("缓降结束！")
                     -- 保证功率降到关光功率
                     write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,closePower,3,0)
-                    -- 准备收弧
-                    -- 设置送丝机回抽距离
-                    write_value_port(0x0A06,)" + std::to_string(machineResource.wireRetractLengthLoc) + R"(,20,3,0)
-                    -- 设置补丝距离
-                    write_value_port(0x0A06,)" + std::to_string(machineResource.wireFeedLengthLoc) + R"(,15,3,0)
-                    -- 设置补丝延迟（回抽后间隔多久补丝）
-                    write_value_port(0x0A06,0x0106,wireFeederWaitTime,3,0)
+                    -- 保证送丝速度到关光送丝速度
+                    write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeCloseSendSpeed,2,0)
                     -- 出发送丝机信号开关
-                    write_value_port(0x0A06,)" + std::to_string(machineResource.wireFeedSignalLoc) + R"(, 0,3,0)
+                    write_value_port(0x0906,)" + std::to_string(machineResource.wireFeedSignalLoc) + R"(, 0,3,0)
                 end
                 ask_thread = task_create(slow_descent)
             )";
