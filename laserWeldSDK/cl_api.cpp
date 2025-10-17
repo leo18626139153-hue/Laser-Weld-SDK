@@ -1337,7 +1337,7 @@ LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandl
     return SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle)
+LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen)
 {
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
@@ -1397,6 +1397,26 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     catch (const LaserSdkResult& errorResult)
     {
         return errorResult;
+    }
+
+    //脚本赋值
+    if(!strToChar(scripts, scriptLen, scriptGet))
+    {
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    }
+    //将脚本存入示教器日志中
+    else
+    {
+        // 打开文件进行写入
+        std::ofstream outFile("script.txt");
+
+        if (!outFile) {
+            std::cerr << "无法打开文件进行写入！" << std::endl;
+        }
+        outFile << scripts;
+
+        // 关闭文件
+        outFile.close();
     }
 
     return LaserSdkResult::SUCCESS_LASER_SDK;

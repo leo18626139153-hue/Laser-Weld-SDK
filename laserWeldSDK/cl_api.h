@@ -102,7 +102,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineH
  * @param laserMachineHandle             焊机资源句柄
  * @return LaserSdkResult                处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
  * @brief getStartWeldScript    获取指令列表转换后脚本
