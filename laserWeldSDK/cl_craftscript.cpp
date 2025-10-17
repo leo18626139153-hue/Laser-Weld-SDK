@@ -937,6 +937,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     //计算焊丝回抽的距离
     double backVelocity = curCraftInfo.craftEndingWireRetraction * 100 / 60; //收尾抽丝速度 cm/min换算成 mm/s
     int distance = curCraftInfo.craftRetractionDistance;            //回抽焊丝的过程距离 mm
+
     machineResource.wireFeederParams.lengthBack = distance;
     double speed = curCraftInfo.craftWeldingSpeed; //焊接速度   mm/s
     //计算补丝延迟
@@ -949,9 +950,9 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     }
     machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;
     int backLength = static_cast<int>(wireDelayTime * backVelocity); //焊丝回抽长度0-100mm
-    if(backLength < 0 || backLength > 100)
+    if(backLength < 5 || backLength > 100)
     {
-        backLength = curCraftInfo.craftEndLoopbackLength;
+        backLength = 5;
         writeLog("回抽焊丝长度过大 自动调整为"+ std::to_string(backLength));
     }
     machineResource.wireFeederParams.wireFeederBackLength = backLength;
@@ -964,7 +965,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     std::vector<unsigned int> wireFeedVec =
     {
         machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
-        machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
+        //machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
         machineResource.wireFeedLengthLoc,          ///<  补丝长度地址 0x0105 261
         machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 262
     };
