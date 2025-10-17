@@ -719,17 +719,19 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     // 3. 写入峰值功率 (0-3000W, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadPeakPower, machineResource.laserHeadPeakPowerLoc);
     // 4. 写入占空比 (0~100, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadDutyCycle, machineResource.laserHeadDutyCycleLoc);
-    // 5. 写入脉冲频率低地址 (5~100000HZ, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
-    // 6. 写入脉冲频率高地址 (5~100000HZ, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc);
+    addParam(int16Reg, laserHeadParams.laserHeadDutyCycle, machineResource.laserHeadDutyCycleLoc);    
     // 7. 写入扫描高度 (0.1~5mm, 浮点型)
     addParam(float10Reg, laserHeadParams.laserHeadScanHeight, machineResource.laserHeadScanHeightLoc);
     // 8. 写入旋转角度 (0~360°, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadSpinAngle, machineResource.laserHeadRotationAngleLoc);
     // 9. 写入图形（特殊处理）图形
     addParam(int16Reg, static_cast<int>(laserHeadParams.laserSpotPattern), machineResource.laserHeadPatternIdLoc);
+
+    //脉冲频率低地址 (5~100000HZ, 整型)
+    addParam(int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
+    // 6. 写入脉冲频率高地址 (5~100000HZ, 整型)
+    addParam(int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc);
+
     for (unsigned int addr : locVec)
     {
         auto it = writeDataHash.find(addr);
@@ -924,12 +926,11 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
     }
     bodyScriptText += write_laser_params;
-    bodyScriptText += write_weld_params;  
-    
+    bodyScriptText += write_weld_params;      
     // 送丝机参数
     //计算焊丝回抽的距离
     double backVelocity = curCraftInfo.craftEndingWireRetraction * 100 / 60; //收尾抽丝速度 cm/min换算成 mm/s
-    int distance = curCraftInfo.craftRetractionDistance;    //回抽焊丝的过程距离 mm
+    int distance = curCraftInfo.craftRetractionDistance;            //回抽焊丝的过程距离 mm
     machineResource.wireFeederParams.lengthBack = distance;
     double speed = curCraftInfo.craftWeldingSpeed; //焊接速度   mm/s
     //计算补丝延迟
@@ -949,20 +950,17 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     }
     machineResource.wireFeederParams.wireFeederBackLength = backLength;
 
-    // write_laser_params += "    wireRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftEndLoopbackLength)+"\n"; //补丝长度
     machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;       
-    // write_laser_params += writeLuaScript("0x0A06", "0x0100", std::to_string(curCraftInfo.craftWeldingWireFeed), "2", "SendCommuRegAddr");    // 写入送丝机速度
-    machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;
-
-    //machineResource.weldingProcessType = curCraftInfo.craftWeldingProcessType;
-    machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;//开光送丝
-    machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  //关光送丝
+    machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
+    machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝
+    machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
     {
-        machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
-        machineResource.wireFeedLengthLoc,          //261 补丝长度地址
-        machineResource.autoWireFeedSpeedLoc,       //256 焊丝送丝速度
+        machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
+        machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
+        machineResource.wireFeedLengthLoc,          ///<  补丝长度地址 0x0105 261
+        machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 262
     };
     craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, bodyScriptText);
 
