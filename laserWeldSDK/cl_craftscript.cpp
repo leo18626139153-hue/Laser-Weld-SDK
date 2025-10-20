@@ -79,6 +79,51 @@ CommuRS485 *CommuRS485::GetInstance()
 
 CommuRS485::CommuRS485()
 {
+    //组装最终要下发执行的脚本
+    std::string commandListStartData =
+    R"(--激光器工艺
+    local laserRegisterMap = {
+        [1] = {0x0230, 2000},  -- 激光功率
+        [2] = {0x0231, 2000},  -- 开光功率
+        [3] = {0x0232, 50},    -- 开光功率上升时间
+        [4] = {0x0233, 1000},  -- 关光功率
+        [5] = {0x0234, 10},   -- 关光功率下降时间
+        [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间
+        [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间
+        [8] = {0x0237, 0},    -- 送丝延时 默认0
+        [9] = {0x0238, 0},    -- 激光头Y轴缩放
+        [10] = {0x0239, 0},   -- 激光头Y轴偏移
+        [11] = {0x023A, 0 },  -- 激光头X轴缩放
+        [12] = {0x023B, 0 },  -- 激光头X轴偏移
+    }
+    --送丝机参数
+    local wireRegisterMap = {
+        [1] = {0x0103, 0},      --自动送丝延时
+        [2] = {0x0104, 100},    --回抽长度
+        [3] = {0x0105, 100},    --补丝长度
+        [4] = {0x0106, 0},    --补丝延时
+
+        [100] = {0x0100, 123},  --自动送丝速度
+        [115] = {0x0115, 0},    --送丝机运行状态
+    }
+    --点焊工艺
+    local spotWeld = {
+        [1] = {0x0242, 0}, --点焊类型
+        [2] = {0x0243, 0}, --点焊持续时间  0 ~ 60000 ms
+        [3] = {0x0244, 0} --点焊间隔时间   0 ~ 60000 ms
+    }
+    -- 激光头控制参数
+    local laserHeadRegisterMap = {
+        [1] = { 0x0000, 2000},  -- 激光头扫描速度
+        [2] = { 0x0001, 25 },    -- 激光头扫描宽度
+        [3] = { 0x0002, 3000 },    -- 峰值功率，焊接功率
+        [4] = { 0x0003, 100},   -- 占空比
+        [5] = { 0x0004, 0 },
+        [6] = { 0x0005, 20000 },    --脉冲频率/工艺无控制
+        [7] = { 0x0006, 25 },    -- 激光头扫描高度
+        [8] = { 0x0007, 0 },    -- 激光头旋转角度
+    }
+    )";
     swap_bytes = R"(
     -- 1.高低字节交换函数
     function swap_bytes(data)
@@ -230,10 +275,10 @@ CommuRS485::CommuRS485()
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1) 
         --等待接收结果
-        local timeout = 30
+        timeout = 100
         while(read_int16_register(RecvCommuRegAddr) == 0) do            
-            wait(10)
-            timeout = timeout - 10
+            wait(20)
+            timeout = timeout - 20
             if read_int16_register(RecvCommuRegAddr) == 0x8609 or read_int16_register(RecvCommuRegAddr) == 0x860A then
                 print(string.format("参数错误，回执: 0x%04X", read_int16_register(RecvCommuRegAddr)))
                 break
@@ -271,7 +316,7 @@ CommuRS485::CommuRS485()
         local CommuReg_n = WriteHex2Commu_reg(mes_string)
         print("发送报文："..mes_string)
         --8. 发送报文
-        local timeout = 100
+        timeout = 100
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
         while(read_int16_register(RecvCommuRegAddr) == 0) do
@@ -425,7 +470,7 @@ CommuRS485::CommuRS485()
         "    end\n"
         "end\n";
 
-    loadLuaFunctionScript = startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
+    loadLuaFunctionScript = commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port
      + read_value_port + hex_to_bytes + swap_bytes_to_table + get_swap_report + int16_to_hex + read_registers_as_hex
             + get_register_value + parse_alarm_word;
@@ -452,7 +497,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     {
         return HANDLE_ERROR_LASER_SDK;
     }
-    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    //MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     std::string writeFunction;
     std::string dataFunction;
     int gasWaitTime = 1;
@@ -674,6 +719,15 @@ LaserSdkResult CommuRS485::craft_laser_mul_params_set_script_get(LaserMachineHan
     [11] = {0x023A, 0 },  -- 激光头X轴缩放
     [12] = {0x023B, 0 },  -- 激光头X轴偏移 
 })";
+    /*
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+    */
 
     return LaserSdkResult();
 }
@@ -729,7 +783,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
 
     //脉冲频率低地址 (5~100000HZ, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
-    // 6. 写入脉冲频率高地址 (5~100000HZ, 整型)
+    //写入脉冲频率高地址 (5~100000HZ, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc);
 
     for (unsigned int addr : locVec)
@@ -776,8 +830,6 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
             break;
         case int16Reg:
             useScript << "write_value_port(0x0A06, " << addr << "," << paramValue << ", 2, SendCommuRegAddr)" << endstr;
-            break;
-        default:
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -915,6 +967,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     std::string write_weld_params = R"(
     comNo = 3
     slave_addr = 0x09
+    timeout = 300
     write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
     write_multi_value_port(laserHeadRegisterMap)  --写入激光头
     write_multi_value_port(spotWeld)              --写入点焊参数

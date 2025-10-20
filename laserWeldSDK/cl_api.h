@@ -194,6 +194,7 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHan
 
 
 
+
 #ifdef __cplusplus
 }
 #endif
