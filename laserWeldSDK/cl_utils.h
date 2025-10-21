@@ -32,10 +32,10 @@ std::string generateLuaScript(const std::string funcName, const std::string func
  * @param paramValue 写入值
  * @param firstRegisterNum 寄存器首地址
  */
-inline std::string writeLuaScript(const std::string functionCode , const std::string portAddress, const std::string paramValue, const std::string portNum, const std::string firstRegisterNum)
+inline std::string writeLuaScript(const std::string functionCode , const std::string portAddress, const std::string paramValue, const std::string portNum, const std::string firstRegisterNum, const std::string timeout)
 {
     std::ostringstream writeScript ;
-    writeScript << "    write_value_port(" << functionCode << "," << portAddress << "," << paramValue << "," << portNum << "," << firstRegisterNum <<")\n";
+    writeScript << "    write_value_port(" << functionCode << "," << portAddress << "," << paramValue << "," << portNum << "," << firstRegisterNum << ","<< timeout <<")\n";
     return writeScript.str();
 }
 
