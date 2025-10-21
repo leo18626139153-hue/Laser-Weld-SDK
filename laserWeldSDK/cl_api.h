@@ -116,6 +116,17 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMach
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char* scripts, int* scriptLen);
 
 /**
+ * @brief cl_craft_inst_devices_params_script_get    获取修改工艺参数生效后脚本
+ * @param laserMachineHandle    焊机资源句柄
+ * @param CraftInfo         指令列表数据结构体
+ * @param scripts               指令列表LUA脚本 传出参数
+ * @param scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
+ * @return LaserSdkResult        处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char* scripts, int* scriptLen);
+
+
+/**
  * @brief getArcEndSubProgramScript 获取收弧子程序脚本
  * @param laserMachineHandle        焊机资源句柄
  * @param scripts                   ArcEndSubProgramScript 的LUA脚本 传出参数
