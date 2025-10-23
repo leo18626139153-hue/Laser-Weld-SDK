@@ -344,6 +344,7 @@ CommuRS485::CommuRS485()
     local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
     local RecvCommuReg_n = 60		--接收30个字节
     local alarm_bits_list = {0,1,2,4,5,10,11,14}		--接收50个字节
+    local flag = 0
     )";      
     read_value_port =
         "--单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执\n"
@@ -1237,8 +1238,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     print("num---------",num)
                     if num < 1 then
                         --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,100)
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,100)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,1000)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,1000)
                         return
                     end
                     -- 计算每次降多少
@@ -1248,9 +1249,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num do
                         print("power: ", i)
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,openPower + (powerSingle * i),3,0,100)
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeOpenSendSpeed + (speedSingle * i),2,0,100)
-                        wait(100)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,openPower + (powerSingle * i),3,0,1000)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeOpenSendSpeed + (speedSingle * i),2,0,1000)
                     end
                     print("缓升结束!")
                 end
@@ -1299,7 +1299,9 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "closeLightTime  = " + std::to_string(laserPowerParams.laserRampDownTime) + "\n" +
                     "wirefeedeCloseSendSpeed = " + std::to_string(wireFeederParams.wireFeederStopMotorSpeed) + "\n" +
                     "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) + "\n" +
-                    "wireDelayTime = " + std::to_string(wireFeederParams.wireFeederWaitTime);
+                    "wireDelayTime = " + std::to_string(wireFeederParams.wireFeederWaitTime) + "\n" +
+                    "flag = 0";
+
             std::string arcStartProgram =
             R"(
                 --laserPower, closePower, wirefeedeCloseSendSpeed, wirefeedeWeldSendSpeed, closeLightTime
@@ -1312,8 +1314,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     print("num2----------",num)
                     if num < 1 then
                         --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,100)
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,100)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,1000)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,1000)
                         return
                     end
                     -- 计算每次降多少
@@ -1321,19 +1323,26 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     local speedSingle = math.floor(s / num)
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num do
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0,100)
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0,100)
-                        wait(100)
+                        if flag == 1 then
+                            break
+                        end
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0,1000)
+                        if flag == 1 then
+                            break
+                        end
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0,1000)
                     end
                     print("缓降结束！")
-                    -- 保证功率降到关光功率
-                    write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,closePower,3,0,1000)
-                    -- 保证送丝速度到关光送丝速度
-                    write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeCloseSendSpeed,2,0,1000)
-                    -- 出发送丝机信号开关
-                    write_value_port(0x0906,)" + std::to_string(machineResource.wireFeedSignalLoc) + R"(, 0,3,0,1000)
+
                 end
-                ask_thread = task_create(slow_descent)
+                task_thread = task_create(slow_descent)
+                function timeController()
+                    wait(closeLightTime)
+                    flag = 1
+                    -- 出发送丝机信号开关
+                    write_value_port(0x0906,50, 0,3,0,1500)
+                end
+                task_thread2 = task_create(timeController)
             )";
             std::string arcStartProgram2 = "end\n";
             script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;

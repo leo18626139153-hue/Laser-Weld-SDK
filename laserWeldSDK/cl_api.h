@@ -3,6 +3,7 @@
 
 #include "cl_basedefine.h"
 #include "robotapi.h"
+#include <string>
 
 #ifdef WIN32
 #if defined(LASERWELDSDK_LIBRARY)
@@ -203,6 +204,17 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const
  */
 LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double* pose, const double* joint, const double liftDistance, double* liftPose, double* liftJoint);
 
+/**
+ * @brief cl_parse_modbus_to_int16_register modbus报文解析
+ * @param laserMachineHandle                焊机资源句柄
+ * @param hexResponse                       返回报文
+ * @param hexResponseLen                    报文长度
+ * @param regIndex                          解析数据索引
+ * @param regLen                            解析个数
+ * @param value                             返回值
+ * @return
+ */
+LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int16_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, const int regIndex, const int regLen,  int16_t* value);
 
 
 

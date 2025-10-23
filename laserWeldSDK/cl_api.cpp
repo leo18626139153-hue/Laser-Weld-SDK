@@ -1438,3 +1438,44 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
+
+LaserSdkResult cl_parse_modbus_to_int16_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, const int regIndex, const int regLen,  int16_t* values)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+    try
+    {
+        std::string hexResponseStr = hexResponse;
+        int16_t* tempValues  = parse_modbus_register(hexResponseStr, regIndex, regLen);
+        // 将数据复制到输出参数
+        for (int i = 0; i < regLen; i++) {
+            values[i] = tempValues[i];
+        }
+        // 释放临时数组
+        delete[] tempValues;
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}

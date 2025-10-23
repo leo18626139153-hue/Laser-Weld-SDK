@@ -42,6 +42,14 @@ LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_A
 uint16_t crc16_modbus(const std::vector<uint8_t>& data);
 
 
-
+/**
+ * 从Modbus响应报文中提取指定寄存器的值（全功能集成版）
+ * @param hexResponse Modbus响应报文（如 "09030212345678"）
+ * @param regIndex 寄存器索引（从1开始）
+ * @param regLen 寄存器长度（从1开始）
+ * @return 寄存器值（自动处理有符号16位）
+ * @throws std::runtime_error 报文格式错误时抛出异常
+ */
+int16_t* parse_modbus_register(const std::string& hexResponse, const int regIndex = 1, const int regLen = 1);
 
 #endif // CL_MATH_H
