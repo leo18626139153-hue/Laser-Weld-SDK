@@ -228,6 +228,18 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle 
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_register(const LaserMachineHandle laserMachineHandle, int registerType, unsigned int firstRegister, unsigned int registerNums, uint8_t *message, int *length);
 
+  /**
+ * @brief cl_parse_modbus_to_int16_register modbus报文解析
+ * @param laserMachineHandle                焊机资源句柄
+ * @param hexResponse                       返回报文
+ * @param hexResponseLen                    报文长度
+ * @param regIndex                          解析数据索引
+ * @param regLen                            解析个数
+ * @param value                             返回值
+ * @return
+ */
+LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int16_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, const int regIndex, const int regLen,  int16_t* value);
+
 
 
 #ifdef __cplusplus
