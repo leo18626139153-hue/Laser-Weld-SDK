@@ -1293,6 +1293,7 @@ LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandl
     return SUCCESS_LASER_SDK;
 }
 
+
 LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen)
 {
     //获取句柄对应的焊机资源对象
@@ -1355,6 +1356,65 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     {
         return errorResult;
     }
+
+    //脚本赋值
+    if(!strToChar(scripts, scriptLen, scriptGet))
+    {
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    }
+    //将脚本存入示教器日志中
+    else
+    {
+        // 打开文件进行写入
+        std::ofstream outFile("script.txt");
+
+        if (!outFile) {
+            std::cerr << "无法打开文件进行写入！" << std::endl;
+        }
+        outFile << scripts;
+
+        // 关闭文件
+        outFile.close();
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char *scripts, int *scriptLen)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+    //获取脚本
+    std::string scriptGet;
+    try
+    {
+        checkLaserSdkResult(curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, craftInfo, scriptGet));
+
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+
 
     //脚本赋值
     if(!strToChar(scripts, scriptLen, scriptGet))

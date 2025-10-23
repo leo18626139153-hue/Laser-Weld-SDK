@@ -23,8 +23,8 @@ enum LaserSdkResult
     //  参考 weldSDK //
     CALCULATE_CIRCLE_ERROR_LASER_SDK = 10,               ///< 计算圆错误
     SHORT_AXIS_LIMIT_LASER_SDK = 11,                     ///< 短轴限制
-    BACK_DISTANCE_LIMIT_LASER_SDK = 12,                   ///< 回退距离超出范围
-    LOCATE_FAIL_LASER_SDK = 13,                            ///< 焊丝寻位失败
+    BACK_DISTANCE_LIMIT_LASER_SDK = 12,                  ///< 回退距离超出范围
+    LOCATE_FAIL_LASER_SDK = 13,                          ///< 焊丝寻位失败
     ARC_TEADCHING_ABNORMAL_LASER_SDK = 14,               ///< 圆弧示教异常(建议检查示教点)
     ARC_CALCULATE_FAILED_LASER_SDK = 15,                 ///< 圆弧计算失败(建议检查示教点)
     WELD_TYPE_ERROR_LASER_SDK = 16,                      ///< 焊接类型错误
@@ -36,7 +36,7 @@ enum LaserSdkResult
     WELD_LOCATE_THREAD_IS_RUN_LASER_SDK = 21,          // 焊丝寻位状态异常，寻位线程仍在运行
     WELD_LOCATE_HAVE_CIRCLE_POINT_LASER_SDK = 22,      // 焊丝寻位存在圆弧定点
     WELD_LOCATE_REFPOINT_LESS_LASER_SDK = 23,          // 焊丝寻位参考点数不足
-    INTERVAL_WELD_INST_LIST_ERROR_LASER_SDK = 24,      // 间断焊接指令列表错误
+    IS_WELDING_LIST_ERROR_LASER_SDK = 24,                ///< 正在焊接
     NEED_SET_PITCHANGLE_LASER_SDK = 25,                // 多层多道未设置俯仰角
     WELD_PARA_ERROR_LASER_SDK = 26,                    // 多层多道自动计算输入参数不合理（输入尺寸过小或者角度不合理）
     MLMC_ONLY_ONE_LAYER_LASER_SDK = 27,                // 多层多道自动计算，计算结果仅有一层一道（焊脚尺寸过小或层高太大）
