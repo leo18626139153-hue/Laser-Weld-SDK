@@ -34,13 +34,6 @@ void normalizeVector(double Fn[3]);
 //逆解
 LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM]);
 
-/**
- * @brief 计算crc16_modbus CRC16(Modbus)校验码
- * @param data 每个字节按顺序存放的vector
- * @return uint16_t  根据data中的数据输出计算出的crc16校验码
- */
-uint16_t crc16_modbus(const std::vector<uint8_t>& data);
-
 
 
 

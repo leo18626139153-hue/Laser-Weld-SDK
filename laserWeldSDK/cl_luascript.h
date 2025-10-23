@@ -2,42 +2,66 @@
 #define CL_LUASCRIPT_H
 
 #include "robotapi.h"
+#include "cl_basedefine.h"
+#include "cl_utils.h"
 #include <string>
+#include <vector>
+#include <map>
 
-//using namespace CGXiRobotPluginSDK;
+/**
+ * @brief modbusCRC16Calculate     查表法计算CRC16校验码;C风格
+ * @param nData              用于crc16计算的列表，按字节顺序存放
+ * @param wLength            crc16计算的列表changdu
+ * @return uint16_t          处理结果
+ */
+uint16_t modbusCRC16Table(uint8_t *nData, uint16_t wLength);
 
-//lua脚本运行  script = 运行前序列函数 + mainFuncProgram +  RobotProgram1 + 主函数 + RobotProgram2;
-extern  std::string mainFuncProgram;
-extern  std::string RobotProgram1;
-extern  std::string RobotProgram2;
-extern  std::string mainFuncProgramEnd;
-extern  std::string Lua_connect_laser;  //激光器连接函数
-extern  std::string Lua_connect_Wire;   //送丝机连接函数
-extern  std::string read_switch_wc;     //读取水冷机开关
-//数据转化类函数
-extern  std::string Lua_data_get;    ///< 获取数据函数
-extern  std::string Lua_crc16;       ///< CRC16校验函数
-extern  std::string Lua_split;       ///< 数据拆分函数
-extern  std::string Lua_get_message; ///< 获取报文函数
-extern  std::string Lua_data_combin; ///< 数据组合类
-extern std::string swap_bytes_for_word; ///< 交换字节的函数
-extern std::string readRespondOfWrite;  ///< 接收写入报文的应答报文
+/**
+ * @brief crc16Modbus     计算CRC16校验码
+ * @param data              用于crc16计算的列表，按字节顺序存放
+ * @return uint16_t          处理结果
+ */
+uint16_t crc16Modbus(const std::vector<uint8_t> &data);
 
-extern std::string modbus_crc16;    ///< CRC-16 (Modbus) 计算函数 无高低字节互转
-extern std::string Lua_split;       ///< 高低字节拆分 如0x1234 输出{0x12, 0x34}
-extern std::string register_clear;  ///< 定义寄存器清空函数(起始地址，清空位数)
-extern std::string to_hex_string;   ///< 将十进制数转换为十六进制，并以两位字符表示
-extern std::string concatenate_crc; ///< 遍历表中单字节数据拼接对应的十六进制字符串，输入 {0x09, 0x10, {0x1234}, {0x56}}，输出 "0910123456"
-extern std::string parse_little_endian_bytes;   ///< 每2个字符为一组（1字节），转换为整数
-extern std::string WriteHex2Commu_reg;  ///< 将数据写入通讯变量
-extern std::string read_value_port;     ///< 单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执
-extern std::string hex_to_bytes;        ///< 把十六进制字符串转为字节数组
-extern std::string swap_bytes_to_table; ///< 高低位交换：每两个字节交换一次
-extern std::string get_swap_report;     ///< 获取第N个寄存器的值
-extern std::string int16_to_hex;        ///< 十进制值转2字节十六进制（大端：高字节在前，低字节在后）
-extern std::string read_registers_as_hex;   ///< 读取寄存器范围并拼接报文
-extern std::string get_register_value;  ///< 获取对应寄存器的存储值
-extern std::string parse_alarm_word;    ///< 告警信息的种类解析函数
+/**
+ * @brief putByte     将一个字节按顺序放入列表中
+ * @param CalcList        用于crc16计算的列表，按字节顺序存放
+ * @param byteSingle      要放入列表的字节
+ * @return void
+ */
+inline void putByte(std::vector<uint8_t>& CalcList, uint8_t byteSingle)  
+{ 
+    CalcList.push_back(byteSingle); 
+}
 
+/**
+ * @brief putDoubleBytes     将两个字节拆开，按顺序放入列表中,高字节在前，低字节在后
+ * @param CalcList   用于crc16计算的列表，按字节顺序存放
+ * @param bytesDouble            
+ */
+inline void putDoubleBytes(std::vector<uint8_t>& CalcList, uint16_t bytesDouble)
+{
+    CalcList.push_back(static_cast<uint8_t>((bytesDouble >> 8) & 0xFF));   //高字节在前
+    CalcList.push_back(static_cast<uint8_t>(bytesDouble & 0xFF));         //低字节在后 
+}   
+
+/**
+ * @brief  buildMessageVector        
+ * @param  locVec                    map中存放的modbus帧信息 06/10 : <地址,   值> || 03: <地址,   长度>
+ * @param  funcCode                  modbus帧的指令码 06 写单个寄存器 10 写多个寄存器 03 读单个寄存器
+ * @param  slave                     modbus帧的从机地址
+ * @return std::vector<uint8_t>     处理结果
+ */
+std::vector<uint8_t> buildMessageVector(const std::map<uint16_t, uint16_t>& locVec, uint8_t slave, uint8_t funcCode);
+
+/**
+ * @brief  writeMessageToRegisters        将报文写入寄存器，bool寄存器报文正常顺序||int16寄存器报文高低字节颠倒顺序
+ * @param  message                     要写入的报文
+ * @param  registers                   寄存器列表类型
+ * @param  firstRegister               要写入的起始地址
+ * @param  registerNums                要写入的寄存器个数
+ * @return LaserSdkResult              处理结果
+ */
+LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, const std::vector<uint8_t>& message, int registers, unsigned int firstRegister, unsigned int registerNums);
 
 #endif // CL_LUASCRIPT_H

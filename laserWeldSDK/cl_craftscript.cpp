@@ -577,6 +577,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     return LaserSdkResult::SUCCESS_LASER_SDK;
 
 }
+
 //485 起收弧运行指令
 LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startSwitch, std::string &script)
 {
@@ -588,7 +589,7 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     //获取脚本
     craft_script_arc_function_switch_script_get(laserMachineHandle, startSwitch);
-
+    //预置参数
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
         int gasWaitTime = machineResource.laserPowerParams.gasStartupAdvanceTime;
@@ -836,13 +837,11 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     };   
     //判断是否需要送丝
     if (machineResource.weldingProcessType == WeldingProcessType::SELF_WELDING_LASERSDK)
-    {
-        //自融焊
+    {   //自融焊
         addParam(int16Reg, 0, 0x0115);  //自动送丝暂停
     }
     else
-    {
-        //送丝焊
+    {   //送丝焊
         addParam(int16Reg, 1, 0x0115);  //自动送丝恢复
     }
 

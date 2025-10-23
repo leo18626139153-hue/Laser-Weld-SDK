@@ -1253,9 +1253,7 @@ LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle 
                 "    wait(400)\n"
                 "end\n";
         //功能函数
-        std::string funcScript = modbus_crc16+ Lua_split+register_clear+to_hex_string+concatenate_crc+parse_little_endian_bytes+
-                WriteHex2Commu_reg+read_value_port+hex_to_bytes+swap_bytes_to_table+get_swap_report+int16_to_hex+
-                read_registers_as_hex+get_register_value+parse_alarm_word;
+        std::string funcScript = "-cl_craft_weld_status_monitor_script_get-";
 
         scriptGet = globalVar + funcScript + scriptGet;
         //脚本赋值
@@ -1436,5 +1434,51 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
         outFile.close();
     }
 
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    // 生成报文
+    if (message != nullptr)
+    {
+        *message = 0;  // 初始化报文
+    }
+
+    std::vector<uint8_t> msg;
+    std::map<uint16_t, uint16_t> msgMap;
+    msgMap.insert(std::make_pair(firstAddr, parameter));
+    msg = buildMessageVector(msgMap, slaveAddr, funcCode);
+    
+    for (int i = 0; i < msg.size(); i++)
+    {
+        message[i] = msg[i];
+    }
+    
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_write_message_to_register(const LaserMachineHandle laserMachineHandle, int registerType, unsigned int firstRegister, unsigned int registerNums, uint8_t *message, int *length)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    // 生成报文
+    std::vector<uint8_t> msg;
+    for (int i = 0; i < *length; i++)
+    {
+        msg.push_back(message[i]);
+    }
+    writeMessageToRegisters(machineResource.robotHandle, msg, registerType, firstRegister, registerNums);
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }

@@ -42,9 +42,12 @@ enum LaserSdkResult
     MLMC_ONLY_ONE_LAYER_LASER_SDK = 27,                // 多层多道自动计算，计算结果仅有一层一道（焊脚尺寸过小或层高太大）
     MUTLILAYER_CHANNEL_LASER_LINE_TYPE_ERROR = 28,     // 多层多道焊缝类型错误
     MUTLILAYER_CHANNEL_ADVANCE_ANGLE_TYPE_ERROR = 29,  // 多层多道前进角类型错误
+    PARAM_TYPE_ERROR_LASER_SDK = 30,                   ///< 无效参数
+
 
     CALCULATION_RESULT_ILLOGICAL_SDK = 98,             // 计算过程中出现未考虑到的场景（计算失败，结算结果不可用）
     OTHER_ERROR_LASER_SDK = 99,                        // 未知错误
+
     // cr_sdk
     UNDEFINDED_ERROR_CRSDK_LASER_SDK = 100,            ///< cr_sdk中未知错误
     ERROR_CRSDK_LASER_SDK = 101,                       ///< 一般错误

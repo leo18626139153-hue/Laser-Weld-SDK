@@ -3,6 +3,7 @@
 
 #include "cl_basedefine.h"
 #include "robotapi.h"
+#include <stdint.h>
 
 #ifdef WIN32
 #if defined(LASERWELDSDK_LIBRARY)
@@ -136,7 +137,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief getAfterWeldEndOperateScript  获取焊接结束后操作的脚本
+ * @brief cl_craft_after_weld_end_operate_script_get  获取焊接结束后操作的脚本
  * @param laserMachineHandle            焊机资源句柄
  * @param scripts                       生成的LUA脚本 传出参数
  * @param scriptLen                     脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的LUA脚本大小
@@ -192,7 +193,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachin
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
 
 /**
- * @brief cl_craft_lift_pose_cal    计算抬枪后的姿态
+ * @brief  计算抬枪后的姿态
  * @param laserMachineHandle        焊机资源句柄
  * @param pose                      抬枪前的姿态(位置+轴角(角度))
  * @param joint                     抬枪前参考关节角
@@ -203,6 +204,29 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const
  */
 LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double* pose, const double* joint, const double liftDistance, double* liftPose, double* liftJoint);
 
+/**
+ * @brief 根据对应的地址以及对应参数值，生成出对应的报文
+ * @param[in] laserMachineHandle                 焊接资源句柄
+ * @param[in] firstAddr                      激光焊资源地址
+ * @param[in] parameter                      参数值
+ * @param[in] slaveAddr                      从站地址
+ * @param[in] funcCode                       功能码
+ * @param[out] message                       生成的报文
+ * @return LaserSdkResult                    处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message);
+
+/**
+ * @brief         将变量写入寄存器
+ * @param[in] laserMachineHandle             焊接资源句柄
+ * @param[in] registerType                   寄存器类型 0-BOOL寄存器 1-INT16寄存器
+ * @param[in] firstRegister                  要写入的起始地址
+ * @param[in] registerNums                   要写入的寄存器个数
+ * @param[in] message                        报文列表
+ * @param[in] length                         脚本长度 要写入的寄存器个数
+ * @return LaserSdkResult                    处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_register(const LaserMachineHandle laserMachineHandle, int registerType, unsigned int firstRegister, unsigned int registerNums, uint8_t *message, int *length);
 
 
 
