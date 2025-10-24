@@ -34,15 +34,14 @@ std::vector<uint8_t> buildMessageVector(const std::map<uint16_t, uint16_t> &locV
         for (const auto &pair : locVec) {
             processFunc(pair.first, pair.second);
         }
+        break;
     case 0x10: // 写多个寄存器
-        // 处理写多个寄存器的逻辑
         putDoubleBytes(message, locVec.begin()->first); // 写入起始地址
         putByte(message, static_cast<uint8_t>(locVec.size() * 2)); // 写入寄存器数量，每个寄存器占2个字节
         for (const auto &pair : locVec) {
             if (pair.first != locVec.begin()->first + (&pair - &(*locVec.begin())))
             {
-                // 如果首个元素参数不连续，则报错
-                throw std::runtime_error("Write multiple registers function requires continuous address range");
+                break;
             }            
             putDoubleBytes(message, pair.second);
         }
@@ -63,37 +62,35 @@ std::vector<uint8_t> buildMessageVector(const std::map<uint16_t, uint16_t> &locV
     return message;
 }
 
-LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, const std::vector<uint8_t> &message, int registers, unsigned int firstRegister, unsigned int registerNums)
+LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, const std::vector<uint8_t> &message, int registerType, unsigned int firstRegister, unsigned int registerNums)
 {
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
     {
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
     // 检查寄存器范围
-    if (firstRegister + registerNums > message.size()) {
+    if (registerNums > message.size()) {
         writeLog("writeMessageToRegisters: Register range out of bounds");
         return LaserSdkResult::OUT_OF_RANGE_CRSDK_LASER_SDK;
     }
     // 写入寄存器
-    if (registers == 0)
+    if (registerType == 0)
     {
         /* bool */
-        for (unsigned int i = 0; i < message.size(); i++)
-        {
-            BOOL tmpRegData = static_cast<BOOL>(message[firstRegister + i]);
-            cr_set_boolRegValue(laserMachineHandle, firstRegister, i, &tmpRegData);
-        }
+        cr_set_boolRegValue(laserMachineHandle, firstRegister, message.size(), (BOOL *)&message);
     }
-    else if (registers == 1)
+    else if (registerType == 1)
     {
-        /* int16 */
-        for (unsigned int i = 0; i < message.size(); i++)
+        int tmp_Size = static_cast<int>(message.size());
+        for (int i = 0; i < tmp_Size / 2; i++)
         {
-            int value = message[firstRegister + i];
-            cr_set_int16RegValue(laserMachineHandle, firstRegister, i, &value);
+            unsigned short tmpValue = *(unsigned short*)&message[i*2];
+            cr_set_int16RegValue(machineResource.robotHandle, firstRegister + i, 1, (int*)tmpValue);
         }
+
     }
     else
     {

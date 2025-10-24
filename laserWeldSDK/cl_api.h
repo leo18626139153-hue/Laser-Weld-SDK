@@ -212,21 +212,30 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHan
  * @param[in] slaveAddr                      从站地址
  * @param[in] funcCode                       功能码
  * @param[out] message                       生成的报文
+ * @param[out] length                        报文长度
  * @return LaserSdkResult                    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message);
+LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message, int *length);
 
 /**
- * @brief         将变量写入寄存器
+ * @brief         将变量写入bool寄存器
  * @param[in] laserMachineHandle             焊接资源句柄
- * @param[in] registerType                   寄存器类型 0-BOOL寄存器 1-INT16寄存器
  * @param[in] firstRegister                  要写入的起始地址
  * @param[in] registerNums                   要写入的寄存器个数
  * @param[in] message                        报文列表
- * @param[in] length                         脚本长度 要写入的寄存器个数
  * @return LaserSdkResult                    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_register(const LaserMachineHandle laserMachineHandle, int registerType, unsigned int firstRegister, unsigned int registerNums, uint8_t *message, int *length);
+LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message);
+
+/**
+ * @brief         将变量写入Int16寄存器
+ * @param[in] laserMachineHandle             焊接资源句柄
+ * @param[in] firstRegister                  要写入的起始地址
+ * @param[in] registerNums                   要写入的寄存器个数,报文长度除以2
+ * @param[in] message                        报文列表，单字节
+ * @return LaserSdkResult                    处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message);
 
   /**
  * @brief cl_parse_modbus_to_int16_register modbus报文解析

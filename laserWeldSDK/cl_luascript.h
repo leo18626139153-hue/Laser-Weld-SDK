@@ -62,6 +62,6 @@ std::vector<uint8_t> buildMessageVector(const std::map<uint16_t, uint16_t>& locV
  * @param  registerNums                要写入的寄存器个数
  * @return LaserSdkResult              处理结果
  */
-LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, const std::vector<uint8_t>& message, int registers, unsigned int firstRegister, unsigned int registerNums);
+LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, const std::vector<uint8_t>& message, int registerType, unsigned int firstRegister, unsigned int registerNums);
 
 #endif // CL_LUASCRIPT_H

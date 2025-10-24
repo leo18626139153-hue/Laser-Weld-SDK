@@ -1438,7 +1438,7 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
 }
 
 
-LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message)
+LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message,int *length)
 {
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
@@ -1456,33 +1456,16 @@ LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, 
     std::map<uint16_t, uint16_t> msgMap;
     msgMap.insert(std::make_pair(firstAddr, parameter));
     msg = buildMessageVector(msgMap, slaveAddr, funcCode);
-    
-    for (int i = 0; i < msg.size(); i++)
+    int len = static_cast<int>(msg.size());
+    if(*length != len)
     {
-        message[i] = msg[i];
+        std::cout << len << std::endl;
+        *length = len;
     }
-    
+
+    memcpy(message, msg.data(), msg.size()); // 将报文数据复制到message中
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
-}
-
-LaserSdkResult cl_write_message_to_register(const LaserMachineHandle laserMachineHandle, int registerType, unsigned int firstRegister, unsigned int registerNums, uint8_t *message, int *length)
-{
-    //获取句柄对应的焊机资源对象
-    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
-    {
-        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
-    }
-    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    // 生成报文
-    std::vector<uint8_t> msg;
-    for (int i = 0; i < *length; i++)
-    {
-        msg.push_back(message[i]);
-    }
-    writeMessageToRegisters(machineResource.robotHandle, msg, registerType, firstRegister, registerNums);
-    return LaserSdkResult::SUCCESS_LASER_SDK;
-
 }
 
 LaserSdkResult cl_parse_modbus_to_int16_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, const int regIndex, const int regLen,  int16_t* values)
@@ -1523,5 +1506,39 @@ LaserSdkResult cl_parse_modbus_to_int16_register(const LaserMachineHandle laserM
         return errorResult;
     }
 
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    std::vector<int> tmpValue;
+    for(unsigned int i = 0; i < registerNums; ++i)
+    {
+        tmpValue.push_back(message[i]);
+    }
+    cr_set_boolRegValue(machineResource.robotHandle, firstRegister, registerNums, (BOOL *)tmpValue.data());
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    std::vector<unsigned int> tmpValue;
+    for(unsigned int i = 0; i < registerNums; ++i)
+    {
+        tmpValue.push_back( *(unsigned short*)&message[i*2]);
+    }
+    cr_set_int16RegValue(machineResource.robotHandle, firstRegister, registerNums, (int *)tmpValue.data());
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
