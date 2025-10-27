@@ -293,7 +293,7 @@ void CommuRS485::initData()
         print(tmp_string)
         local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
-        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
+        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr)
         --等待接收结果
         --timeout = 100
         print("timeout:",timeout)
@@ -339,7 +339,7 @@ void CommuRS485::initData()
         --8. 发送报文
         timeout = 1000
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
-        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
+        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType, RecvCommuRegAddr)
         while(read_int16_register(RecvCommuRegAddr) == 0) do
             wait(10)
             timeout = timeout - 10
@@ -377,7 +377,7 @@ void CommuRS485::initData()
         "    local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数\n"
         "    local timeout = 1   --超时时间\n"
         "    --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间\n"
-        "	serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,timeout)\n"
+        "	serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType,RecvCommuRegAddr)\n"
         "    --等待接收结果\n"
         "    local timeout = 500\n"
         "	print(\"等待接收结果...\",read_int16_register(RecvCommuRegAddr))\n"

@@ -119,7 +119,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMach
 /**
  * @brief cl_craft_inst_devices_params_script_get    获取修改工艺参数生效后脚本
  * @param laserMachineHandle    焊机资源句柄
- * @param CraftInfo         指令列表数据结构体
+ * @param craftInfo         指令列表数据结构体
  * @param scripts               指令列表LUA脚本 传出参数
  * @param scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
  * @return LaserSdkResult        处理结果
@@ -128,19 +128,19 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const
 
 
 /**
- * @brief getArcEndSubProgramScript 获取收弧子程序脚本
- * @param laserMachineHandle        焊机资源句柄
- * @param scripts                   ArcEndSubProgramScript 的LUA脚本 传出参数
- * @param scriptLen                 脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的ArcSet的LUA脚本大小
+ * @brief cl_craft_end_arc_subprogram_script_get 获取收弧子程序脚本
+ * @param[in] laserMachineHandle        焊机资源句柄
+ * @param[out] scripts                   ArcEndSubProgramScript 的LUA脚本 传出参数
+ * @param[out] scriptLen                 脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的ArcSet的LUA脚本大小
  * @return LaserSdkResult            处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
  * @brief cl_craft_after_weld_end_operate_script_get  获取焊接结束后操作的脚本
- * @param laserMachineHandle            焊机资源句柄
- * @param scripts                       生成的LUA脚本 传出参数
- * @param scriptLen                     脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的LUA脚本大小
+ * @param[in] laserMachineHandle            焊机资源句柄
+ * @param[out] scripts                       生成的LUA脚本 传出参数
+ * @param[out] scriptLen                     脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的LUA脚本大小
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHandle laserMachineHandle,char* scripts, int* scriptLen);
@@ -149,7 +149,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_after_weld_end_operate_script_get(co
 
 /**
  * @brief getLapRollbackCirclePoint     获取直线轨迹——根据终点和降功率点获取新的起点和终点
- * @param laserMachineHandle            激光器句柄
+ * @param[in] laserMachineHandle            激光器句柄
  * @param rollbackStraightLineData      直线回退参数
  * @return LaserSdkResult                处理结果
  */
@@ -210,7 +210,7 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHan
  * @param[in] firstAddr                      激光焊资源地址
  * @param[in] parameter                      参数值
  * @param[in] slaveAddr                      从站地址
- * @param[in] funcCode                       功能码
+ * @param[in] funcCode                       功能码;暂时只支持06
  * @param[out] message                       生成的报文
  * @param[out] length                        报文长度
  * @return LaserSdkResult                    处理结果
