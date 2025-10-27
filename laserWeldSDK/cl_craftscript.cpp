@@ -300,9 +300,9 @@ void CommuRS485::initData()
         while(read_int16_register(RecvCommuRegAddr) == 0) do
             wait(20)
             timeout = timeout - 20
-            if read_int16_register(RecvCommuRegAddr) == 0x8609 or read_int16_register(RecvCommuRegAddr) == 0x860A then
-                print(string.format("参数错误，回执: 0x%04X", read_int16_register(RecvCommuRegAddr)))
-                break
+            if read_int16_register(RecvCommuRegAddr) != 0 then
+                print("recieve successful")
+                return
             end
             if timeout <= 0 then
                 print(string.format("超时首地址 : 0x%04X", port_address))
@@ -343,9 +343,9 @@ void CommuRS485::initData()
         while(read_int16_register(RecvCommuRegAddr) == 0) do
             wait(10)
             timeout = timeout - 10
-            if read_int16_register(RecvCommuRegAddr) ~= 0x1009 and read_int16_register(RecvCommuRegAddr) ~= 0 and read_int16_register(RecvCommuRegAddr) ~= 0x100A then
-                print(string.format("参数错误，回执: 0x%04X", read_int16_register(RecvCommuRegAddr)))
-                break
+            if read_int16_register(RecvCommuRegAddr) ~= 0 then
+                print("recieve success")
+                return
             end
             if timeout <= 0 then
                 print("发送超时 | 端口号 - ".. comNo .."|长度 - "..CommuReg_n.."| 报文类型 - "..SendDataType.." |起始地址 - "..SendCommuRegAddr)
