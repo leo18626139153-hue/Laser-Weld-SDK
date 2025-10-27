@@ -19,6 +19,7 @@ public:
     CommuBase(){};
     virtual ~CommuBase(){}
 
+
 public:
     //----与具体通讯形式有关的功能函数
     
@@ -66,6 +67,7 @@ public:
 
 private:
     CommuRS485();
+    void initData();
     static CommuRS485* s_commuRS485;
     static std::once_flag initFlag; ///< initFlag >>> 保证单例对象只被初始化一次，且线程安全
 private:
