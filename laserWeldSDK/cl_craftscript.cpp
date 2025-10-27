@@ -68,6 +68,9 @@ std::string CommuBase::loadLuaFunctionScriptOut()
     return tmpLuaStartDataScript + loadLuaFunctionScript + tmpLuaScript ;
 }
 
+/*
+ * CommuRS485
+*/
 CommuRS485 *CommuRS485::GetInstance()
 {
     std::call_once(initFlag, []()
@@ -78,6 +81,11 @@ CommuRS485 *CommuRS485::GetInstance()
 }
 
 CommuRS485::CommuRS485()
+{
+    initData();
+}
+
+void CommuRS485::initData()
 {
     //组装最终要下发执行的脚本
     std::string commandListStartData =
@@ -124,6 +132,18 @@ CommuRS485::CommuRS485()
         [8] = { 0x0007, 0 },    -- 激光头旋转角度
     }
     )";
+
+    startData = R"(
+    local SendDataType = 0 --bool位寄存器 通过bool寄存器发送字节数据
+    local RecvDataType = 1 --16位寄存器 接收到的数据放到16位寄存器中
+    local SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
+    local SendCommuReg_n = 16		--发送指令从bool通讯变量的 0 地址开始存储
+    local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
+    local RecvCommuReg_n = 60		--接收30个字节
+    local alarm_bits_list = {0,1,2,4,5,10,11,14}		--接收50个字节
+    local flag = 0  --标识位
+    )";
+
     swap_bytes = R"(
     -- 1.高低字节交换函数
     function swap_bytes(data)
@@ -162,24 +182,24 @@ CommuRS485::CommuRS485()
         -- 处理负数 转换为无符号16位整数
         local value = dataSplit < 0 and (65536 + dataSplit) or dataSplit
         -- 获取低字节 (通过与操作获取低8位)
-        local low_byte = dataSplit & 0xFF    
+        local low_byte = dataSplit & 0xFF
         -- 获取高字节 (右移8位)
-        local high_byte = dataSplit >> 8    
+        local high_byte = dataSplit >> 8
         return {high_byte, low_byte}
     end
-    )";    
+    )";
     register_clear = R"(
     --4.定义寄存器清空函数(起始地址，清空位数)
     function register_clear(firstAddr, cleanNums)
         --------将通讯变量清零--------
         for i=0,cleanNums-1,1 do
-            write_int16_register(i + firstAddr, 0) 
+            write_int16_register(i + firstAddr, 0)
         end
     end
     function bool_register_clear(firstAddr, cleanNums)
         --------将通讯变量清零--------
         for i=0,cleanNums-1,1 do
-            write_bool_register(i + firstAddr, 0) 
+            write_bool_register(i + firstAddr, 0)
         end
     end
     )";
@@ -261,23 +281,23 @@ CommuRS485::CommuRS485()
         --------将通讯变量清零--------
         bool_register_clear(SendCommuRegAddr, 8)
         register_clear(RecvCommuRegAddr, RecvCommuReg_n)
-        ----------高低字节拆分计算校验码---------    
-        local data1=Lua_split(function_code)    
-        local data2=Lua_split(port_address)     
-        local data3=Lua_split(parameter_value)  
+        ----------高低字节拆分计算校验码---------
+        local data1=Lua_split(function_code)
+        local data2=Lua_split(port_address)
+        local data3=Lua_split(parameter_value)
         local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
-        local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转    
+        local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转
         --构造报文，高低字节反转发送
-        mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}	
+        mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}
         local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串
         print(tmp_string)
-        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数 
+        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
-        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1) 
+        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvCommuReg_n,RecvDataType,RecvCommuRegAddr,1)
         --等待接收结果
         --timeout = 100
         print("timeout:",timeout)
-        while(read_int16_register(RecvCommuRegAddr) == 0) do            
+        while(read_int16_register(RecvCommuRegAddr) == 0) do
             wait(20)
             timeout = timeout - 20
             if read_int16_register(RecvCommuRegAddr) == 0x8609 or read_int16_register(RecvCommuRegAddr) == 0x860A then
@@ -289,17 +309,17 @@ CommuRS485::CommuRS485()
                 --write_int16_register(RecvCommuRegAddr, port_address)
                 break
             end
-        end        
-    end    
+        end
+    end
     function write_multi_value_port(addr_value_map)
         -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
-        bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量    
+        bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
         register_clear(RecvCommuRegAddr, RecvCommuReg_n)
         local crc_mes = {}
         -- 2 寄存器首地址
-        local split_data_2 = Lua_split(addr_value_map[1][1]) 
+        local split_data_2 = Lua_split(addr_value_map[1][1])
         -- 3 寄存器数量
-        local split_data_3 = Lua_split(#addr_value_map) 
+        local split_data_3 = Lua_split(#addr_value_map)
         -- 4 字节数量
         crc_mes = {slave_addr, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
         -- 5. 将对应的变量进行高低字节拆分 放入mes中
@@ -330,22 +350,13 @@ CommuRS485::CommuRS485()
             if timeout <= 0 then
                 print("发送超时 | 端口号 - ".. comNo .."|长度 - "..CommuReg_n.."| 报文类型 - "..SendDataType.." |起始地址 - "..SendCommuRegAddr)
                 print(string.format("超时首地址 : 0x%04X", addr_value_map[1][1]))
-                write_int16_register(RecvCommuRegAddr, addr_value_map[1][1]) 
+                write_int16_register(RecvCommuRegAddr, addr_value_map[1][1])
                 break
             end
         end
     end
     )";
-    startData = R"(
-    local SendDataType = 0 --bool位寄存器 通过bool寄存器发送字节数据
-    local RecvDataType = 1 --16位寄存器 接收到的数据放到16位寄存器中
-    local SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
-    local SendCommuReg_n = 16		--发送指令从bool通讯变量的 0 地址开始存储
-    local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
-    local RecvCommuReg_n = 60		--接收30个字节
-    local alarm_bits_list = {0,1,2,4,5,10,11,14}		--接收50个字节
-    local flag = 0
-    )";      
+
     read_value_port =
         "--单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执\n"
         "function read_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr,SendCommuReg_n)\n"
@@ -476,7 +487,6 @@ CommuRS485::CommuRS485()
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port
      + read_value_port + hex_to_bytes + swap_bytes_to_table + get_swap_report + int16_to_hex + read_registers_as_hex
             + get_register_value + parse_alarm_word;
-                                                        
 }
 
 std::string CommuRS485::get_laser_param_set_script(std::map<unsigned int, int> locVec)
@@ -903,23 +913,28 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         std::cout << "craftLeadInPowerPercent out of range" << std::endl;
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    //
-    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(100)+"\n";//开光功率，固定100，留给外控
+    //开光功率，固定100，留给外控
+    write_laser_params += "    laserRegisterMap[2][2] = "+ std::to_string(100)+"\n";
     machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;
-    write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(0)+"\n";  //开光功率上升时间，脚本固定写0，留给外控
+     //开光功率上升时间，脚本固定写0，留给外控
+    write_laser_params += "    laserRegisterMap[3][2] = "+ std::to_string(0)+"\n";
     machineResource.laserPowerParams.laserRampUpTime = curCraftInfo.craftLeadInRampTime;
-    int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;//关光功率百分比
+    //关光功率
+    int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;
     if(craftLeadOutPowerPercent < 1 || craftLeadOutPowerPercent > 100){
         craftLeadOutPowerPercent = 1;
         std::cout << "craftLeadOutPowerPercent out of range" << std::endl;
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
 
-    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(100)+"\n";    //关光功率
-    write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(0)+"\n";  //关光功率下降时间
+    //关光功率百分比
+    write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(100)+"\n";
+    //关光功率下降时间
+    write_laser_params += "    laserRegisterMap[5][2] = "+ std::to_string(0)+"\n";
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
     // 计算关光功率下降时间
-    int  disX = curCraftInfo.craftLeadOutRampDistance - curCraftInfo.craftRetractionDistance ; //降功率的距离
+    int  disX = curCraftInfo.craftLeadOutRampDistance - curCraftInfo.craftRetractionDistance ;
+    //降功率的距离
     double tempTime = static_cast<double>((disX * 1000)/ curCraftInfo.craftWeldingSpeed);
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
 
@@ -931,22 +946,30 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
 
     
-    //
-    write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n"; //激光头扫描速度
+    //激光头扫描速度
+    write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n";
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;
-    write_laser_params += "    laserHeadRegisterMap[2][2] = "+ double2str(curCraftInfo.craftScanWidth, 1)+"*10 \n";  //激光头扫描宽度
+    //激光头扫描宽度
+    write_laser_params += "    laserHeadRegisterMap[2][2] = "+ double2str(curCraftInfo.craftScanWidth, 1)+"*10 \n";
     machineResource.laserHeadParams.laserHeadScanWidth = curCraftInfo.craftScanWidth;
-    write_laser_params += "    laserHeadRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";  //焊接功率
+    //焊接功率、峰值功率
+    if(curCraftInfo.craftLaserPower > machineResource.laserPowerParams.laserPower){
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
+    write_laser_params += "    laserHeadRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";
     machineResource.laserHeadParams.laserHeadPeakPower = curCraftInfo.craftLaserPower;
+    //占空比
+    write_laser_params += "    laserHeadRegisterMap[4][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadDutyCycle)+"\n";
+    //脉冲频率高位
+    write_laser_params += "    laserHeadRegisterMap[5][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadHighPulseFrequency)+"\n";
+    //脉冲频率低位
+    write_laser_params += "    laserHeadRegisterMap[6][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadLowPulseFrequency )+"\n";
 
-    write_laser_params += "    laserHeadRegisterMap[4][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadDutyCycle)+"\n";  //占空比
-    write_laser_params += "    laserHeadRegisterMap[5][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadHighPulseFrequency)+"\n";  //脉冲频率
-    write_laser_params += "    laserHeadRegisterMap[6][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadLowPulseFrequency )+"\n";  //脉冲频率
-
-
-    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ double2str(curCraftInfo.craftScanHeight, 1)+"*10 \n";  //激光头扫描高度
+    //激光头扫描高度
+    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ double2str(curCraftInfo.craftScanHeight, 1)+"*10 \n";
     machineResource.laserHeadParams.laserHeadScanHeight = curCraftInfo.craftScanHeight;
-    write_laser_params += "    laserHeadRegisterMap[8][2] = "+ std::to_string(curCraftInfo.craftRotationAngle)+"\n"; //激光头旋转角度
+    //激光头旋转角度
+    write_laser_params += "    laserHeadRegisterMap[8][2] = "+ std::to_string(curCraftInfo.craftRotationAngle)+"\n";
     machineResource.laserHeadParams.laserHeadSpinAngle = curCraftInfo.craftRotationAngle;
     // YXYX轴偏移量
     write_laser_params += "    laserRegisterMap[9][2] = "+ double2str(curCraftInfo.craftYAxisZoom, 2)+"*100 \n";        //激光头Y轴缩放
@@ -958,11 +981,14 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     write_laser_params += "    laserRegisterMap[12][2] = "+ double2str(curCraftInfo.craftXAxisOffset, 2)+"*100 \n";     //激光头X轴偏移
     machineResource.laserPowerParams.laserHeadXOffset = curCraftInfo.craftXAxisOffset;
     // 点焊工艺
-    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(static_cast<int>(curCraftInfo.craftWeldType))+"\n"; //点焊类型
+    //点焊类型
+    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(static_cast<int>(curCraftInfo.craftWeldType))+"\n";
     machineResource.laserPowerParams.spotWeldType = curCraftInfo.craftWeldType;
-    write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n"; //点焊时长
+    //点焊时长
+    write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n";
     machineResource.laserPowerParams.spotWeldDurationTime = curCraftInfo.craftSpotWeldDuration;
-    write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n"; //点焊间隔
+    //点焊间隔
+    write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n";
     machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;    
     //写入激光焊接参数、点焊参数、丝机参数
     std::string write_weld_params = R"(

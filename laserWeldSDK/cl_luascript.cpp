@@ -11,7 +11,8 @@ uint16_t crc16Modbus(const std::vector<uint8_t> &data)
             else              crc = (crc >> 1);
         }
     }
-    return crc; // 返回的数值 低字节在前
+    //return crc; // 返回的数值 低字节在前
+    return ((crc << 8) | (crc >> 8)); // 返回的数值 高字节在前
 }
 
 

@@ -1253,9 +1253,10 @@ LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle 
                 "    wait(400)\n"
                 "end\n";
         //功能函数
-        std::string funcScript = "-cl_craft_weld_status_monitor_script_get-";
+        std::string funcScript = "--cl_craft_weld_status_monitor_script_get--";
 
-        scriptGet = globalVar + funcScript + scriptGet;
+        //scriptGet = globalVar + funcScript + scriptGet;
+        scriptGet = funcScript;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
@@ -1522,7 +1523,7 @@ LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserM
     {
         tmpValue.push_back(message[i]);
     }
-    cr_set_boolRegValue(machineResource.robotHandle, firstRegister, registerNums, (BOOL *)tmpValue.data());
+    cr_set_boolRegValue(machineResource.robotHandle, firstRegister, registerNums, (int *)tmpValue.data());
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -1539,6 +1540,8 @@ LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laser
     {
         tmpValue.push_back( *(unsigned short*)&message[i*2]);
     }
+
     cr_set_int16RegValue(machineResource.robotHandle, firstRegister, registerNums, (int *)tmpValue.data());
+
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
