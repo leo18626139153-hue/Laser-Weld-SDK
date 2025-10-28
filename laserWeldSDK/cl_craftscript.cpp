@@ -295,18 +295,16 @@ void CommuRS485::initData()
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr)
         --等待接收结果
-        --timeout = 100
-        print("timeout:",timeout)
+        print("waiting_time : ",timeout)
         while(read_int16_register(RecvCommuRegAddr) == 0) do
             wait(20)
             timeout = timeout - 20
-            if read_int16_register(RecvCommuRegAddr) != 0 then
+            if read_int16_register(RecvCommuRegAddr) ~= 0 then
                 print("recieve successful")
-                return
+                break
             end
             if timeout <= 0 then
                 print(string.format("超时首地址 : 0x%04X", port_address))
-                --write_int16_register(RecvCommuRegAddr, port_address)
                 break
             end
         end
