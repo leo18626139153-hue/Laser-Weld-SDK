@@ -45,4 +45,5 @@ LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_A
  */
 int16_t* parse_modbus_register(const std::string& hexResponse, const int regIndex = 1, const int regLen = 1);
 
+int32_t parse_modbus_register32(const std::string& hexResponse);
 #endif // CL_MATH_H

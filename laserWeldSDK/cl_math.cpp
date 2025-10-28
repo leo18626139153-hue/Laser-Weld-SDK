@@ -245,7 +245,7 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
         }
     }
     // ---- 第三步：校验最小长度 ----
-    if (bytes.size() < 5) { // 地址1 + 功能码1 + 字节计数1 + 数据2 + CRC2
+    if (bytes.size() < 6) { // 返回字节数1 + 地址1 + 功能码1 + 字节计数1 + 数据2 + CRC2
         throw LaserSdkResult::ERROR_LASER_SDK;
     }
     // ---- 第四步：高低位交换（整个报文）----
@@ -258,11 +258,11 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
         swappedBytes.push_back(bytes.back());
     }
     // ---- 第五步：跳过前3字节（交换后的地址+功能码+字节计数）----
-    size_t dataStart = 3;
+    size_t dataStart = 4;
     if (dataStart >= swappedBytes.size()) {
         throw LaserSdkResult::ERROR_LASER_SDK;
     }
-    uint8_t dataByteCount = swappedBytes[2];
+    uint8_t dataByteCount = swappedBytes[3];
     int num = dataByteCount / 2;  // 实际寄存器数量
     std::cout << "Data byte count: " << static_cast<int>(dataByteCount)
                   << ", Register count: " << num << std::endl;
@@ -289,4 +289,75 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
         values[i] = static_cast<int16_t>(rawValue >= 0x8000 ? rawValue - 0x10000 : rawValue);
     }
     return values;
+}
+
+int32_t parse_modbus_register32(const std::string& hexResponse){
+    // ---- 第一步：参数校验 ----
+    if (hexResponse.empty() || hexResponse.size() % 2 != 0) {
+        throw LaserSdkResult::ERROR_LASER_SDK;
+    }
+
+    if (hexResponse.size() < 14) { // 最小长度：地址1+功能码1+字节数1+数据4+CRC2 = 7字节 = 14字符
+        throw LaserSdkResult::ERROR_LASER_SDK;
+    }
+
+    // ---- 第二步：十六进制转字节 ----
+    std::vector<uint8_t> bytes;
+    for (size_t i = 0; i < hexResponse.size(); i += 2) {
+        try {
+            uint8_t byte = static_cast<uint8_t>(std::stoi(hexResponse.substr(i, 2), nullptr, 16));
+            bytes.push_back(byte);
+        } catch (...) {
+            throw LaserSdkResult::ERROR_LASER_SDK;
+        }
+    }
+
+    // ---- 第三步：解析报文结构 ----
+    // 报文格式：02 03 09 07 85 59 00 00
+    // 02 - 数据长度(2N), 03 - 功能码, 09 - 地址, 07 - 返回字节总数, 85 59 - CRC, 00 00 - 数据
+
+    // 检查功能码
+    if (bytes[1] != 0x03) {
+        throw LaserSdkResult::ERROR_LASER_SDK;
+    }
+
+    // 检查字节计数
+    uint8_t byte_count = bytes[3];
+    if (byte_count != 0x07) {
+        throw LaserSdkResult::ERROR_LASER_SDK;
+    }
+
+    // 数据长度应该是 2N (N=寄存器数量)
+    uint8_t data_length_2n = bytes[0];
+    uint8_t register_count = data_length_2n / 2;
+
+    std::cout << "Data length (2N): " << static_cast<int>(data_length_2n)
+              << ", Register count: " << static_cast<int>(register_count)
+              << ", Byte count: " << static_cast<int>(byte_count) << std::endl;
+
+    // ---- 第四步：提取数据部分 ----
+    // 数据从第6个字节开始（跳过：长度1+功能码1+地址1+字节数1+CRC2）
+    size_t data_start_index = 6;
+
+    if (data_start_index + 2 > bytes.size()) {
+        LaserSdkResult::ERROR_LASER_SDK;
+    }
+
+    // ---- 第五步：组合int32数据（考虑字节序）----
+    // Modbus 通常使用大端序 (big-endian)
+    int32_t result = 0;
+
+    // 如果需要小端序，使用这个
+     result = (static_cast<int32_t>(bytes[data_start_index + 3]) << 24) |
+              (static_cast<int32_t>(bytes[data_start_index + 2]) << 16) |
+              (static_cast<int32_t>(bytes[data_start_index + 1]) << 8) |
+              (static_cast<int32_t>(bytes[data_start_index]));
+
+    std::cout << "Raw data bytes: "
+              << std::hex << static_cast<int>(bytes[data_start_index]) << " "
+              << static_cast<int>(bytes[data_start_index + 1]) << " "
+              << static_cast<int>(bytes[data_start_index + 2]) << " "
+              << static_cast<int>(bytes[data_start_index + 3]) << std::dec << std::endl;
+
+    return result;
 }

@@ -1545,3 +1545,39 @@ LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laser
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
+
+
+LaserSdkResult cl_parse_modbus_to_int32_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, int32_t &value)
+{
+    //获取句柄对应的焊机资源对象
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    CommuBase* curCommuFunction = nullptr;
+    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (curCommuFunction == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+    try
+    {
+        std::string hexResponseStr = hexResponse;
+        value = parse_modbus_register32(hexResponseStr);
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
