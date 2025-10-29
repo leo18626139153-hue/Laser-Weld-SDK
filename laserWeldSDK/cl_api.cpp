@@ -1581,3 +1581,45 @@ LaserSdkResult cl_parse_modbus_to_int32_register(const LaserMachineHandle laserM
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
+
+LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister)
+{
+   if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+   {
+       return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+   }
+   MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+   // int32寄存器参数值列表（按顺序排列）
+   int32_t register_values[] = {
+       2097929,        // int32Reg_0
+       -2104622848,    // int32Reg_1
+       18875145,       // int32Reg_2
+       1121911040,     // int32Reg_3
+       35652361,       // int32Reg_4
+       1110376704,     // int32Reg_5
+       772014857,      // int32Reg_6
+       2078540032,     // int32Reg_7
+       151257865,      // int32Reg_8
+       1884553472,     // int32Reg_9
+       184812297,      // int32Reg_10
+       -1326120704,    // int32Reg_11
+       235143945,      // int32Reg_12
+       -1310392064,    // int32Reg_13
+       251921161,      // int32Reg_14
+       1907622144,     // int32Reg_15
+       285475593,      // int32Reg_16
+       2010382592,     // int32Reg_17
+       302252809,      // int32Reg_18
+       1998848256,     // int32Reg_19
+       1006764809,     // int32Reg_20
+       -163315456,     // int32Reg_21
+       352387850,      // int32Reg_22
+       1234501888      // int32Reg_23
+   };
+   CRresult cRes = cr_set_int32RegValue(machineResource.robotHandle, firstRegister, 24, register_values);
+   if(cRes != CRresult::sucess)
+   {
+       return crsdk_return_value_transfer(cRes);
+   }
+   return LaserSdkResult::SUCCESS_LASER_SDK;
+}
