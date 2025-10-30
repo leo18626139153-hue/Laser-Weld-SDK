@@ -549,7 +549,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         end
     end
         )";
-        startLuaScripts.emplace("arc_start", writeFunction); 
+        startLuaScripts.emplace("arc_start", writeFunction);
     }
     else if (laserSwitch == SWITCH_OFF_LASER_SDK)
     {
@@ -732,15 +732,15 @@ LaserSdkResult CommuRS485::craft_laser_mul_params_set_script_get(LaserMachineHan
     // 生成脚本
     std::string useScript = R"(
     --激光器参数
-    local laserRegisterMap = {     
+    local laserRegisterMap = {
     [1] = {0x0230, 2000},  -- 激光功率
-    [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间    
-    [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间  
+    [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间
+    [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间
 
     [9] = {0x0238, 0},    -- 激光头Y轴缩放
     [10] = {0x0239, 0},   -- 激光头Y轴偏移
     [11] = {0x023A, 0 },  -- 激光头X轴缩放
-    [12] = {0x023B, 0 },  -- 激光头X轴偏移 
+    [12] = {0x023B, 0 },  -- 激光头X轴偏移
     })";
 
 
@@ -788,7 +788,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     // 3. 写入峰值功率 (0-3000W, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadPeakPower, machineResource.laserHeadPeakPowerLoc);
     // 4. 写入占空比 (0~100, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadDutyCycle, machineResource.laserHeadDutyCycleLoc);    
+    addParam(int16Reg, laserHeadParams.laserHeadDutyCycle, machineResource.laserHeadDutyCycleLoc);
     // 7. 写入扫描高度 (0.1~5mm, 浮点型)
     addParam(float10Reg, laserHeadParams.laserHeadScanHeight, machineResource.laserHeadScanHeightLoc);
     // 8. 写入旋转角度 (0~360°, 整型)
@@ -814,7 +814,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
                       << std::hex << addr << std::dec << std::endl;
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }
-    }   
+    }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -847,7 +847,7 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
-    };   
+    };
 
     //判断是否需要送丝
     if (machineResource.weldingProcessType == WeldingProcessType::SELF_WELDING_LASERSDK)
@@ -948,7 +948,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n";
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
 
-    
+
     //激光头扫描速度
     write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n";
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;
@@ -992,7 +992,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserPowerParams.spotWeldDurationTime = curCraftInfo.craftSpotWeldDuration;
     //点焊间隔
     write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n";
-    machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;    
+    machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;
     //写入激光焊接参数、点焊参数、丝机参数
     std::string write_weld_params = R"(
     comNo = 3
@@ -1000,8 +1000,8 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
     write_multi_value_port(laserHeadRegisterMap)  --写入激光头
     write_multi_value_port(spotWeld)              --写入点焊参数
-    )";    
-    
+    )";
+
     // 写入焊接模式
     write_laser_params += writeLuaScript("0x0906", "0x0202", std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1000");
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
@@ -1014,7 +1014,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
     }
     bodyScriptText += write_laser_params;
-    bodyScriptText += write_weld_params;      
+    bodyScriptText += write_weld_params;
     // 送丝机参数
     //计算焊丝回抽的距离
     double backVelocity = curCraftInfo.craftEndingWireRetraction * 100 / 60; //收尾抽丝速度 cm/min换算成 mm/s
@@ -1039,7 +1039,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     }
     machineResource.wireFeederParams.wireFeederBackLength = backLength;
 
-    machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;       
+    machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;
     machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝
     machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝
