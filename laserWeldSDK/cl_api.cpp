@@ -1452,7 +1452,7 @@ LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, 
     {
         *message = 0;  // 初始化报文
     }
-
+    funcCode = 0x06;    //写死
     std::vector<uint8_t> msg;
     std::map<uint16_t, uint16_t> msgMap;
     msgMap.insert(std::make_pair(firstAddr, parameter));

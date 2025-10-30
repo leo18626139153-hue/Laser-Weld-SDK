@@ -206,7 +206,7 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHan
 
 /**
  * @brief 根据对应的地址以及对应参数值，生成出对应的报文
- * @param[in] laserMachineHandle                 焊接资源句柄
+ * @param[in] laserMachineHandle             焊接资源句柄
  * @param[in] firstAddr                      激光焊资源地址
  * @param[in] parameter                      参数值
  * @param[in] slaveAddr                      从站地址
@@ -218,7 +218,7 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHan
 LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message, int *length);
 
 /**
- * @brief         将变量写入bool寄存器
+ * @brief     将变量写入bool寄存器(暂不支持)
  * @param[in] laserMachineHandle             焊接资源句柄
  * @param[in] firstRegister                  要写入的起始地址
  * @param[in] registerNums                   要写入的寄存器个数

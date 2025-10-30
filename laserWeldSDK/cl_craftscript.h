@@ -37,7 +37,11 @@ public:
     //工艺参数修改配置生效脚本
     virtual LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) = 0;
     //参数检查
-    virtual LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
+    virtual LaserSdkResult craft_script_laser_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
+    //激光头参数检查
+    virtual LaserSdkResult craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
+    //送丝机参数检查
+    virtual LaserSdkResult craft_script_wire_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
     //单次状态监控子程序
     virtual LaserSdkResult cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
     //单次状态监控
@@ -101,7 +105,7 @@ public:
     LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
     //激光器设置脚本06
     LaserSdkResult craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
-    //激光器设置脚本10
+    //激光器设置,提前写入参数到寄存器，脚本直接调用接口发送
     LaserSdkResult craft_laser_mul_params_set_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //激光头图案资源设置脚本
     LaserSdkResult craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
@@ -109,8 +113,12 @@ public:
     LaserSdkResult craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;
     //工艺参数修改配置生效脚本
     LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) override;
-    //参数检查
-    LaserSdkResult craft_script_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    //激光器参数检查
+    LaserSdkResult craft_script_laser_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    //激光头参数检查
+    LaserSdkResult craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    //送丝机参数检查
+    LaserSdkResult craft_script_wire_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //单次状态监控子程序
     LaserSdkResult cl_craft_weld_status_monitor_single_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //单次状态监控执行程序
