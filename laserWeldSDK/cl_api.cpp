@@ -425,7 +425,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
 
     std::string bodyScriptText;
-    CommuTypeLaserSdk commuType = machineResource.commuType;
     CgxiRobotLaserSdk &robotParams = machineResource.robotParams;
     double emptyRunTCPSpeed = machineResource.robotParams.emptyRunTCPSpeed;            //空走TCP速度
     double emptyRunTCPAcc = machineResource.robotParams.emptyRunTCPAcc;              //空走TCP加速度

@@ -524,7 +524,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         local retry_times = 5
         while true do
             --检测开始信号
-            if(read_boolean_register(900)==true) then
+            if true then
                 --送气使能开
                 comNo = 3
                 SendCommuRegAddr = 30
@@ -563,7 +563,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
             local retry_times = 5
             while true do
                 --检测开始信号
-                if(read_boolean_register(900)==true) then
+                if true then
                     --送气使能关
                     set_configurable_digital_out(1, false)  ---CO1 = 1
                     set_configurable_digital_out(0, false)  ---CO0 = 1
