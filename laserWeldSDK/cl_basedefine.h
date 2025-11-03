@@ -159,8 +159,8 @@ enum SpotPatternLaserSdk
     HORIZON_8_LASERSDK = 1, ///< 8 字形（参数：长轴mm）
     LINE_LASERSDK = 2,      ///< 水平线（参数：长度mm）
     STAR_LASERSDK = 3,      ///< 正方形（参数：边长mm）
-    TRIANGLE_LASERSDK = 5,  ///< 等边三角形（参数：边长mm）心潮定义
-    CROSS_LASERSDK = 4      ///< 十字形（参数：边长mm）   心潮定义
+    TRIANGLE_LASERSDK = 4,  ///< 等边三角形（参数：边长mm）
+    CROSS_LASERSDK = 5      ///< 十字形（参数：边长mm）
 };
 
 ///< 激光头工艺参数
@@ -187,6 +187,14 @@ typedef struct CgxiWaterCoolerLaserSdk
     BOOL isWaterCoolerAlarm;   ///< 水冷机报警
 } CgxiWaterCoolerLaserSdk;
 
+
+//断丝模式
+enum WireBreakMode
+{
+    NORMAL = 0,     ///< 常规
+    HIGHSPEED = 1   ///< 高速
+};
+
 ///< 送丝机
 typedef struct CgxiWireFeederLaserSdk
 {
@@ -197,6 +205,7 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
     BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
 
+    WireBreakMode craftEndingwireRetraction;    ///<    送丝机断丝模式
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederStartMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederStopMotorSpeed;              ///< 结束自动送丝速度 15~600cm/min 0x0100 R/W
@@ -205,7 +214,7 @@ typedef struct CgxiWireFeederLaserSdk
     int wireFeederFeedLength;                  ///< 补丝长度    0~100 mm
     int wireFeederBackLength;                  ///< 抽丝长度    0~100 mm
     int wireFeederWaitTime;                    ///< 补丝延时    0~2000 ms
-    double lengthBack;                         ///< 焊丝回抽的距离
+    double lengthBack;                         ///< 焊丝回抽的过程距离
 } CgxiWireFeederLaserSdk;
 
 ///< 机械臂参数
@@ -267,7 +276,7 @@ typedef struct MachineResource
     unsigned int laserHeadPeakPowerQuickLoc;               ///<  峰值功率 0x0033 51 快速写入峰值功率
     /* 写---------- 焊接工艺 ---------- */
     unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
-    /* 读|写 ------ 激光器 - 工艺参数 ------ */
+    /* 读|写 ------   激光器 ---------- */
     unsigned int laserPowerLoc;              ///<  激光器功率地址 0x0230 560
     unsigned int laserOnPowerLoc;            ///<  开光功率地址 0x0231 561
     unsigned int laserOnRampTimeLoc;         ///<  开光渐进时间地址 0x0232 562
@@ -326,7 +335,7 @@ struct CraftInfoLaserSdk
 {
     WeldModeLaserSdk craftweldMode; ///< 焊接模式
     WeldLineTypeLaserSdk craftWeldType; ///< 点焊类型
-    // WeldingProcessType craftWeldingProcessType;     ///< 焊接工艺类型
+    WireBreakMode craftEndingwireRetraction;    ///< 收尾抽丝 断丝模式
     int craftSpotWeldDuration;      ///< 点焊持续时间
     int craftSpotWeldInterval;      ///< 点焊间隔时间
 
@@ -355,7 +364,8 @@ struct CraftInfoLaserSdk
     int craftWeldingWireFeed;           ///< 焊接送丝     送丝速度
     int craftLeadOutWireFeed;           ///< 关光送丝     送丝速度
     int craftEndingWireRetraction;      ///< 收尾抽丝     回抽速度
-    int craftEndLoopbackLength;         ///< 收尾回送长度 补丝长度
+    int craftRetractionLength;          ///< 收尾回抽     回抽长度
+    int craftEndLoopbackLength;         ///< 收尾回送长度  补丝长度
 };
 
 /* ---指令列表--- */

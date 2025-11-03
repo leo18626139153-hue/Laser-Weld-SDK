@@ -394,33 +394,33 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         InstTypeLaserSdk instType = listLocToTypeID[instLoc].first; //指令类型
         //工艺实例开始
         if(tempCraftInstListStartLoc == -1)
-        {
-            tempCraftInstListStartLoc = instLoc;    //当前工艺实例指令列表起始位置
-            tempCraftID = listLocToTypeID[instLoc].second;  //当前工艺ID
-            craftInstListCraftIDVec.emplace_back(tempCraftID);  ///<道工艺实例列表
-        }
+            {
+                tempCraftInstListStartLoc = instLoc;    //当前工艺实例指令列表起始位置
+                tempCraftID = listLocToTypeID[instLoc].second;  //当前工艺ID
+                craftInstListCraftIDVec.emplace_back(tempCraftID);  ///<道工艺实例列表
+            }
         //起弧
         if(instType == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK)
-        {
-            tempIsWelding = true;
-        }
+            {
+                tempIsWelding = true;
+            }
         //收弧
         else if(instType == InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
-        {
-            tempIsWelding = false;
-        }
+            {
+                tempIsWelding = false;
+            }
         //工艺实例结束
         if(tempCraftInstListStartLoc != -1 &&
                 (instLoc == listLocToTypeID.size()-1 ||
                  ((tempIsWelding == false) && (instLoc < listLocToTypeID.size()-1) && (listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK))))
-        {
-            tempCraftInstListEndLoc = instLoc;
-            //建立工艺ID与该工艺实例指令列表起始和终止位置的联系
-            craftInstListStartEndLoc[tempCraftID] = {tempCraftInstListStartLoc, tempCraftInstListEndLoc};
-            tempCraftInstListStartLoc = -1;
-            tempCraftInstListEndLoc = -1;
-            continue;
-        }
+            {
+                tempCraftInstListEndLoc = instLoc;
+                //建立工艺ID与该工艺实例指令列表起始和终止位置的联系
+                craftInstListStartEndLoc[tempCraftID] = {tempCraftInstListStartLoc, tempCraftInstListEndLoc};
+                tempCraftInstListStartLoc = -1;
+                tempCraftInstListEndLoc = -1;
+                continue;
+            }
     }
 
 
@@ -446,7 +446,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             {
                 int instType = listLocToTypeID[currentInstLoc].first;
                 int instID = listLocToTypeID[currentInstLoc].second;
-                //工艺选择指令
                 if (instType == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK)
                 {
                     bodyScriptText += "----change present craft----\n";
@@ -457,7 +456,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         return result;
                     }
                 }
-                //安全点movej
                 else if (instType == InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK)
                 {
                     if (!isWeld)
@@ -472,7 +470,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
-                //直线点位move
                 else if (instType == InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK)
                 {
                     if (!isWeld)
@@ -487,7 +484,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                     }
                 }
-                //圆弧点位move
                 else if (instType == InstTypeLaserSdk::CIRCLE_POINT_INST_LASER_WELD_SDK)
                 {
                     if (!isWeld)
@@ -506,7 +502,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     // 跳过下一个圆弧定点并将最后一个定点的列表位置复制为下一个圆弧定点的位置
                     currentInstLoc++;
                 }
-                //关节运动指令
                 else if (instType == InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK)
                 {
                     if (!isWeld)
@@ -565,7 +560,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     }
                     segWeldInstListEndLoc++;
                 }
-                //CraftInfoLaserSdk &segCraftInfo = craftsMap[instListTransEnvironmentData.craftID];
                 //指令列表转换接口
                 LaserSdkResult result = GetBasicCraftScript(laserMachineHandle, weldStartData, instListData, tempPointsMap, instListTransEnvironmentData, segWeldInstListStartLoc, segWeldInstListEndLoc, bodyScriptText);
                 if (result != LaserSdkResult::SUCCESS_LASER_SDK)
@@ -628,7 +622,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
 
 
     std::string script;
-    //script += commandListStartData; //起始参数
     script += curCommuFunction->loadLuaFunctionScriptOut();//调用函数定义
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
