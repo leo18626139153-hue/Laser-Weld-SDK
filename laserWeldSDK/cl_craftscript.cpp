@@ -292,10 +292,9 @@ void CommuRS485::initData()
         local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串
         print(tmp_string)
         local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
-        --端口--写字节数--写类型--写起始地址--读类型--读起始地址--是否应答
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr, 1)
-        --等待接收结果
-        print("waiting_time : ",timeout)
+        local tryTimes = 3
+        local timeout = 1000
         while(read_int16_register(RecvCommuRegAddr) == 0) do
             wait(20)
             timeout = timeout - 20
@@ -304,6 +303,10 @@ void CommuRS485::initData()
                 break
             end
             if timeout <= 0 then
+                tryTimes = tryTimes - 1
+                timeout = 310
+            end
+            if tryTimes <= 0 then
                 print(string.format("超时首地址 : 0x%04X", port_address))
                 break
             end
@@ -335,10 +338,11 @@ void CommuRS485::initData()
         local CommuReg_n = WriteHex2Commu_reg(mes_string)
         print("发送报文："..mes_string)
         --8. 发送报文
-        timeout = 1000
+        local timeout = 1000
+        local tryTimes = 3
         --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType, RecvCommuRegAddr, 1)
-        while(read_int16_register(RecvCommuRegAddr) == 0) do
+        while true do
             wait(10)
             timeout = timeout - 10
             if read_int16_register(RecvCommuRegAddr) ~= 0 then
@@ -346,9 +350,12 @@ void CommuRS485::initData()
                 return
             end
             if timeout <= 0 then
-                print("发送超时 | 端口号 - ".. comNo .."|长度 - "..CommuReg_n.."| 报文类型 - "..SendDataType.." |起始地址 - "..SendCommuRegAddr)
-                print(string.format("超时首地址 : 0x%04X", addr_value_map[1][1]))
-                write_int16_register(RecvCommuRegAddr, addr_value_map[1][1])
+                tryTimes = tryTimes - 1
+                timeout = 310
+            end
+            if tryTimes == 0 then
+                print(string.format("发送超时 | 端口号 - ".. comNo .."|长度 - "..CommuReg_n.."| 报文类型 - "..SendDataType.." |起始地址 - 0x%04X"), SendCommuRegAddr)
+                --write_int16_register(RecvCommuRegAddr, addr_value_map[1][1])
                 break
             end
         end
@@ -875,7 +882,6 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     addParam(int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc);
     // 0x013F 是否保存当前送丝机数据 地址  → ​​319​
     addParam(int16Reg, wireFeederParams.isWireFeederDataSave, machineResource.saveCurrentWireFeederDataLoc);
-
     for (unsigned int addr : locVec)
     {
         auto it = writeDataHash.find(addr);
@@ -892,7 +898,6 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }
     }
-
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -912,7 +917,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(machineResource.laserPowerParams.laserPower)+"\n";   //激光功率
     int craftLeadInPowerPercent = (curCraftInfo.craftLeadInPower*100)/machineResource.laserPowerParams.laserPower;//开光功率百分比
     if(craftLeadInPowerPercent < 1 || craftLeadInPowerPercent > 100){
-        craftLeadInPowerPercent = 1;
+        craftLeadInPowerPercent = 100;
         std::cout << "craftLeadInPowerPercent out of range" << std::endl;
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
@@ -929,7 +934,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         std::cout << "craftLeadOutPowerPercent out of range" << std::endl;
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-
     //关光功率百分比
     write_laser_params += "    laserRegisterMap[4][2] = "+ std::to_string(100)+"\n";
     //关光功率下降时间

@@ -126,8 +126,8 @@ inline std::string strWriteInt32RegReplace(T srcStr, Y vecStr)
 {
     return strReplace(strReplace("write_integer_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
-template <typename T, typename Y>
 //read_int32_register
+template <typename T, typename Y>
 inline std::string strReadInt32RegReplace(T returnStr, Y addrStr)
 {
     return strReplace(strReplace("%1=read_integer_register(%2)\n", "%1", returnStr), "%2", addrStr);

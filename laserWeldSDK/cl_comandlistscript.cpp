@@ -48,8 +48,8 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
     double weldTCPAcc = robotParams.weldTCPAcc;                         //焊接TCP加速度
     double emptyRunJointSpeed = robotParams.emptyRunJointSpeed;          //空走关节速度
     double emptyRunJointAcc = robotParams.emptyRunJointAcc;            //空走关节加速度
-//    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
-//    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
+    //    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
+    //    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
 
     CommuBase* craftCommu = nullptr;
     LaserSdkResult result = craft_script_commu_class_get(laserMachineHandle, craftCommu);

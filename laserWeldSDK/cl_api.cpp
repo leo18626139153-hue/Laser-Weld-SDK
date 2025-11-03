@@ -430,13 +430,8 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     double emptyRunTCPAcc = machineResource.robotParams.emptyRunTCPAcc;              //空走TCP加速度
     double emptyRunJointSpeed = machineResource.robotParams.emptyRunJointSpeed;          //空走关节速度
     double emptyRunJointAcc = machineResource.robotParams.emptyRunJointAcc;            //空走关节加速度
-//    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
-//    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
     for(auto craftID: craftInstListCraftIDVec)
     {
-//        CraftInfoLaserSdk& craftInfo = craftsMap[craftID];      //当前工艺信息
-//        int pitchAngleID = -1;  //当前工艺的起弧指令ID
-//        int circlePitchAngleID = -1;    //当前工艺的圆弧起弧指令ID
         int craftInstListStartLoc = craftInstListStartEndLoc[craftID].first;    //当前工艺指令列表起始位置
         int craftInstListEndLoc = craftInstListStartEndLoc[craftID].second;     //当前工艺指令列表终止位置
         int weldInstListStartLoc = craftInstListStartLoc;    //当前焊接指令列表起始位置

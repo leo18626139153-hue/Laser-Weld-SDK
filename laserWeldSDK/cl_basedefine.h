@@ -128,13 +128,13 @@ typedef struct CgxiLaserPowerLaserSdk
 {
     BOOL isLaserOn;             ///< 是否 出光
     BOOL isLaserAlarm;          ///< 激光器有无报警
-    WeldModeLaserSdk weldMode;  ///< 焊接模式(0 点焊 - 1 连续)
+    WeldModeLaserSdk weldMode;  ///< 焊接模式   (0 点焊 - 1 连续)
 
     int laserPower;             ///< 激光器功率 0-5000W
-    int laserPowerOpen;         ///< 开光功率 0-5000W
-    int laserPowerClose;        ///< 关光功率 0-5000W
-    int laserRampUpTime;        ///< 开光渐进时间 0~1000ms
-    double laserRampDownTime;      ///< 关光渐进时间{关光渐进距离 0~300mm, 根据机器人移动速度换算}
+    int laserPowerOpen;         ///< 开光功率   百分比   外控
+    int laserPowerClose;        ///< 关光功率   百分比   外控
+    int laserRampUpTime;        ///< 开光渐进时间 0~1000ms    外控
+    double laserRampDownTime;   ///< 关光渐进时间  { 关光渐进距离 0~300mm, 根据机器人移动速度换算}
     int wireFeedAdvanceTime;    ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
     int gasShutoffDelayTime;       ///< 关气渐进 滞后送气时间	0~3000ms
     int gasStartupAdvanceTime;     ///< 开气渐进 提前送气时间	0~3000ms
@@ -159,8 +159,8 @@ enum SpotPatternLaserSdk
     HORIZON_8_LASERSDK = 1, ///< 8 字形（参数：长轴mm）
     LINE_LASERSDK = 2,      ///< 水平线（参数：长度mm）
     STAR_LASERSDK = 3,      ///< 正方形（参数：边长mm）
-    TRIANGLE_LASERSDK = 4,  ///< 等边三角形（参数：边长mm）
-    CROSS_LASERSDK = 5      ///< 十字形（参数：边长mm）
+    TRIANGLE_LASERSDK = 5,  ///< 等边三角形（参数：边长mm）心潮定义
+    CROSS_LASERSDK = 4      ///< 十字形（参数：边长mm）   心潮定义
 };
 
 ///< 激光头工艺参数
