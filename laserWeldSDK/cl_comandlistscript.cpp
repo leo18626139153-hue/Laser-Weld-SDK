@@ -48,8 +48,13 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
     double weldTCPAcc = robotParams.weldTCPAcc;                         //焊接TCP加速度
     double emptyRunJointSpeed = robotParams.emptyRunJointSpeed;          //空走关节速度
     double emptyRunJointAcc = robotParams.emptyRunJointAcc;            //空走关节加速度
-    //    double emptyPointTransitionRadius = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
-    //    double weldPointTransitionRadius = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
+    double radiusEmpty = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
+    
+    double radiusWelding = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
+    if (radiusWelding < 0.0 || radiusWelding > 10.0)
+    {
+        radiusWelding = 0.0;
+    }
 
     CommuBase* craftCommu = nullptr;
     LaserSdkResult result = craft_script_commu_class_get(laserMachineHandle, craftCommu);
@@ -57,7 +62,6 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
     {
         return result;
     }
-
     
     std::unordered_map<int, std::pair<InstTypeLaserSdk, int>>& listLocToTypeID = instListData.listLocToTypeID; ///< 指令列表 指令类型 到 类型ID 的映射
     std::unordered_map<int, CraftInfoLaserSdk>& craftsMap = instListData.craftsMap;     ///< 工艺信息
@@ -65,10 +69,10 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
     int CraftID = instListTransEnvironmentData.craftID;
     CraftInfoLaserSdk& curCraftInfo = craftsMap[CraftID]; ///< 当前工艺信息
     
-    bool isWeld = instListTransEnvironmentData.isWeld;      ///< 真的焊接（1）还是模拟
+    bool isWeld = instListTransEnvironmentData.isWeld;           ///< 真的焊接（1）还是模拟
     int& prePointLoc = instListTransEnvironmentData.prePointLoc; ///< 前一个点的位置
     bool& isWelding = instListTransEnvironmentData.isWelding;    ///< 是否焊接中
-    double weldSpeed = curCraftInfo.craftWeldingSpeed; ///< 当前焊接速度
+    double weldSpeed = curCraftInfo.craftWeldingSpeed;           ///< 当前焊接速度
     for (int instLoc = instListStartLoc; instLoc <= instListEndLoc; instLoc++)
     {
         if (listLocToTypeID.count(instLoc) != 0)
@@ -82,14 +86,20 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             {    
                 // 工艺模板指令
                 bodyScriptText += "--CRAFT_SELECT--\n";
+                LaserSdkResult result = craftCommu->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
+                if(result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+
                 break;
             }
             case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
             {
-                isWelding = true; //设置焊接状态                
-                bodyScriptText += "--ARC_START_LIST--\n";
                 if(isWeld)
                 {
+                    bodyScriptText += "--ARC_START_LIST--\n";
+                    isWelding = true; //设置焊接状态
                     std::string tmpScript ;
                     result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
@@ -98,7 +108,6 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     }
 
                     result = craftCommu->craft_script_slow_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
-
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
                         return result;
@@ -108,10 +117,11 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 break;
             }
             case InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK:
-            {    // 生成收弧脚本
-                bodyScriptText += " --ARC_STOP_LIST--\n";
+            {                
                 if (isWeld)
                 {
+                    bodyScriptText += " --ARC_STOP_LIST--\n";
+                    isWelding = false; //设置焊接状态
                     std::string tmpScript ;
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
@@ -128,11 +138,11 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 break;
             }
             case InstTypeLaserSdk::SLOW_DOWN_LASER_WELD_SDK:
-            {    
-                // 生成缓降脚本
-                bodyScriptText += " --SLOW_DOWN--\n";
+            {
                 if(isWeld)
                 {
+                    // 生成缓降脚本
+                    bodyScriptText += " --SLOW_DOWN--\n";
                     std::string tmpScript ;
                     result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, tmpScript);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
@@ -151,9 +161,10 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 break;
             }
             case InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK:
-            {    // 直线定点指令
+            {
+                // 直线定点指令
                 bodyScriptText += " --MOVE_LINE_LIST--\n";
-                double transRadius = 0;
+                double transRadius = radiusEmpty;
                 double speed = emptyRunTCPSpeed;
                 double acc = emptyRunTCPAcc;
                 //焊接设置对应的焊接速度与加速度
@@ -172,7 +183,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                         return result;
                     }
                 }
-                //非起弧 需要进行断点判断
+                //非焊接 需要进行断点判断
                 if (!isWeld)
                 {
                     craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
@@ -180,14 +191,13 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 bodyScriptText += strMoveLReplace(doubleArray2Str(tempPointsMap[typeID].pose, 6), std::to_string(speed), std::to_string(acc), std::to_string(transRadius));
                 //如果当前点为焊接点，663置为1
                 if(!isWeld)
-                {
+                {                    
                     bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
                     craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
                 }
                 if((isWeld && isWelding) || (isWeld && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK))
                 {
-                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, instLoc);
-                    
+                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, instLoc);                    
                 }
                 prePointLoc = instLoc;
                 break;
@@ -196,13 +206,13 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             {    
                 // 生成圆形定点指令
                 bodyScriptText += " --MOVE_CIR--\n";
-                //
-                double transRadius = 0;
+                double transRadius = radiusEmpty;
                 double speed = emptyRunTCPSpeed;
                 double acc = emptyRunTCPAcc;
 
                 if(isWeld && isWelding)
                 {
+                    transRadius = radiusWelding;
                     speed = weldSpeed;
                     acc = weldTCPAcc;
                 }
@@ -244,13 +254,12 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             case InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK:
             {    // 关节运动指令
                 bodyScriptText += "--MOVE_JOINT--\n";
-                double speed = emptyRunJointSpeed;
-                double acc = emptyRunJointAcc;
+                double transRadius = radiusEmpty;
                 if (!isWeld)
                 {
                     craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
                 }
-                bodyScriptText += strMoveJReplace(doubleArray2Str(tempPointsMap[typeID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0));
+                bodyScriptText += strMoveJReplace(doubleArray2Str(tempPointsMap[typeID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(transRadius));
                 if(!isWeld)
                 {
                     bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);

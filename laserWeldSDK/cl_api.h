@@ -145,11 +145,9 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const 
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHandle laserMachineHandle,char* scripts, int* scriptLen);
 
-
-
 /**
  * @brief getLapRollbackCirclePoint     获取直线轨迹——根据终点和降功率点获取新的起点和终点
- * @param[in] laserMachineHandle            激光器句柄
+ * @param[in] laserMachineHandle        激光器句柄
  * @param rollbackStraightLineData      直线回退参数
  * @return LaserSdkResult                处理结果
  */
@@ -160,7 +158,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(const L
  * @brief getLapRollbackCirclePoint     获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
  * @param laserMachineHandle            激光器句柄
  * @param rollbackCircleData            圆弧回退参数
- * @return LaserSdkResult                处理结果
+ * @return LaserSdkResult               处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData);
 
@@ -226,6 +224,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle 
  * @return LaserSdkResult                    处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message);
+
 
 /**
  * @brief         将变量写入Int16寄存器

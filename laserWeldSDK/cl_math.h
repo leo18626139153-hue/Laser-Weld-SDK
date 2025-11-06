@@ -16,6 +16,22 @@
 #include <cstring>
 #include <tuple>
 
+#define PI_HY (3.1415926535897932384626433832795)
+#define ZeroThreshold_HY (1e-8)
+
+// 三维空间向量取模
+inline double norm_vec_HY(const double *a)
+{
+    return sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+}
+
+
+// 三维空间向量单位化
+void normalized_vector_HY(const double* vec, double* result);
+
+// 3X3矩阵与3维向量乘法
+void matrix_vector_multiply_HY(const double* matrix, const double* vec, double* result);
+
 //向量叉乘
 /**
  * @brief vecCross  空间向量叉乘计算
@@ -33,6 +49,11 @@ void normalizeVector(double Fn[3]);
 
 //逆解
 LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM]);
+
+// 姿态复制(六维)
+void copy_pose_HY(const double* oldpose, double* pose);
+// pose_trans 仅支持位置，仅用于焊接时抬枪计算
+void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pose);
 
 
 /**

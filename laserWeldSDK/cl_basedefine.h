@@ -1,10 +1,12 @@
 ﻿#ifndef CL_BASEDEFINE_H
 #define CL_BASEDEFINE_H
 
+#define TCPTYPE 1 //tcp Z轴指向，z轴正向为抽丝方向时取1，z轴正向为送丝方向时取-1
 #include"basestruct.h"
 
 //#pragma execution_character_set("utf-8")   //防止中文乱码
 typedef int LaserMachineHandle;
+
 
 // 接口调用结果
 enum LaserSdkResult
@@ -307,11 +309,15 @@ typedef struct MachineResource
     unsigned int autoWireFeedSpeedLoc;       ///<  自动送丝速度地址 0x0100 256
     unsigned int manualWireFeedSpeedLoc;     ///<  手动送丝速度地址 0x0101 257
     unsigned int manualWireRetractSpeedLoc;  ///<  手动抽丝速度地址 0x0102 258
-    unsigned int wireFeedBackDelayLoc;       ///<  补丝延迟时间地址 0x0106 262
-    unsigned int wireFeedLengthLoc;          ///<  补丝长度地址 0x0105 261
     unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
+    unsigned int wireFeedLengthLoc;          ///<  补丝长度地址 0x0105 261
+    unsigned int wireFeedBackDelayLoc;       ///<  补丝延迟时间地址 0x0106 262
     unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0 停    1	运行)  0x0140  320
     unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
+
+    unsigned int breakWireFeedingModeLoc;       ///< 断丝模式地址 0x010D  (控制回抽速度)
+    unsigned int delayWireFeedingLoc;           ///< 运行状态地址 0x0115
+
     /*写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
 

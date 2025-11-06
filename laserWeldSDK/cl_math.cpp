@@ -9,8 +9,38 @@
 #include <cstdint>
 #include <stdexcept>
 
+void normalized_vector_HY(const double *vec, double *result)
+{
+    double norm = norm_vec_HY(vec);
 
-//向量叉乘
+    if (norm < ZeroThreshold_HY)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            result[i] = 0;
+        }
+    }
+    else {
+        for (int i = 0; i < 3; i++)
+        {
+            result[i] = vec[i] / norm;
+        }
+    }
+}
+
+void matrix_vector_multiply_HY(const double *matrix, const double *vec, double *result)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        result[i] = 0;
+        for (int j = 0; j < 3; j++)
+        {
+            result[i] += matrix[i*3+j] * vec[j];
+        }
+    }
+}
+
+// 向量叉乘
 void vecCross(double xdir[3], double ydir[3], double result[3])
 {
     result[0] = xdir[1] * ydir[2] - xdir[2] * ydir[1];
@@ -211,6 +241,12 @@ LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_A
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+void copy_pose_HY(const double *oldpose, double *pose)
+{
+    for(int k=0; k<6; k++)
+        pose[k] = oldpose[k];
+}
+
 uint16_t crc16_modbus(const std::vector<uint8_t>& data) {
     uint16_t crc = 0xFFFF;
     for (size_t i = 0; i < data.size(); ++i) {
@@ -360,4 +396,37 @@ int32_t parse_modbus_register32(const std::string& hexResponse){
               << static_cast<int>(bytes[data_start_index + 3]) << std::dec << std::endl;
 
     return result;
+}
+
+void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pose)
+{
+    double axis[3];
+    double angle = norm_vec_HY(&pose[3]);
+    normalized_vector_HY(&pose[3], axis);
+
+    double c = cos(angle);
+    double s = sin(angle);
+    double t = 1 - c;
+    double ux = axis[0];
+    double uy = axis[1];
+    double uz = axis[2];
+    double R[9];
+    double dp[3];
+
+    R[0] = t * ux * ux + c;
+    R[1] = t * ux * uy - s * uz;
+    R[2] = t * ux * uz + s * uy;
+    R[3] = t * ux * uy + s * uz;
+    R[4] = t * uy * uy + c;
+    R[5] = t * uy * uz - s * ux;
+    R[6] = t * ux * uz - s * uy;
+    R[7] = t * uy * uz + s * ux;
+    R[8] = t * uz * uz + c;
+
+    matrix_vector_multiply_HY(R, delat_pose, dp);
+
+    for (int i = 0; i < 3; i++) {
+        new_pose[i] = pose[i] + dp[i];
+        new_pose[i+3] = pose[i+3];
+    }
 }

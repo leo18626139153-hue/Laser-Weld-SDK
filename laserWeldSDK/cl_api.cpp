@@ -412,7 +412,9 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         //工艺实例结束
         if(tempCraftInstListStartLoc != -1 &&
                 (instLoc == listLocToTypeID.size()-1 ||
-                 ((tempIsWelding == false) && (instLoc < listLocToTypeID.size()-1) && (listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK))))
+                 ((tempIsWelding == false) &&
+                  (instLoc < listLocToTypeID.size()-1) &&
+                  (listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK))))
             {
                 tempCraftInstListEndLoc = instLoc;
                 //建立工艺ID与该工艺实例指令列表起始和终止位置的联系
@@ -430,6 +432,18 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     double emptyRunTCPAcc = machineResource.robotParams.emptyRunTCPAcc;              //空走TCP加速度
     double emptyRunJointSpeed = machineResource.robotParams.emptyRunJointSpeed;          //空走关节速度
     double emptyRunJointAcc = machineResource.robotParams.emptyRunJointAcc;            //空走关节加速度
+
+    double emptyPointTransitionRadius = 0;           //空走点位过渡半径
+    if (emptyPointTransitionRadius < 0 || emptyPointTransitionRadius > 10)
+    {
+        emptyPointTransitionRadius = 0;
+    }
+    
+    double weldPointTransitionRadius = machineResource.robotParams.weldPointTransitionRadius;             //焊接点位过渡半径
+    if (weldPointTransitionRadius < 0 || weldPointTransitionRadius > 10)
+    {
+        weldPointTransitionRadius = 1.0;
+    }
     for(auto craftID: craftInstListCraftIDVec)
     {
         int craftInstListStartLoc = craftInstListStartEndLoc[craftID].first;    //当前工艺指令列表起始位置
@@ -441,87 +455,90 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         while(true)
         {
             // 遍历非焊接过程中的指令
-            while (currentInstLoc == craftInstListEndLoc || (currentInstLoc < craftInstListEndLoc && (listLocToTypeID.count(currentInstLoc + 1) != 0
-            && listLocToTypeID[currentInstLoc + 1].first != InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK)))
-            {
-                int instType = listLocToTypeID[currentInstLoc].first;
-                int instID = listLocToTypeID[currentInstLoc].second;
-                if (instType == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK)
+            while (currentInstLoc == craftInstListEndLoc ||
+                   ( currentInstLoc < craftInstListEndLoc &&
+                    (listLocToTypeID.count(currentInstLoc + 1) != 0 &&
+                     listLocToTypeID[currentInstLoc + 1].first != InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK) ) )
                 {
-                    bodyScriptText += "----change present craft----\n";
-                    CraftInfoLaserSdk curCraftInfo = craftsMap[instID];
-                    LaserSdkResult result = curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
+                    int instType = listLocToTypeID[currentInstLoc].first;
+                    int instID = listLocToTypeID[currentInstLoc].second;
+                    if (instType == InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK)
                     {
-                        return result;
+                        bodyScriptText += "----change present craft----\n";
+                        CraftInfoLaserSdk curCraftInfo = craftsMap[instID];
+                        LaserSdkResult result = curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
+                        if(result != LaserSdkResult::SUCCESS_LASER_SDK)
+                        {
+                            return result;
+                        }
                     }
-                }
-                else if (instType == InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK)
-                {
-                    if (!isWeld)
+                    else if (instType == InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK)
                     {
-                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
+                        if (!isWeld)
+                        {
+                            curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
+                        }
+                        bodyScriptText += "--safePointMoveJ--\n";
+                        bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(emptyPointTransitionRadius)});
+                        if (!isWeld)
+                        {
+                            bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                            curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
+                        }
                     }
-                    bodyScriptText += "--safePointMoveJ--\n";
-                    bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0)});
-                    if (!isWeld)
+                    else if (instType == InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK)
                     {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
-                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
+                        if (!isWeld)
+                        {
+                            curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
+                        }
+                        bodyScriptText += "--linePoint--\n";
+                        bodyScriptText += strReplace("movel(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(emptyPointTransitionRadius)});
+                        if (!isWeld)
+                        {
+                            bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                            curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
+                        }
                     }
-                }
-                else if (instType == InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK)
-                {
-                    if (!isWeld)
+                    else if (instType == InstTypeLaserSdk::CIRCLE_POINT_INST_LASER_WELD_SDK)
                     {
-                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
-                    }
-                    bodyScriptText += "--linePoint--\n";
-                    bodyScriptText += strReplace("movel(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0)});
-                    if (!isWeld)
-                    {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
-                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
-                    }
-                }
-                else if (instType == InstTypeLaserSdk::CIRCLE_POINT_INST_LASER_WELD_SDK)
-                {
-                    if (!isWeld)
-                    {
-                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc + 1, bodyScriptText);
-                    }
-                    bodyScriptText += "--circlePoint--\n";
-                    int nextCirclePointID = listLocToTypeID[currentInstLoc + 1].second;
-                    bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(0), std::to_string(0)});
-                    if (!isWeld)
-                    {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
-                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc + 1, bodyScriptText);
-                    }
+                        if (!isWeld)
+                        {
+                            curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc + 1, bodyScriptText);
+                        }
+                        bodyScriptText += "--circlePoint--\n";
+                        int nextCirclePointID = listLocToTypeID[currentInstLoc + 1].second;
+                        //点1 ，点2， 速度， 加速度， 过渡半径(单位为 mm) ， 旋转方向(0为顺时针，1为逆时针)
+                        bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(emptyPointTransitionRadius), std::to_string(0)});
+                        if (!isWeld)
+                        {
+                            bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
+                            curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc + 1, bodyScriptText);
+                        }
 
-                    // 跳过下一个圆弧定点并将最后一个定点的列表位置复制为下一个圆弧定点的位置
+                        // 跳过下一个圆弧定点并将最后一个定点的列表位置复制为下一个圆弧定点的位置
+                        currentInstLoc++;
+                    }
+                    else if (instType == InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK)
+                    {
+                        if (!isWeld)
+                        {
+                            curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
+                        }
+
+                        bodyScriptText += "--jointPoint--\n";
+                        bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6),
+                                                     std::to_string(emptyRunJointSpeed),
+                                                     std::to_string(emptyRunJointAcc), std::to_string(0)
+                                                                             });
+                        if (!isWeld)
+                        {
+                            bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+                            curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
+                        }
+                    }
                     currentInstLoc++;
                 }
-                else if (instType == InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK)
-                {
-                    if (!isWeld)
-                    {
-                        curCommuFunction->craft_script_judge_break_point_script_get(currentInstLoc, bodyScriptText);
-                    }
-
-                    bodyScriptText += "--jointPoint--\n";
-                    bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6),
-                                                 std::to_string(emptyRunJointSpeed),
-                                                 std::to_string(emptyRunJointAcc), std::to_string(0)
-                                                                         });
-                    if (!isWeld)
-                    {
-                        bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
-                        curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
-                    }
-                }
-                currentInstLoc++;
-            }
 
             // 遍历完了当前工艺下的所有指令
             if (currentInstLoc > craftInstListEndLoc)
@@ -1273,9 +1290,39 @@ LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle 
 }
 
 
-LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double *pose, const double *joint, const double liftDistance, double *liftPose, double *liftJoint)
+LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double* pose, const double* joint, const double liftDistance,
+                                      double* liftPose, double* liftJoint)
 {
-    std::string scriptGet="--焊枪姿态调整--\n";
+    ///< 焊枪姿态调整
+    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    int tcptype = TCPTYPE;
+    double d2r = PI_HY/180;
+    double r2d = 180.0/PI_HY;
+    double delta_pose[6] = { 0, 0, tcptype*liftDistance, 0, 0, 0 };
+    double pose_deg[6] = {pose[0], pose[1], pose[2], pose[3]*d2r, pose[4]*d2r, pose[5]*d2r };
+    pose_trans_HY(pose_deg, delta_pose, liftPose);
+    liftPose[3] *= r2d;
+    liftPose[4] *= r2d;
+    liftPose[5] *= r2d;
+
+    double liftPoseTmp[6], jointTmp[6], liftJointTmp[6];
+    copy_pose_HY(liftPose, liftPoseTmp);
+    copy_pose_HY(joint, jointTmp);
+    copy_pose_HY(liftJoint, liftJointTmp);
+
+    LaserSdkResult res = kineInverse_tcpPose(machineResource.robotHandle, pose_deg, jointTmp , liftJointTmp);//逆解
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK)
+    {
+        return res;
+    }
+    
+    copy_pose_HY(liftJointTmp, liftJoint);
+
     return SUCCESS_LASER_SDK;
 }
 
@@ -1305,10 +1352,10 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
     std::vector<unsigned int> laserPowerVec =
     {        
-        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
+        machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
         machineResource.driverTempLoc,              ///<  驱动器温度值地址 0x023f 575
         machineResource.protectiveWindowTempLoc,    ///<  保护镜温度值地址 0x0240 576
-        machineResource.collimatorTempLoc          ///<  准直镜温度值地址 0x0241 577
+        machineResource.collimatorTempLoc           ///<  准直镜温度值地址 0x0241 577
     };
 
     std::vector<unsigned int> laserHeadVec =
@@ -1578,30 +1625,31 @@ LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachi
    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
    // int32寄存器参数值列表（按顺序排列）
    int32_t register_values[] = {
-       2097929,        // int32Reg_0
-       -2104622848,    // int32Reg_1
-       18875145,       // int32Reg_2
-       1121911040,     // int32Reg_3
-       35652361,       // int32Reg_4
-       1110376704,     // int32Reg_5
-       772014857,      // int32Reg_6
-       2078540032,     // int32Reg_7
-       151257865,      // int32Reg_8
-       1884553472,     // int32Reg_9
-       184812297,      // int32Reg_10
-       -1326120704,    // int32Reg_11
-       235143945,      // int32Reg_12
-       -1310392064,    // int32Reg_13
-       251921161,      // int32Reg_14
-       1907622144,     // int32Reg_15
-       285475593,      // int32Reg_16
-       2010382592,     // int32Reg_17
-       302252809,      // int32Reg_18
-       1998848256,     // int32Reg_19
-       1006764809,     // int32Reg_20
-       -163315456,     // int32Reg_21
-       352387850,      // int32Reg_22
-       1234501888      // int32Reg_23
+       352387850,      // int32Reg_872
+       1234501888,      // int32Reg_873
+       2097929,        // int32Reg_850
+       -2104622848,    // int32Reg_851
+       18875145,       // int32Reg_852
+       1121911040,     // int32Reg_853
+       35652361,       // int32Reg_854
+       1110376704,     // int32Reg_855
+
+       772014857,      // int32Reg_856
+       2078540032,     // int32Reg_857
+       151257865,      // int32Reg_858
+       1884553472,     // int32Reg_859
+       184812297,      // int32Reg_860
+       -1326120704,    // int32Reg_861
+       235143945,      // int32Reg_862
+       -1310392064,    // int32Reg_863
+       251921161,      // int32Reg_864
+       1907622144,     // int32Reg_865
+       285475593,      // int32Reg_866
+       2010382592,     // int32Reg_867
+       302252809,      // int32Reg_868
+       1998848256,     // int32Reg_869
+       1006764809,     // int32Reg_870
+       -163315456     // int32Reg_871
    };
    CRresult cRes = cr_set_int32RegValue(machineResource.robotHandle, firstRegister, 24, register_values);
    if(cRes != CRresult::sucess)

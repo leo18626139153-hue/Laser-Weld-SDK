@@ -884,6 +884,10 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     addParam(int16Reg, wireFeederParams.wireFeederFeedLength, machineResource.wireFeedLengthLoc, 1);
     // 0x0104 抽丝长度
     addParam(int16Reg, wireFeederParams.wireFeederBackLength, machineResource.wireRetractLengthLoc, 1);
+    // 0x0106 补丝延时
+    addParam(int16Reg, wireFeederParams.wireFeederWaitTime, machineResource.wireFeedBackDelayLoc, 1);
+    // 0x010D 断丝模式
+    addParam(int16Reg, static_cast<int>(wireFeederParams.craftEndingwireRetraction), machineResource.breakWireFeedingModeLoc, 1);
     // 0x0140 手动送丝开关
     addParam(int16Reg, static_cast<int>(wireFeederParams.isWireFeederManualFeedSwitch), machineResource.manualWireFeedSwitchLoc, 1);
     // 0x0141 手动回抽开关
@@ -900,7 +904,7 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
         else
         {
             std::string tmp;
-            writeLog("craft_wire_feeder_param_set_script_get: Missing Lua script for wire feeder address 0x" + std::to_string(addr));
+            writeLog("craft_wire_feeder_param_set_script_get : Missing Lua script for wire feeder address 0x" + std::to_string(addr));
             std::cout << "Warning: Missing Lua script for wire feeder address 0x"
                       << std::hex << addr << std::dec << std::endl;
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
@@ -1037,40 +1041,35 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
                 write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
             break;
         }
-        //write_laser_params += writeLuaScript("0x0906", "0x0030", std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
     }
     bodyScriptText += write_laser_params;
     bodyScriptText += write_weld_params;
     // 送丝机参数
     //计算焊丝回抽的距离
-    double backVelocity = (curCraftInfo.craftEndingWireRetraction * 100) / 60; //收尾抽丝速度 cm/min换算成 mm/s
+    //double backVelocity = (curCraftInfo.craftEndingWireRetraction * 100) / 60; //收尾抽丝速度 cm/min换算成 mm/s
     int distance = curCraftInfo.craftRetractionDistance;            //回抽焊丝的过程距离 mm
     machineResource.wireFeederParams.lengthBack = distance;
-    double speed = curCraftInfo.craftWeldingSpeed; //焊接速度   mm/s
     //计算补丝延迟
-    int wireDelayTime = static_cast<int>((distance / speed)*1000); //计算补丝延迟
+    int wireDelayTime = static_cast<int>((distance / curCraftInfo.craftWeldingSpeed)*1000); //计算补丝延迟,s换算成ms
     if ( wireDelayTime > 2000)
     {
         writeLog("补丝延迟时间过大");
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }    
-    //  计算焊丝回抽长度
-    int backLength = static_cast<int>(wireDelayTime * backVelocity);
-    if(backLength < 5 || backLength > 100)
-    {
-        backLength = 10;
-        writeLog("回抽焊丝长度过大 自动调整为"+ std::to_string(backLength));
-    }
+    //  回抽长度panduan
     if(curCraftInfo.craftRetractionLength < 0 || curCraftInfo.craftRetractionLength > 20)
     {
-        curCraftInfo.craftRetractionLength = 5;
+        curCraftInfo.craftRetractionLength = 20;
     }
-    machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;
+    machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;    ///< 补丝延时    0~2000 ms
     machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftRetractionLength;     ///< 收尾回抽     回抽长度
     machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;    ///< 回送长度
     machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;      ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝sudu
     machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝sudu
+
+    machineResource.wireFeederParams.craftEndingwireRetraction = curCraftInfo.craftEndingwireRetraction; ///<断丝模式
+    machineResource.wireFeederParams.craftEndingwireRetraction = curCraftInfo.craftEndingwireRetraction; ///<断丝模式
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
     {
@@ -1078,6 +1077,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
         machineResource.wireFeedLengthLoc,          ///<  补丝长度地址 0x0105 261
         machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 262
+        machineResource.breakWireFeedingModeLoc ,      ///< 断丝模式地址 0x010D  (控制回抽速度)
     };
     craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, bodyScriptText);
 
