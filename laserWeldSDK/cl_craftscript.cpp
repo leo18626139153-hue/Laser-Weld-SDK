@@ -652,14 +652,14 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         {
         case float10Reg:
             useScript << std::setprecision(1);  //保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 3, SendCommuRegAddr,1000)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 3, SendCommuRegAddr,1)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);  //保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 3, SendCommuRegAddr,1000)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 3, SendCommuRegAddr,1)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1000)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -779,14 +779,14 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 3, SendCommuRegAddr,1000))" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*10, 3, SendCommuRegAddr,1))" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 3, SendCommuRegAddr,1000))" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << "*100, 3, SendCommuRegAddr,1))" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1000)" << endstr;
+            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -1016,7 +1016,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     )";
 
     ///< 写入焊接模式
-    if(curCraftInfo.graphicsSwitching != machineResource.laserHeadParams.laserSpotPattern)
+    if(curCraftInfo.craftweldMode != machineResource.laserPowerParams.weldMode)
     {
         write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
         machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
@@ -1054,7 +1054,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     if ( wireDelayTime > 2000)
     {
         writeLog("补丝延迟时间过大");
-        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+        //return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }    
     //  回抽长度panduan
     if(curCraftInfo.craftRetractionLength < 0 || curCraftInfo.craftRetractionLength > 20)
@@ -1076,7 +1076,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
         machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
         machineResource.wireFeedLengthLoc,          ///<  补丝长度地址 0x0105 261
-        machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 262
+        //machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 262
         machineResource.breakWireFeedingModeLoc ,      ///< 断丝模式地址 0x010D  (控制回抽速度)
     };
     craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, bodyScriptText);
