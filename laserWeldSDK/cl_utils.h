@@ -91,10 +91,7 @@ std::string PdoReadWriteBit(unsigned addr, int wireBitLoc,int writeValue);
 std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc,int writeValue);
 
 //常用的LUA脚本语句组装
-//set_standard_digital_out(0,true) --设置标准数字输出（偏移地址，值） CO1/2 只写不读
 std::string strSetStandardDigitalReplace(int srcStr, bool vecStr);
-//
-
 
 /* ---   读写寄存器   --- */
 //write_ect_pdo

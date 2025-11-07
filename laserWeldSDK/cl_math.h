@@ -19,7 +19,11 @@
 #define PI_HY (3.1415926535897932384626433832795)
 #define ZeroThreshold_HY (1e-8)
 
-// 三维空间向量取模
+/**
+ * @brief 向量模运算
+ * @param[in]   a   输入三维向量
+ * @return 向量模运算结果
+ */
 inline double norm_vec_HY(const double *a)
 {
     return sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
@@ -32,7 +36,6 @@ void normalized_vector_HY(const double* vec, double* result);
 // 3X3矩阵与3维向量乘法
 void matrix_vector_multiply_HY(const double* matrix, const double* vec, double* result);
 
-//向量叉乘
 /**
  * @brief vecCross  空间向量叉乘计算
  * @param xdir      输入——三维向量1
@@ -52,13 +55,25 @@ LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_A
 
 // 姿态复制(六维)
 void copy_pose_HY(const double* oldpose, double* pose);
-// pose_trans 仅支持位置，仅用于焊接时抬枪计算
+
+/**
+ * pose_trans 3D姿态变换,仅支持位置，仅用于焊接时抬枪计算
+ * @param[in] pose 输入位姿
+ * @param[in] delat_pose 增量姿态（6维数组）
+ * @param[out] new_pose 输出姿态
+ */
 void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pose);
 
+/**
+ * crc16_modbus crc16校验码计算
+ * @param[in] data  输入校验数据，单字节组成的数组
+ * @return uint16_t 校验码，低字节在前
+ */
+uint16_t crc16_modbus(const std::vector<uint8_t>& data);
 
 /**
  * 从Modbus响应报文中提取指定寄存器的值（全功能集成版）
- * @param hexResponse Modbus响应报文（如 "09030212345678"）
+ * @param hexResponse Modbus响应报文（如 "09 03 02 12 34 56 78"）
  * @param regIndex 寄存器索引（从1开始）
  * @param regLen 寄存器长度（从1开始）
  * @return 寄存器值（自动处理有符号16位）

@@ -35,7 +35,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_sdk_version_get(char* version, int* versio
 
 /**
  * @brief initMachineResource    注册焊机资源
- * @param laserMachineResource   焊机资源结构体
+ * @param[in] laserMachineResource   焊机资源结构体
  * @param laserMachineHandle     焊机资源句柄 传出参数
  * @return LaserSdkResult        处理结果
  */
@@ -43,47 +43,51 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_init(const MachineResourc
 
 /**
  * @brief updateMachineResource  更新焊机资源
- * @param laserMachineHandle     焊机资源句柄
- * @param laserMachineResource   焊机资源结构体
+ * @param[in] laserMachineHandle     焊机资源句柄
+ * @param[in] laserMachineResource   焊机资源结构体
  * @return LaserSdkResult        处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineHandle, const MachineResource* laserMachineResource);
 
 /**
  * @brief getMachineResource     获取焊机资源句柄对应的数据
- * @param laserMachineHandle     焊机资源句柄
- * @param laserMachineResource   焊机资源结构体 传出参数
+ * @param[in] laserMachineHandle     焊机资源句柄
+ * @param[out] laserMachineResource   焊机资源结构体 传出参数
  * @return LaserSdkResult        处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_get(const LaserMachineHandle laserMachineHandle, MachineResource* laserMachineResource);
 
 /**
- * @brief cw_machine_resource_release    释放焊机资源
- * @param laserMachineHandle             焊机资源句柄
+ * @brief 释放焊机资源
+ * @param[in] laserMachineHandle             焊机资源句柄
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachineHandle);
 
+/*
+*************激光焊功能接口*************
+*/
+
 /**
- * @brief cl_get_arc_start_script 获取起弧脚本
- * @param laserMachineHandle 焊机资源句柄
- * @param scripts           起弧LUA脚本 传出参数
- * @param scriptLen         脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的起弧LUA脚本大小
+ * @brief  获取起弧脚本
+ * @param[in] laserMachineHandle 焊机资源句柄
+ * @param[out] scripts           起弧LUA脚本 传出参数
+ * @param[in,out] scriptLen      脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的起弧LUA脚本大小
  * @return LaserSdkResult    处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief cl_get_arc_start_script 获取收弧脚本脚本
- * @param laserMachineHandle 焊机资源句柄
- * @param scripts           起弧LUA脚本 传出参数
- * @param scriptLen         脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的起弧LUA脚本大小
+ * @brief  获取收弧脚本脚本
+ * @param[in] laserMachineHandle 焊机资源句柄
+ * @param[out] scripts           收弧LUA脚本 传出参数
+ * @param[in,out] scriptLen      脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的收弧LUA脚本大小
  * @return LaserSdkResult    处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief cl_laser_current_craft_set_read    获取设置焊接工艺参数脚本 焊接过程中设置焊接参数
+ * @brief     获取设置焊接工艺参数脚本 焊接过程中设置焊接参数
  * @param laserMachineHandle             焊机资源句柄
  * @param script                         ArcSet脚本 传出参数
  * @param scriptLen                      脚本长度 传入时为script参数申请的空间大小，传出时为生成的ArcSet脚本大小
@@ -92,43 +96,43 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHand
 LASERWELDSDK_EXPORT LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char* script, int *scriptLen);
 
 /**
- * @brief cl_craft_weld_status_init      初始化所有焊接相关状态
- * @param laserMachineHandle             焊机资源句柄
+ * @brief       初始化所有焊接相关状态
+ * @param[in] laserMachineHandle             焊机资源句柄
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHandle);
 
 /**
- * @brief cl_craft_weld_status_init      更改焊接设备状态
- * @param laserMachineHandle             焊机资源句柄
+ * @brief       更改焊接设备状态
+ * @param[in] laserMachineHandle             焊机资源句柄
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief getStartWeldScript    获取指令列表转换后脚本
- * @param laserMachineHandle    焊机资源句柄
- * @param weldStartData         指令列表数据结构体
- * @param isWeld                是否进行焊接 false-轨迹模拟 true-开始焊接
- * @param scripts               指令列表LUA脚本 传出参数
- * @param scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
+ * @brief       获取指令列表转换后脚本
+ * @param[in] laserMachineHandle    焊机资源句柄
+ * @param[in] weldStartData         指令列表数据结构体
+ * @param[in] isWeld                是否进行焊接 false-轨迹模拟 true-开始焊接
+ * @param[out] scripts              指令列表LUA脚本 传出参数
+ * @param[out] scriptLen            脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
  * @return LaserSdkResult        处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char* scripts, int* scriptLen);
 
 /**
- * @brief cl_craft_inst_devices_params_script_get    获取修改工艺参数生效后脚本
- * @param laserMachineHandle    焊机资源句柄
- * @param craftInfo         指令列表数据结构体
- * @param scripts               指令列表LUA脚本 传出参数
- * @param scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
+ * @brief       获取修改工艺参数生效后脚本
+ * @param[in] laserMachineHandle    焊机资源句柄
+ * @param[in] craftInfo         指令列表数据结构体
+ * @param[out] scripts               指令列表LUA脚本 传出参数
+ * @param[out] scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
  * @return LaserSdkResult        处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char* scripts, int* scriptLen);
 
 
 /**
- * @brief cl_craft_end_arc_subprogram_script_get 获取收弧子程序脚本
+ * @brief  获取收弧子程序脚本
  * @param[in] laserMachineHandle        焊机资源句柄
  * @param[out] scripts                   ArcEndSubProgramScript 的LUA脚本 传出参数
  * @param[out] scriptLen                 脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的ArcSet的LUA脚本大小
@@ -137,31 +141,13 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief cl_craft_after_weld_end_operate_script_get  获取焊接结束后操作的脚本
+ * @brief   获取焊接结束后操作的脚本
  * @param[in] laserMachineHandle            焊机资源句柄
  * @param[out] scripts                       生成的LUA脚本 传出参数
  * @param[out] scriptLen                     脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的LUA脚本大小
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHandle laserMachineHandle,char* scripts, int* scriptLen);
-
-/**
- * @brief getLapRollbackCirclePoint     获取直线轨迹——根据终点和降功率点获取新的起点和终点
- * @param[in] laserMachineHandle        激光器句柄
- * @param rollbackStraightLineData      直线回退参数
- * @return LaserSdkResult                处理结果
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackStraightLineData* rollbackStraightLineData);
-
-
-/**
- * @brief getLapRollbackCirclePoint     获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
- * @param laserMachineHandle            激光器句柄
- * @param rollbackCircleData            圆弧回退参数
- * @return LaserSdkResult               处理结果
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData);
-
 
 /**
  * @brief getLapRollbackCirclePoint     缓升缓降 起弧
@@ -189,6 +175,30 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachin
  * @return LaserSdkResult                    处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
+
+/*
+*************机器人控制*************
+*/
+
+/**
+ * @brief getLapRollbackCirclePoint     获取直线轨迹——根据终点和降功率点获取新的起点和终点
+ * @param[in] laserMachineHandle        激光器句柄
+ * @param[in,out] rollbackStraightLineData      直线回退参数
+ * @return LaserSdkResult                处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackStraightLineData* rollbackStraightLineData);
+
+
+/**
+ * @brief getLapRollbackCirclePoint     获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
+ * @param laserMachineHandle            激光器句柄
+ * @param rollbackCircleData            圆弧回退参数
+ * @return LaserSdkResult               处理结果
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData);
+
+
+
 
 /**
  * @brief  计算抬枪后的姿态

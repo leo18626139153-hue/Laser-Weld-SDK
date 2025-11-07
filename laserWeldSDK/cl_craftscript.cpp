@@ -361,7 +361,7 @@ void CommuRS485::initData()
                 timeout = 310
             end
             if tryTimes <= 0 then
-                print(string.format("发送超时 | 端口号 - ".. comNo .."|长度 - "..CommuReg_n.."| 报文类型 - "..SendDataType.." |起始地址 - 0x%04X"), SendCommuRegAddr)
+                print(string.format("发送超时|起始地址-0x%04X", addr_value_map[1][1]))
                 --write_int16_register(RecvCommuRegAddr, addr_value_map[1][1])
                 return 0
             end
@@ -376,8 +376,8 @@ void CommuRS485::initData()
         "	bool_register_clear(SendCommuRegAddr, SendCommuReg_n)\n"
         "	register_clear(RecvCommuRegAddr, RecvCommuReg_n)\n"
         "	----------高低字节拆分计算校验码---------    \n"
-        "	local data1=Lua_split(function_code)    \n"
-        "	local data2=Lua_split(port_address)     \n"
+        "	local data1=Lua_split(function_code)     \n"
+        "	local data2=Lua_split(port_address)      \n"
         "    local data3=Lua_split(parameter_value)  \n"
         "	local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}\n"
         "	local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转    \n"
@@ -391,10 +391,10 @@ void CommuRS485::initData()
         "    --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间\n"
         "	serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType,RecvCommuRegAddr)\n"
         "    --等待接收结果\n"
-        "    local timeout = 500\n"
-        "	print(\"等待接收结果...\",read_int16_register(RecvCommuRegAddr))\n"
-        "    while(read_int16_register(RecvCommuRegAddr) == 0 and timeout > 0) do\n"
-        "		print(\"等待接收结果...\")\n"
+        "    local timeout = 500    \n"
+        "	print(\"等待接收结果...\",read_int16_register(RecvCommuRegAddr))  \n"
+        "    while(read_int16_register(RecvCommuRegAddr) == 0 and timeout > 0) do   \n"
+        "		print(\"等待接收结果...\")    \n"
         "        wait(10)\n"
         "        timeout = timeout - 10\n"
         "    end\n"
@@ -567,8 +567,6 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     }
     else if (laserSwitch == SWITCH_OFF_LASER_SDK)
     {
-//        dataFunction = "gasWaitTime =" + std::to_string(gasWaitTime) + "\n";
-//        startDataScripts.emplace("gasWaitTime", dataFunction);//预置参数脚本
         writeFunction =
         R"(
         function arc_stop()
@@ -578,16 +576,15 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
             while true do
                 --检测开始信号
                 if true then
-                    --送气使能关
-                    set_configurable_digital_out(1, false)  ---CO1 = 1
-                    set_configurable_digital_out(0, false)  ---CO0 = 1
+                    set_configurable_digital_out(1, false)
+                    set_configurable_digital_out(0, false)
                     print("收弧成功")
                     break
                 else
                     retry_times = retry_times - 1
                     if(retry_times < 1) then
-                        set_configurable_digital_out(0, false)  ---CO0 = 0
-                        set_configurable_digital_out(1, false)  ---CO1 = 0
+                        set_configurable_digital_out(0, false)
+                        set_configurable_digital_out(1, false)
                         print("收弧异常")
                         write_integer_register(675, 1) --收弧异常信号
                         break
@@ -605,7 +602,6 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
 //485 起收弧运行指令
 LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startSwitch, std::string &script)
 {
-    //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
     {
         return HANDLE_ERROR_LASER_SDK;
@@ -613,7 +609,6 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     //获取脚本
     craft_script_arc_function_switch_script_get(laserMachineHandle, startSwitch);
-    //预置参数
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
         int gasWaitTime = machineResource.laserPowerParams.gasStartupAdvanceTime;
@@ -730,9 +725,7 @@ LaserSdkResult CommuRS485::craft_laser_mul_params_set_script_get(LaserMachineHan
     std::unordered_map<uint16_t, uint16_t> crc16_modbus_map;
     try {
         // 激光器参数校验
-
         crc16_modbus_map.emplace(machineResource.laserPowerLoc, machineResource.laserPowerParams.laserPower);   //激光功率
-
         crc16_modbus_map.emplace(machineResource.gasONDelayLoc, machineResource.laserPowerParams.gasStartupAdvanceTime);   //提前送气时间
         crc16_modbus_map.emplace(machineResource.gasOffDelayLoc, machineResource.laserPowerParams.gasShutoffDelayTime);   //滞后送气时间
         crc16_modbus_map.emplace(machineResource.laserHeadYScaleLoc, machineResource.laserPowerParams.laserHeadYEnlarge);   //激光头Y轴缩放
@@ -1437,9 +1430,6 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_program_run_script_get(LaserMac
     {
         return HANDLE_ERROR_LASER_SDK;
     }
-    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-
-    int laserSwitchIsOpen = 0 ;
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {

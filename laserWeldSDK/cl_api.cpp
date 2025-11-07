@@ -1395,18 +1395,14 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     {
         return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
     }
-    //将脚本存入示教器日志中
     else
     {
-        // 打开文件进行写入
-        std::ofstream outFile("script.txt");
-
+        // 打开文件 写入脚本
+        std::ofstream outFile("device_status_modify_script.txt");
         if (!outFile) {
             std::cerr << "无法打开文件进行写入！" << std::endl;
         }
         outFile << scripts;
-
-        // 关闭文件
         outFile.close();
     }
 
