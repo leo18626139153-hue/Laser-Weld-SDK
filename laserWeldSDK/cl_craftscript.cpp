@@ -1298,7 +1298,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "openLightTime = " + std::to_string(laserPowerParams.laserRampUpTime) + "\n" +
                     "wirefeedeOpenSendSpeed = " + std::to_string(wireFeederParams.wireFeederStartMotorSpeed) + "\n" +
                     "wirefeedeWeldSendSpeed = " + std::to_string(wireFeederParams.wireFeederMotorSpeed) + "\n" +
-                    "write_value_port(0x0906," + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + ", openPower,3,0,1000)" + "\n" +
+                    "write_value_port(0x0906," + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + ", openPower,3,0,1)" + "\n" +
                     "write_value_port(0x0A06," + std::to_string(machineResource.autoWireFeedSpeedLoc) + ", wirefeedeOpenSendSpeed,2,0,1000)";
             std::ostringstream oss ;
             oss<<R"(
@@ -1312,8 +1312,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     print("num---------",num)
                     if num < 1 then
                         --缓升距离过短直接起弧，设置起弧功率和送丝速度即可
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,1000)
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,1000)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,1)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,1)
                         return
                     end
                     -- 计算每次降多少
@@ -1323,8 +1323,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     -- 循环逐步调整功率和送丝速度
                     for i = 1, num do
                         print("power: ", i)
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,openPower + (powerSingle * i),3,0,1000)
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeOpenSendSpeed + (speedSingle * i),2,0,1000)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,openPower + (powerSingle * i),3,0,1)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeOpenSendSpeed + (speedSingle * i),2,0,1)
                     end
                     print("缓升结束!")
                 end
@@ -1400,11 +1400,11 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                         if flag == 1 then
                             break
                         end
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0,1000)
+                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0,1)
                         if flag == 1 then
                             break
                         end
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0,1000)
+                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0,1)
                     end
                     print("缓降结束！")
 
