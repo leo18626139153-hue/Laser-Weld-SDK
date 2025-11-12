@@ -14,6 +14,9 @@ LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandl
 //找点位
 LaserSdkResult GetPrePoints(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData);
 
+//对比CraftInfoLaserSdk里面的参数相较machineResource是否发生了改变
+LaserSdkResult CheckValues(LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk &craftInfoLaserSdk);
+
 /**
  * @brief GetBasicCraftScript    基本工艺指令列表的转换
  * @param laserMachineHandle     焊机资源句柄

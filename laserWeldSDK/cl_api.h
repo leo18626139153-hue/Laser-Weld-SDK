@@ -96,21 +96,21 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHand
 LASERWELDSDK_EXPORT LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char* script, int *scriptLen);
 
 /**
- * @brief       初始化所有焊接相关状态
- * @param[in] laserMachineHandle             焊机资源句柄
+ * @brief     初始化所有焊接相关状态
+ * @param[in] laserMachineHandle          焊机资源句柄
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHandle);
 
 /**
- * @brief       更改焊接设备状态
+ * @brief     更改焊接设备状态
  * @param[in] laserMachineHandle             焊机资源句柄
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
 
 /**
- * @brief       获取指令列表转换后脚本
+ * @brief     获取指令列表转换后脚本
  * @param[in] laserMachineHandle    焊机资源句柄
  * @param[in] weldStartData         指令列表数据结构体
  * @param[in] isWeld                是否进行焊接 false-轨迹模拟 true-开始焊接
@@ -121,7 +121,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMach
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char* scripts, int* scriptLen);
 
 /**
- * @brief       获取修改工艺参数生效后脚本
+ * @brief     获取修改工艺参数生效后脚本
  * @param[in] laserMachineHandle    焊机资源句柄
  * @param[in] craftInfo         指令列表数据结构体
  * @param[out] scripts               指令列表LUA脚本 传出参数
@@ -130,9 +130,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMach
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char* scripts, int* scriptLen);
 
-
 /**
- * @brief  获取收弧子程序脚本
+ * @brief     获取收弧子程序脚本
  * @param[in] laserMachineHandle        焊机资源句柄
  * @param[out] scripts                   ArcEndSubProgramScript 的LUA脚本 传出参数
  * @param[out] scriptLen                 脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的ArcSet的LUA脚本大小
@@ -181,7 +180,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const
 */
 
 /**
- * @brief getLapRollbackCirclePoint     获取直线轨迹——根据终点和降功率点获取新的起点和终点
+ * @brief     获取直线轨迹——根据终点和降功率点获取新的起点和终点
  * @param[in] laserMachineHandle        激光器句柄
  * @param[in,out] rollbackStraightLineData      直线回退参数
  * @return LaserSdkResult                处理结果
@@ -190,18 +189,15 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(const L
 
 
 /**
- * @brief getLapRollbackCirclePoint     获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
+ * @brief 获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
  * @param laserMachineHandle            激光器句柄
  * @param rollbackCircleData            圆弧回退参数
  * @return LaserSdkResult               处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData);
 
-
-
-
 /**
- * @brief  计算抬枪后的姿态
+ * @brief 计算抬枪后的姿态
  * @param laserMachineHandle        焊机资源句柄
  * @param pose                      抬枪前的姿态(位置+轴角(角度))
  * @param joint                     抬枪前参考关节角
@@ -212,8 +208,12 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(const LaserMac
  */
 LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double* pose, const double* joint, const double liftDistance, double* liftPose, double* liftJoint);
 
+/*
+*************Modbus报文相关*************
+*/
+
 /**
- * @brief 根据对应的地址以及对应参数值，生成出对应的报文
+ * @brief     根据对应的地址以及对应参数值，生成出对应的报文
  * @param[in] laserMachineHandle             焊接资源句柄
  * @param[in] firstAddr                      激光焊资源地址
  * @param[in] parameter                      参数值
@@ -235,9 +235,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle 
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message);
 
-
 /**
- * @brief         将变量写入Int16寄存器
+ * @brief     将报文写入Int16寄存器
  * @param[in] laserMachineHandle             焊接资源句柄
  * @param[in] firstRegister                  要写入的起始地址
  * @param[in] registerNums                   要写入的寄存器个数,报文长度除以2
@@ -247,7 +246,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_bool_register(const Laser
 LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message);
 
 /**
- * @brief    将状态监控报文写入Int32寄存器,占用24个内存
+ * @brief     将状态监控报文写入Int32寄存器,占用24个内存
  * @param[in] laserMachineHandle             焊接资源句柄
  * @param[in] firstRegister                  要写入的起始地址
  * @return LaserSdkResult                    处理结果

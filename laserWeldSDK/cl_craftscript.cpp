@@ -182,9 +182,9 @@ void CommuRS485::initData()
         -- 处理负数 转换为无符号16位整数
         local value = dataSplit < 0 and (65536 + dataSplit) or dataSplit
         -- 获取低字节 (通过与操作获取低8位)
-        local low_byte = dataSplit & 0xFF
+        local low_byte = value & 0xFF
         -- 获取高字节 (右移8位)
-        local high_byte = dataSplit >> 8
+        local high_byte = value >> 8
         return {high_byte, low_byte}
     end
     )";
@@ -952,8 +952,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     // 气体关闭延时 --滞后送气时间
     write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n";
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
-
-
     //激光头扫描速度
     write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n";
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;
@@ -964,7 +962,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     if(curCraftInfo.craftLaserPower > machineResource.laserPowerParams.laserPower){
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    //write_laser_params += "    laserHeadRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLaserPower)+"\n";
     write_laser_params += "    laserHeadRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInPower)+"\n";  //  峰值功率从开光功率开始升
     machineResource.laserHeadParams.laserHeadPeakPower = curCraftInfo.craftLaserPower;
     //占空比
@@ -1069,7 +1066,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
         machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
         machineResource.wireFeedLengthLoc,          ///<  补丝长度地址 0x0105 261
-        //machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 262
+        //machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 暂时开放
         machineResource.breakWireFeedingModeLoc ,      ///< 断丝模式地址 0x010D  (控制回抽速度)
     };
     craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, bodyScriptText);

@@ -517,7 +517,7 @@ struct RollbackStraightLineData
     double refJoint[6];             ///<参考关节角度
 
     double pointOut[6];             ///<降功率点 - 出参
-    double pointJointOut[6];    ///<降功率点关节 - 出参
+    double pointJointOut[6];        ///<降功率点关节 - 出参
 };
 
 

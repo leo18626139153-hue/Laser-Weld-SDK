@@ -301,3 +301,54 @@ int distributionID(std::unordered_set<int> &IDSet)
     IDSet.insert(instID);
     return instID;
 }
+
+LaserSdkResult CheckValues(LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk &craftInfoLaserSdk)
+{
+    CommuBase* craftCommu = nullptr;
+    LaserSdkResult result = craft_script_commu_class_get(laserMachineHandle, craftCommu);
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+    {
+        return result;
+    }
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
+    std::vector<unsigned int> laserPowerVec;
+    // 激光器参数修改
+    if(craftInfoLaserSdk.craftweldMode != laserPowerParams.weldMode)
+    {
+        laserPowerParams.weldMode = craftInfoLaserSdk.craftweldMode;
+        laserPowerVec.push_back(machineResource.spotWeldTypeLoc);
+        if(laserPowerParams.weldMode == WeldModeLaserSdk::SPOT_LASER_SDK)
+        {
+            if(laserPowerParams.spotWeldDurationTime != craftInfoLaserSdk.craftSpotWeldDuration)
+            {
+                laserPowerParams.spotWeldDurationTime = craftInfoLaserSdk.craftSpotWeldDuration;
+                laserPowerVec.push_back(machineResource.spotWeldDurationLoc);
+            }
+            if(laserPowerParams.spotWeldIntervalTime != craftInfoLaserSdk.craftSpotWeldInterval)
+            {
+                laserPowerParams.spotWeldIntervalTime = craftInfoLaserSdk.craftSpotWeldInterval;
+                laserPowerVec.push_back(machineResource.spotWeldIntervalLoc);
+            }
+        }
+    }
+    if (laserPowerParams.laserPower != craftInfoLaserSdk.craftLaserPower)
+        return PARAMETER_ERROR_LASER_SDK;
+    if (laserPowerParams.laserPowerOpen < 0 || laserPowerParams.laserPowerOpen > 5000)
+        return PARAMETER_ERROR_LASER_SDK;
+    if (laserPowerParams.laserRampUpTime < 0 || laserPowerParams.laserRampUpTime > 1000)
+        return PARAMETER_ERROR_LASER_SDK;
+    if (laserPowerParams.laserPowerClose < 0 || laserPowerParams.laserPowerClose > 5000)
+        return PARAMETER_ERROR_LASER_SDK;
+
+
+    if (laserPowerParams.laserHeadYOffset < -3 || laserPowerParams.laserHeadYOffset > 3)
+        return PARAMETER_ERROR_LASER_SDK;//    Y偏移 -3~+3mm
+    if (laserPowerParams.laserHeadXEnlarge < 0.01 || laserPowerParams.laserHeadXEnlarge > 4)
+        return PARAMETER_ERROR_LASER_SDK;//    X放大 0.01~4
+    if (laserPowerParams.laserHeadYEnlarge < 0.01 || laserPowerParams.laserHeadYEnlarge > 4)
+        return PARAMETER_ERROR_LASER_SDK;//    Y放大 0.01~4
+    if (laserPowerParams.spotWeldDurationTime < 0 || laserPowerParams.spotWeldDurationTime > 60000)
+
+    return SUCCESS_LASER_SDK;
+}
