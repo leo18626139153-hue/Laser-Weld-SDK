@@ -18,49 +18,28 @@ uint16_t crc16Modbus(const std::vector<uint8_t> &data)
 
 std::vector<uint8_t> buildMessageVector(const std::map<uint16_t, uint16_t> &locVec, uint8_t slave, uint8_t funcCode)
 {
-    std::vector<uint8_t> message;
-    putByte(message, slave);
-    putByte(message, funcCode);
-    auto processFunc = [&](uint16_t addr, uint16_t value) {
+    std::vector<uint8_t> messageVec;
+    auto processFunc = [&](uint16_t addr, uint16_t value, std::vector<uint8_t> message) {
         putDoubleBytes(message, addr);
         putDoubleBytes(message, value);
     };
-    switch (funcCode)
+    if(funcCode == 0x06)
     {
-    case 0x06: // 写单个寄存器
-        // 检查locVec是否只有一个元素
-        if (locVec.size() != 1) {
-            throw std::runtime_error("Write single register function requires exactly one address-value pair");
-        }
+        // 写单个寄存器
+        std::vector<uint8_t> calMessage;
         for (const auto &pair : locVec) {
-            processFunc(pair.first, pair.second);
+            putByte(calMessage, slave);     //从站号
+            putByte(calMessage, funcCode);  //功能码
+            processFunc(pair.first, pair.second, calMessage);   //地址；参数
+            // 计算CRC
+            uint16_t crcValue = crc16Modbus(calMessage);
+            putDoubleBytes(calMessage, crcValue);
+            messageVec.insert(messageVec.end(), calMessage.begin(), calMessage.end());
+            messageVec.clear();
         }
-        break;
-    case 0x10: // 写多个寄存器
-        putDoubleBytes(message, locVec.begin()->first); // 写入起始地址
-        putByte(message, static_cast<uint8_t>(locVec.size() * 2)); // 写入寄存器数量，每个寄存器占2个字节
-        for (const auto &pair : locVec) {
-            if (pair.first != locVec.begin()->first + (&pair - &(*locVec.begin())))
-            {
-                break;
-            }            
-            putDoubleBytes(message, pair.second);
-        }
-        break;
-    case 0x03: // 读多个寄存器
-        // 处理读多个寄存器的逻辑
-        putDoubleBytes(message, locVec.begin()->first); // 写入起始地址
-        putDoubleBytes(message, static_cast<uint16_t>(locVec.size())); // 写入寄存器数量        
-        break;    
-    default:
-        break;
     }
-    
-    // 计算CRC
-    uint16_t crcValue = crc16Modbus(message);
-    putDoubleBytes(message, crcValue);
     // 返回报文向量
-    return message;
+    return messageVec;
 }
 
 LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, const std::vector<uint8_t> &message, int registerType, unsigned int firstRegister, unsigned int registerNums)

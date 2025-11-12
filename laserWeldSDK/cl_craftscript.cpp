@@ -2,6 +2,7 @@
 #include "cl_api.h"
 #include "cl_utils.h"
 #include "cl_luascript.h"
+#include "cl_comandlistscript.h"
 #include <sstream>
 #include <mutex>
 #include <random>
@@ -314,6 +315,7 @@ void CommuRS485::initData()
             end
             if tryTimes <= 0 then
                 print(string.format("超时首地址 : 0x%04X", port_address))
+                write_integer_register(999, port_address)
                 return 0
             end
         end
@@ -362,7 +364,7 @@ void CommuRS485::initData()
             end
             if tryTimes <= 0 then
                 print(string.format("发送超时|起始地址-0x%04X", addr_value_map[1][1]))
-                --write_int16_register(RecvCommuRegAddr, addr_value_map[1][1])
+                write_integer_register(999, addr_value_map[1][1])
                 return 0
             end
         end
@@ -535,6 +537,10 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     function arc_start()
         --起弧脚本
         write_integer_register(673, 0) --起弧异常信号清空
+        if read_integer_register(999) ~= 0 then
+            print(string.format("起弧异常，超时 : 0x%04X", read_integer_register(999)))
+            return
+        end
         local retry_times = 5
         while true do
             --检测开始信号
@@ -555,7 +561,6 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
                     set_configurable_digital_out(0, false)  ---CO0 = 0
                     print("起弧失败")
                     --送气使能关
-                    write_value_port(0x0906, 0x0031, 0, 3, SendCommuRegAddr,500)
                     write_integer_register(673, 1) --起弧异常信号
                     break
                 end
@@ -802,7 +807,6 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     addParam(int16Reg, laserHeadParams.laserHeadSpinAngle, machineResource.laserHeadRotationAngleLoc);
     // 9. 写入图形（特殊处理）图形
     addParam(int16Reg, static_cast<int>(laserHeadParams.laserSpotPattern), machineResource.laserHeadPatternIdLoc);
-
     //脉冲频率低地址 (5~100000HZ, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
     //写入脉冲频率高地址 (5~100000HZ, 整型)
@@ -952,6 +956,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     // 气体关闭延时 --滞后送气时间
     write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n";
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
+
     //激光头扫描速度
     write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n";
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;
@@ -1032,6 +1037,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
             break;
         }
     }
+    bodyScriptText += strWriteInt32RegReplace(999, 0);  //存放超时地址的寄存器
     bodyScriptText += write_laser_params;
     bodyScriptText += write_weld_params;
     // 送丝机参数
@@ -1058,7 +1064,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝sudu
     machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝sudu
 
-    machineResource.wireFeederParams.craftEndingwireRetraction = curCraftInfo.craftEndingwireRetraction; ///<断丝模式
     machineResource.wireFeederParams.craftEndingwireRetraction = curCraftInfo.craftEndingwireRetraction; ///<断丝模式
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
@@ -1110,7 +1115,7 @@ LaserSdkResult CommuRS485::craft_script_laser_value_check_script_get(LaserMachin
     return SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult CommuRS485::craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string &script)
+LaserSdkResult CommuRS485::craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle)
 {
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     CgxiLaserHeadLaserSdk &laserHeadParams = machineResource.laserHeadParams;
@@ -1437,4 +1442,23 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_program_run_script_get(LaserMac
         script += "slow_arc_stop()\n";
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo, std::string &script)
+{
+    std::vector<unsigned int> laserVec;
+    std::vector<unsigned int> laserHeadVec;
+    std::vector<unsigned int> wireVec;
+    LaserSdkResult res;
+    res = CraftInfo2MachineResource(laserMachineHandle, craftInfo, laserVec, laserHeadVec, wireVec);
+    if(res != SUCCESS_LASER_SDK)
+        return res;
+    res = craft_laser_param_set_script_get(laserMachineHandle, laserVec,script);
+    if(res != SUCCESS_LASER_SDK)
+        return res;
+    res = craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, script);
+    if(res != SUCCESS_LASER_SDK)
+        return res;
+    res = craft_wire_feeder_param_set_script_get(laserMachineHandle, wireVec, script);
+    return res;
 }

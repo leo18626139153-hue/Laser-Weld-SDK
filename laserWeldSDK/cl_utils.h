@@ -144,7 +144,7 @@ std::string strReadFloatRegReplace(T returnStr, Y addrStr)
 }
 //write_bool_register
 template<typename T, typename Y>
-inline std::string strWriteBoolRegReplace(T srcStr, Y vecStr)
+std::string strWriteBoolRegReplace(T srcStr, Y vecStr)
 {
     return strReplace(strReplace("write_bool_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
@@ -167,6 +167,12 @@ template <typename X, typename Y, typename Z, typename N, typename M, typename P
 std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6)
 {
     return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4), "%5", data5), "%6", data6);
+}
+
+template <typename S, typename T, typename X, typename Y, typename Z, typename N, typename M, typename P>
+std::string strMoveCReplace(S points0, T joints0, X points1, Y joints1, Z speed, N acc, M radius, P data6)
+{
+    
 }
 
 /// 比较两个浮点数是否相等的函数

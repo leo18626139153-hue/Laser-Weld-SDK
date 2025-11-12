@@ -476,7 +476,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         }
                         if(isWeld)
                         {
-                            LaserSdkResult result = curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
+                            LaserSdkResult result = curCommuFunction->craft_script_write_craft_resource_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
                             if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                             {
                                 return result;

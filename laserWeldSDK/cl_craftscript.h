@@ -8,6 +8,7 @@
 
 
 
+
 class CommuBase
 {
 protected:
@@ -39,7 +40,7 @@ public:
     //参数检查
     virtual LaserSdkResult craft_script_laser_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
     //激光头参数检查
-    virtual LaserSdkResult craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
+    virtual LaserSdkResult craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle) = 0;
     //送丝机参数检查
     virtual LaserSdkResult craft_script_wire_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
     //单次状态监控子程序
@@ -50,8 +51,9 @@ public:
     virtual LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
 
     virtual LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
-    //获取配置焊机并起弧脚本
-    //virtual LaserSdkResult craft_script_configure_machine_arc_start_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
+    //将CraftInfo中的参数逐个判断并写入到machineResource
+    virtual LaserSdkResult craft_script_write_craft_resource_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo, std::string& script) = 0;
+
 public:
     //与具体通讯形式无关的功能函数
     //获取判断当前是否进行单步运行脚本
@@ -116,7 +118,7 @@ public:
     //激光器参数检查
     LaserSdkResult craft_script_laser_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //激光头参数检查
-    LaserSdkResult craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
+    LaserSdkResult craft_script_head_value_check_script_get(LaserMachineHandle laserMachineHandle) override;
     //送丝机参数检查
     LaserSdkResult craft_script_wire_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) override;
     //单次状态监控子程序
@@ -128,7 +130,7 @@ public:
     //缓升缓降 起收弧执行程序
     LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
 
-
+    LaserSdkResult craft_script_write_craft_resource_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo, std::string& script) override;
 };
 
 #endif // COMMUBASE_H

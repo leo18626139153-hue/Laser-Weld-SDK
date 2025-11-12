@@ -312,8 +312,8 @@ typedef struct MachineResource
     unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
     unsigned int wireFeedLengthLoc;          ///<  补丝长度地址 0x0105 261
     unsigned int wireFeedBackDelayLoc;       ///<  补丝延迟时间地址 0x0106 262
-    unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0 停    1	运行)  0x0140  320
-    unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停    1 运行)  0x0141  321
+    unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0 停 1 运行)  0x0140  320
+    unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停 1 运行)  0x0141  321
 
     unsigned int breakWireFeedingModeLoc;       ///< 断丝模式地址 0x010D  (控制回抽速度)
     unsigned int delayWireFeedingLoc;           ///< 运行状态地址 0x0115
