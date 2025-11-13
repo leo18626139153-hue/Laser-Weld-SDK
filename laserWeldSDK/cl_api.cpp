@@ -466,21 +466,10 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                     {
                         bodyScriptText += "----change present craft----\n";
                         CraftInfoLaserSdk curCraftInfo = craftsMap[instID];
-                        if (!isWeld)
+                        LaserSdkResult result = curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
+                        if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                         {
-                            LaserSdkResult result = curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
-                            if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                            {
-                                return result;
-                            }
-                        }
-                        if(isWeld)
-                        {
-                            LaserSdkResult result = curCommuFunction->craft_script_write_craft_resource_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
-                            if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                            {
-                                return result;
-                            }
+                            return result;
                         }
 
                     }
@@ -521,10 +510,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         bodyScriptText += "--circlePoint--\n";
                         int nextCirclePointID = listLocToTypeID[currentInstLoc + 1].second;
                         //点1 ，点2， 速度， 加速度， 过渡半径(单位为 mm) ， 旋转方向(0为顺时针，1为逆时针)
-                        bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n",
-                            {doubleArray2Str(tempPointsMap[instID].pose, 6), 
-                             doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6),
-                            std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(emptyPointTransitionRadius), std::to_string(0)});
+                        bodyScriptText += strMoveCReplace(
+                                    doubleArray2Str(tempPointsMap[instID].pose, 6),
+                                    doubleArray2Str(tempPointsMap[instID].joint, 6),
+                                    doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6),
+                                    doubleArray2Str(tempPointsMap[nextCirclePointID].joint, 6),
+                                    std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc),std::to_string(emptyPointTransitionRadius), std::to_string(0));
                         if (!isWeld)
                         {
                             bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
@@ -731,7 +722,6 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
 
     --程序停止后自动收弧
     function stop_func()
-        set_configurable_digital_out(0, false)  ---CO0 = 0
         set_configurable_digital_out(1, false)  ---CO1 = 0
         if(read_integer_register(614) == 1) then -- 程序停止后自动收弧开启状态位
             endArcing()
@@ -748,6 +738,7 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
         while(true)
         do
             endArcing()
+            write_integer_register(821, 0)  -- 清空超时寄存器
             write_integer_register(614, 0)  -- 自动收弧复位
             sync()
         end
@@ -756,6 +747,7 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
 
     function resume_func()
         write_bool_register(600, 0)     -- 末端按钮拖动位
+        set_configurable_digital_out(1, true)  ---CO1 = 0
         write_integer_register(614, 1)  -- 自动收弧信号
         sync()
     end

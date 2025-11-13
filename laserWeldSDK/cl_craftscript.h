@@ -17,7 +17,7 @@ protected:
     std::map<std::string, std::string> startDataScripts; //初始化变量
     std::string loadLuaFunctionScript;
 public:
-    CommuBase(){};
+    CommuBase(){}
     virtual ~CommuBase(){}
 
 
@@ -51,7 +51,7 @@ public:
     virtual LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
 
     virtual LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
-    //将CraftInfo中的参数逐个判断并写入到machineResource
+    //将CraftInfo中的参数逐个判断并写入到machineResource,焊接过程中修改工艺参数
     virtual LaserSdkResult craft_script_write_craft_resource_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo, std::string& script) = 0;
 
 public:

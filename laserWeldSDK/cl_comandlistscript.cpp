@@ -78,7 +78,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
         if (listLocToTypeID.count(instLoc) != 0)
         {
             InstTypeLaserSdk instType = listLocToTypeID[instLoc].first; ///< 指令类型
-            int typeID = listLocToTypeID[instLoc].second; 
+            int typeID = listLocToTypeID[instLoc].second;
             // 根据指令类型生成相应的脚本
             switch (instType)
             {
@@ -86,17 +86,22 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             {    
                 // 工艺模板指令
                 bodyScriptText += "--CRAFT_SELECT--\n";
-                if(isWelding)
+                std::string scriptTmp;
+                result = craftCommu->craft_script_write_craft_resource_script_get(laserMachineHandle, curCraftInfo, scriptTmp);
+                if(result != LaserSdkResult::SUCCESS_LASER_SDK)
+                    return result;
+                if(isWeld)
                 {
-                    result = craftCommu->craft_script_write_craft_resource_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                        return result;
+                    std::ostringstream oss;
+                    oss <<  "set_configurable_digital_out(1, false)\n";
+                    oss <<  scriptTmp ;
+                    oss <<  "set_configurable_digital_out(1, true)\n";
+                    bodyScriptText += oss.str();
                 }
                 else {
-                    result = craftCommu->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                        return result;
+                    bodyScriptText += scriptTmp;
                 }
+
                 break;
             }
             case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
@@ -239,8 +244,12 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 bodyScriptText += "--circlePoint--\n";
                 int nextCirclePointID = listLocToTypeID[instLoc+1].second;
                 //int typeID = listLocToTypeID[instLoc].second; 
-                bodyScriptText += strMoveCReplace(doubleArray2Str(tempPointsMap[typeID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(speed), std::to_string(acc), std::to_string(transRadius), std::to_string(0));
-                //bodyScriptText += strReplace("movec(%1,%2,%3,%4,%5,%6)\n", {doubleArray2Str(tempPointsMap[typeID].pose, 6), doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6), std::to_string(speed), std::to_string(acc), std::to_string(transRadius), std::to_string(0)});
+                bodyScriptText += strMoveCReplace(
+                            doubleArray2Str(tempPointsMap[typeID].pose, 6),
+                            doubleArray2Str(tempPointsMap[typeID].joint, 6),
+                            doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6),
+                            doubleArray2Str(tempPointsMap[nextCirclePointID].joint, 6),
+                            std::to_string(speed), std::to_string(acc), std::to_string(transRadius), std::to_string(0));
                 //跳过下一个圆弧定点并将最后一个定点的列表位置复制为下一个圆弧定点的位置
                 instLoc++;
                 if(!isWeld)

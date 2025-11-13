@@ -172,7 +172,15 @@ std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6
 template <typename S, typename T, typename X, typename Y, typename Z, typename N, typename M, typename P>
 std::string strMoveCReplace(S points0, T joints0, X points1, Y joints1, Z speed, N acc, M radius, P data6)
 {
-    
+    return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6,%7,%8)\n",
+                                                                                                   "%1", points0),
+                                                                                        "%2", joints0),
+                                                                             "%3", points1),
+                                                                  "%4", joints1),
+                                                       "%5", speed),
+                                            "%6", acc),
+                                 "%7", radius),
+                      "%8", data6);
 }
 
 /// 比较两个浮点数是否相等的函数
