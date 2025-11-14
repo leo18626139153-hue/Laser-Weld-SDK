@@ -22,21 +22,19 @@ SOURCES += \
     cl_api.cpp \
     cl_comandlistscript.cpp \
     cl_craftscript.cpp \
-    cl_gradualriseandfall.cpp \
-    cl_luascript.cpp \
+    cl_message_prase.cpp \
     cl_math.cpp \
     cl_utils.cpp
 
 HEADERS += \
     cl_api.h \
     cl_basedefine.h \
-    cl_gradualriseandfall.h \
     cl_math.h \
     cl_utils.h \
     cl_comandlistscript.h \
     cl_craftscript.h \
     cl_internaldatadefine.h \
-    cl_luascript.h \
+    cl_message_prase.h \
     cr_sdk/include/basestruct.h \
     cr_sdk/include/robotapi.h \
 

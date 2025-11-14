@@ -2,7 +2,7 @@
 #include "cl_utils.h"
 #include "cl_internaldatadefine.h"
 #include "cl_craftscript.h"
-#include "cl_luascript.h"
+#include "cl_message_prase.h"
 #include "cl_math.h"
 
 //返回相应的工艺通讯
@@ -326,7 +326,6 @@ LaserSdkResult CraftInfo2MachineResource(LaserMachineHandle laserMachineHandle, 
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
-    machineResource.robotParams.weldTCPAcc = craftInfoLaserSdk.craftWeldingSpeed;///焊接加速度
     /**开关光**/
     laserPowerParams.laserPowerOpen = craftInfoLaserSdk.craftLeadInPower;       /// 开光功率
     laserPowerParams.laserRampUpTime = craftInfoLaserSdk.craftLeadInRampTime;   /// 开光时间
@@ -338,104 +337,50 @@ LaserSdkResult CraftInfo2MachineResource(LaserMachineHandle laserMachineHandle, 
         writeLog("craft_script_configure_machine_param_set_script_get :: laserRampDownTime out of range");
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    //降功率的距离
     double tempTime = static_cast<double>((disX * 1000)/ craftInfoLaserSdk.craftWeldingSpeed);
     machineResource.laserPowerParams.laserRampDownTime = tempTime;              /// 关光渐进时间
     /**写入焊接模式*/
-    std::map<uint16_t, uint16_t> laserMap;
-    if(craftInfoLaserSdk.craftweldMode != laserPowerParams.weldMode)
-    {
-        laserPowerParams.weldMode = craftInfoLaserSdk.craftweldMode;
-        laserMap.emplace(machineResource.spotWeldTypeLoc, laserPowerParams.weldMode);
-        laserVect.push_back(machineResource.spotWeldTypeLoc);
-        if(laserPowerParams.weldMode == WeldModeLaserSdk::SPOT_LASER_SDK)
-        {
-            if(laserPowerParams.spotWeldDurationTime != craftInfoLaserSdk.craftSpotWeldDuration)
-            {
-                laserPowerParams.spotWeldDurationTime = craftInfoLaserSdk.craftSpotWeldDuration;
-                laserMap.emplace(machineResource.spotWeldDurationLoc, laserPowerParams.spotWeldDurationTime);
-                laserVect.push_back(machineResource.spotWeldDurationLoc);
-            }
-            if(laserPowerParams.spotWeldIntervalTime != craftInfoLaserSdk.craftSpotWeldInterval)
-            {
-                laserPowerParams.spotWeldIntervalTime = craftInfoLaserSdk.craftSpotWeldInterval;
-                laserMap.emplace(machineResource.spotWeldIntervalLoc, laserPowerParams.spotWeldIntervalTime);
-                laserVect.push_back(machineResource.spotWeldIntervalLoc);
-            }
-        }
-    }
+    laserPowerParams.weldMode = craftInfoLaserSdk.craftweldMode;
+    laserVect.push_back(machineResource.spotWeldTypeLoc);
+    laserPowerParams.spotWeldDurationTime = craftInfoLaserSdk.craftSpotWeldDuration;
+    laserVect.push_back(machineResource.spotWeldDurationLoc);
+    laserPowerParams.spotWeldIntervalTime = craftInfoLaserSdk.craftSpotWeldInterval;
+    laserVect.push_back(machineResource.spotWeldIntervalLoc);       
+    
     /**写入XY偏移放大*/
-    auto float100int = [&](double valueTmp){
-        int valueFinal = static_cast<int>(valueTmp * 100);
-        return valueFinal;
-    };
-    if (float100int(laserPowerParams.laserHeadYOffset) != float100int(craftInfoLaserSdk.craftYAxisOffset))
-    {
-        laserPowerParams.laserHeadYOffset =craftInfoLaserSdk.craftYAxisOffset;  ///Y偏移
-        laserMap.emplace(static_cast<uint16_t>(machineResource.laserHeadYOffsetLoc), static_cast<uint16_t>(float100int(laserPowerParams.laserHeadYOffset)));
-        laserVect.push_back(machineResource.laserHeadYOffsetLoc);
-    }
-    if (float100int(laserPowerParams.laserHeadXOffset) != float100int(craftInfoLaserSdk.craftXAxisOffset))
-    {
-        laserPowerParams.laserHeadXOffset =craftInfoLaserSdk.craftXAxisOffset;  ///X偏移
-        laserMap.emplace(static_cast<uint16_t>(machineResource.laserHeadXOffsetLoc), static_cast<uint16_t>(float100int(laserPowerParams.laserHeadXOffset)));
-        laserVect.push_back(machineResource.laserHeadXOffsetLoc);
-    }
-    if (float100int(laserPowerParams.laserHeadYEnlarge) != float100int(craftInfoLaserSdk.craftYAxisZoom))
-    {
-        laserPowerParams.laserHeadYEnlarge =craftInfoLaserSdk.craftYAxisZoom;   ///Y放大
-        laserMap.emplace(static_cast<uint16_t>(machineResource.laserHeadYScaleLoc), static_cast<uint16_t>(float100int(laserPowerParams.laserHeadYEnlarge)));
-        laserVect.push_back(machineResource.laserHeadYScaleLoc);
-    }
-    if (float100int(laserPowerParams.laserHeadXEnlarge) != float100int(craftInfoLaserSdk.craftXAxisZoom))
-    {
-        laserPowerParams.laserHeadXEnlarge =craftInfoLaserSdk.craftXAxisZoom;   ///X放大
-        laserMap.emplace(static_cast<uint16_t>(machineResource.laserHeadXScaleLoc), static_cast<uint16_t>(float100int(laserPowerParams.laserHeadXEnlarge)));
-        laserVect.push_back(machineResource.laserHeadXScaleLoc);
-    }    
-    if (laserPowerParams.gasStartupAdvanceTime != craftInfoLaserSdk.craftPreGasTime)
-    {
-        laserPowerParams.gasStartupAdvanceTime = craftInfoLaserSdk.craftPreGasTime; // 提前送气时间
-        laserMap.emplace(static_cast<uint16_t>(machineResource.gasONDelayLoc), static_cast<uint16_t>(laserPowerParams.gasStartupAdvanceTime));
-        laserVect.push_back(machineResource.gasONDelayLoc);
-    }    
-    if (laserPowerParams.gasShutoffDelayTime != craftInfoLaserSdk.craftPostGasTime)
-    {
-        laserPowerParams.gasShutoffDelayTime = craftInfoLaserSdk.craftPostGasTime;  // 气体关闭延时 --滞后送气时间
-        laserMap.emplace(static_cast<uint16_t>(machineResource.gasOffDelayLoc), static_cast<uint16_t>(laserPowerParams.gasShutoffDelayTime));
-        laserVect.push_back(machineResource.gasOffDelayLoc);
-    }
-    /**写入图案参数*/
-    CgxiLaserHeadLaserSdk &laserHeadParams = machineResource.laserHeadParams;
-    if(craftInfoLaserSdk.graphicsSwitching != laserHeadParams.laserSpotPattern)
-    {       
-        laserHeadParams.laserSpotPattern = craftInfoLaserSdk.graphicsSwitching;     ///图案开关
-        laserHeadVect.push_back(machineResource.laserHeadPatternIdLoc);        
-    }
-    if(craftInfoLaserSdk.craftScanSpeed != laserHeadParams.laserHeadScanSpeed){
-        laserHeadParams.laserHeadScanSpeed = craftInfoLaserSdk.craftScanSpeed;      ///扫描速度
-        laserHeadVect.push_back(machineResource.laserHeadScanSpeedLoc);
-    }
-    if(craftInfoLaserSdk.craftScanWidth != laserHeadParams.laserHeadScanWidth){
-        laserHeadParams.laserHeadScanWidth = craftInfoLaserSdk.craftScanWidth;      ///扫描宽度
-        laserHeadVect.push_back(machineResource.laserHeadScanWidthLoc);
-    }
-    if(craftInfoLaserSdk.craftScanHeight != laserHeadParams.laserHeadScanHeight){
-        laserHeadParams.laserHeadScanHeight = craftInfoLaserSdk.craftScanHeight;    ///扫描高度
-        laserHeadVect.push_back(machineResource.laserHeadScanHeightLoc);
-    }
-    if (craftInfoLaserSdk.craftRotationAngle != laserHeadParams.laserHeadSpinAngle){
-        laserHeadParams.laserHeadSpinAngle = craftInfoLaserSdk.craftRotationAngle;  ///旋转角度
-        laserHeadVect.push_back(machineResource.laserHeadRotationAngleLoc);
-    }
-    if (craftInfoLaserSdk.craftLaserPower != laserHeadParams.laserHeadPeakPower){
-        laserHeadParams.laserHeadPeakPower = craftInfoLaserSdk.craftLaserPower;     ///峰值/焊接功率
-        laserHeadVect.push_back(machineResource.laserHeadPeakPowerLoc);
-    }      
+    laserPowerParams.laserHeadYOffset =craftInfoLaserSdk.craftYAxisOffset;  ///Y偏移
+    laserVect.push_back(machineResource.laserHeadYOffsetLoc);
 
-    /*
-    **写入送丝机参数
-    */
+    laserPowerParams.laserHeadXOffset =craftInfoLaserSdk.craftXAxisOffset;  ///X偏移
+    laserVect.push_back(machineResource.laserHeadXOffsetLoc);
+
+    laserPowerParams.laserHeadYEnlarge =craftInfoLaserSdk.craftYAxisZoom;   ///Y放大
+    laserVect.push_back(machineResource.laserHeadYScaleLoc);
+
+    laserPowerParams.laserHeadXEnlarge =craftInfoLaserSdk.craftXAxisZoom;   ///X放大
+    laserVect.push_back(machineResource.laserHeadXScaleLoc);
+    
+    laserPowerParams.gasStartupAdvanceTime = craftInfoLaserSdk.craftPreGasTime; /// 提前送气时间
+    laserVect.push_back(machineResource.gasONDelayLoc);
+    
+    laserPowerParams.gasShutoffDelayTime = craftInfoLaserSdk.craftPostGasTime;  /// 气体关闭延时 --滞后送气时间
+    laserVect.push_back(machineResource.gasOffDelayLoc);
+    
+    /**写入图案参数*/
+    CgxiLaserHeadLaserSdk &laserHeadParams = machineResource.laserHeadParams;     
+    laserHeadParams.laserSpotPattern = craftInfoLaserSdk.graphicsSwitching;     ///图案开关
+    laserHeadVect.push_back(machineResource.laserHeadPatternIdLoc);        
+    laserHeadParams.laserHeadScanSpeed = craftInfoLaserSdk.craftScanSpeed;      ///扫描速度
+    laserHeadVect.push_back(machineResource.laserHeadScanSpeedLoc);
+    laserHeadParams.laserHeadScanWidth = craftInfoLaserSdk.craftScanWidth;      ///扫描宽度
+    laserHeadVect.push_back(machineResource.laserHeadScanWidthLoc);    
+    laserHeadParams.laserHeadScanHeight = craftInfoLaserSdk.craftScanHeight;    ///扫描高度
+    laserHeadVect.push_back(machineResource.laserHeadScanHeightLoc);    
+    laserHeadParams.laserHeadSpinAngle = craftInfoLaserSdk.craftRotationAngle;  ///旋转角度
+    laserHeadVect.push_back(machineResource.laserHeadRotationAngleLoc);
+    laserHeadParams.laserHeadPeakPower = craftInfoLaserSdk.craftLaserPower;     ///峰值/焊接功率
+    laserHeadVect.push_back(machineResource.laserHeadPeakPowerLoc);
+    /*** 写入送丝机参数 ***/
     CgxiWireFeederLaserSdk wireFeederParams = machineResource.wireFeederParams;   ///< 送丝机参数
     int distance = craftInfoLaserSdk.craftRetractionDistance;            //回抽焊丝的过程距离 mm
     machineResource.wireFeederParams.lengthBack = distance;
@@ -454,28 +399,22 @@ LaserSdkResult CraftInfo2MachineResource(LaserMachineHandle laserMachineHandle, 
     machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;    ///< 补丝延时    0~2000 ms
     machineResource.wireFeederParams.wireFeederStartMotorSpeed = craftInfoLaserSdk.craftLeadInWireFeed;  ///< 开光送丝sudu
     machineResource.wireFeederParams.wireFeederStopMotorSpeed = craftInfoLaserSdk.craftLeadOutWireFeed;  ///< 关光送丝sudu
-    if(machineResource.wireFeederParams.wireFeederMotorSpeed != craftInfoLaserSdk.craftWeldingWireFeed){
-        machineResource.wireFeederParams.wireFeederMotorSpeed = craftInfoLaserSdk.craftWeldingWireFeed;             ///< 自动送丝速度
-        wireVect.push_back(machineResource.autoWireFeedSpeedLoc);
-    }
-    if(machineResource.wireFeederParams.wireFeederBackLength != craftInfoLaserSdk.craftRetractionLength)
-    {
-        machineResource.wireFeederParams.wireFeederBackLength = craftInfoLaserSdk.craftRetractionLength;            ///< 回抽长度
-        //wireMap.emplace(static_cast<uint16_t>(machineResource.wireRetractLengthLoc), static_cast<uint16_t>(wireFeederParams.wireFeederBackLength));
-        wireVect.push_back(machineResource.wireRetractLengthLoc);
-    }
-    if(machineResource.wireFeederParams.wireFeederFeedLength != craftInfoLaserSdk.craftEndLoopbackLength)
-    {
-        machineResource.wireFeederParams.wireFeederFeedLength = craftInfoLaserSdk.craftEndLoopbackLength;           ///< 回送/补丝长度
-        //wireMap.emplace(static_cast<uint16_t>(machineResource.wireFeedLengthLoc), static_cast<uint16_t>(wireFeederParams.wireFeederFeedLength));
-        wireVect.push_back(machineResource.wireFeedLengthLoc);
-    }
-    if(machineResource.wireFeederParams.craftEndingwireRetraction != craftInfoLaserSdk.craftEndingwireRetraction)
-    {
-        machineResource.wireFeederParams.craftEndingwireRetraction = craftInfoLaserSdk.craftEndingwireRetraction;   ///<断丝模式
-        //wireMap.emplace(static_cast<uint16_t>(machineResource.breakWireFeedingModeLoc), static_cast<uint16_t>(wireFeederParams.craftEndingwireRetraction));
-        wireVect.push_back(machineResource.breakWireFeedingModeLoc);
-    }
+    machineResource.wireFeederParams.wireFeederMotorSpeed = craftInfoLaserSdk.craftWeldingWireFeed;             ///< 自动送丝速度
+    wireVect.push_back(machineResource.autoWireFeedSpeedLoc);
+    machineResource.wireFeederParams.wireFeederBackLength = craftInfoLaserSdk.craftRetractionLength;            ///< 回抽长度
+    wireVect.push_back(machineResource.wireRetractLengthLoc);
+    machineResource.wireFeederParams.wireFeederFeedLength = craftInfoLaserSdk.craftEndLoopbackLength;           ///< 回送/补丝长度
+    wireVect.push_back(machineResource.wireFeedLengthLoc);
+    machineResource.wireFeederParams.craftEndingwireRetraction = craftInfoLaserSdk.craftEndingwireRetraction;   ///<断丝模式
+    wireVect.push_back(machineResource.breakWireFeedingModeLoc);
+    
     //std::vector<uint8_t> wireMessageVec = buildMessageVector(wireMap, 0x06, 0x09);
     return SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult GetCraftScript(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData)
+{
+    
+    //std::vector<uint8_t> wireMessageVec = buildMessageVector(wireMap, 0x06, 0x09);
+    return LaserSdkResult::SUCCESS_LASER_SDK;
 }

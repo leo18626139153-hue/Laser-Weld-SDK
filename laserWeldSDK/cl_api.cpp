@@ -1,10 +1,9 @@
 ﻿#include "cl_api.h"
 #include "cl_utils.h"
 #include "cl_craftscript.h"
-#include "cl_luascript.h"
+#include "cl_message_prase.h"
 #include "cl_comandlistscript.h"
-#include "cl_gradualriseandfall.h"
-
+#include "cl_math.h"
 #include <functional>
 #include <thread>
 #include <chrono>
@@ -1420,93 +1419,106 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
 }
 
 LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char *scripts, int *scriptLen)
-{
-    //获取句柄对应的焊机资源对象
-    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
-    {
-        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
-    }
-    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-
-    CommuBase* curCommuFunction = nullptr;
-    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
-    {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == nullptr)
-        {
-            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
-    }
-    //获取脚本
-    std::string scriptGet;
+{    
     try
     {
-        checkLaserSdkResult(curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, craftInfo, scriptGet));
+        //获取句柄对应的焊机资源对象
+        if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+        {
+            throw LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+        }
+        MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+        CommuBase* curCommuFunction = nullptr;
+        if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+        {
+            curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+            if (curCommuFunction == nullptr)
+            {
+                throw LaserSdkResult::COMMU_ERROR_LASER_SDK;
+            }
+        }
+        else
+        {
+            throw LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+        std::string scriptGet;
+        checkLaserSdkResult(curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, craftInfo, scriptGet));
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
+        if(!strToChar(scripts, scriptLen, scriptGet))
+        {
+            throw LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+            // 关闭文件
+            outFile.close();
+
+        }
+         return LaserSdkResult::SUCCESS_LASER_SDK;
     }
     catch (const LaserSdkResult& errorResult)
     {
         return errorResult;
     }
-
-
-    //脚本赋值
-    if(!strToChar(scripts, scriptLen, scriptGet))
-    {
-        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    catch (...) {
+        return OTHER_ERROR_LASER_SDK;
     }
-    //将脚本存入示教器日志中
-    else
-    {
-        // 打开文件进行写入
-        std::ofstream outFile("script.txt");
-
-        if (!outFile) {
-            std::cerr << "无法打开文件进行写入！" << std::endl;
-        }
-        outFile << scripts;
-
-        // 关闭文件
-        outFile.close();
-    }
-
-    return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 
 LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message,int *length)
 {
-    //获取句柄对应的焊机资源对象
-    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
-    {
-        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    try {
+        //获取句柄对应的焊机资源对象
+        if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+        {
+            return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+        }
+        MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+        // 生成报文
+        if (message != nullptr)
+        {
+            *message = 0;  // 初始化报文
+        }
+        funcCode = 0x06;
+        std::vector<std::vector<uint8_t>> msg;
+        std::map<uint16_t, uint16_t> msgMap;
+        msgMap.insert(std::make_pair(firstAddr, parameter));
+        msg = buildMessageVector(msgMap, slaveAddr, funcCode);
+        size_t len = 0;
+        for(auto vecL : msg)
+        {
+            len += msg.size();
+        }
+        *length = static_cast<int>(len);
+        size_t offset = 0;
+        for(auto vecL : msg)
+        {
+            memcpy(message, msg.data(), msg.size());
+            offset += msg.size();
+        }
+        return LaserSdkResult::SUCCESS_LASER_SDK;
     }
-    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    // 生成报文
-    if (message != nullptr)
-    {
-        *message = 0;  // 初始化报文
+    catch (const LaserSdkResult& errorResult) {
+        return errorResult;
     }
-    funcCode = 0x06;    //写死
-    std::vector<uint8_t> msg;
-    std::map<uint16_t, uint16_t> msgMap;
-    msgMap.insert(std::make_pair(firstAddr, parameter));
-    msg = buildMessageVector(msgMap, slaveAddr, funcCode);
-    int len = static_cast<int>(msg.size());
-    if(*length != len)
-    {
-        std::cout << len << std::endl;
-        *length = len;
+    catch (const std::bad_alloc& e) {
+        std::string tmpstr = "Memory allocation failed:" + std::string(e.what()) + "\n";
+        writeLog(tmpstr);
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+    }
+    catch(...){
+        return LaserSdkResult::OTHER_ERROR_LASER_SDK;
     }
 
-    memcpy(message, msg.data(), msg.size()); // 将报文数据复制到message中
-
-    return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 LaserSdkResult cl_parse_modbus_to_int16_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, const int regIndex, const int regLen,  int16_t* values)

@@ -11,11 +11,21 @@ int distributionID(std::unordered_set<int>& IDSet);
 //返回相应的工艺通讯类
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass);
 
-//找点位
+/// @brief 
+/// @param laserMachineHandle 
+/// @param weldStartData 
+/// @return 
 LaserSdkResult GetPrePoints(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData);
 
 //对比CraftInfoLaserSdk里面的参数相较machineResource是否发生了改变
 LaserSdkResult CraftInfo2MachineResource(LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfoLaserSdk, std::vector<unsigned int>& laserVect, std::vector<unsigned int>& laserHeadVect, std::vector<unsigned int>& wireVect);
+
+/// @brief 
+/// @param laserMachineHandle 
+/// @param weldStartData 
+/// @param bodyScriptText 
+/// @return 
+LaserSdkResult GetCraftScript(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData);
 
 /**
  * @brief GetBasicCraftScript    基本工艺指令列表的转换
