@@ -748,6 +748,7 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
     function resume_func()
         write_bool_register(600, 0)     -- 末端按钮拖动位
         set_configurable_digital_out(1, true)  ---CO1 = 0
+        write_integer_register(821, 0)  -- 超时地址清空
         write_integer_register(614, 1)  -- 自动收弧信号
         sync()
     end
