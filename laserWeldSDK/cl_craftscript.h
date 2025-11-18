@@ -5,9 +5,7 @@
 #include "cl_internaldatadefine.h"
 #include <vector>
 #include <mutex>
-
-
-
+#include<functional>
 
 class CommuBase
 {
@@ -22,8 +20,7 @@ public:
 
 
 public:
-    //----与具体通讯形式有关的功能函数
-    
+    //----与具体通讯形式有关的功能函数    
     virtual LaserSdkResult craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch) = 0;
     //执行起弧和收弧
     virtual LaserSdkResult craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;    
@@ -76,8 +73,8 @@ private:
     std::string swap_bytes;      ///< 高低字节交换函数
     std::string modbus_crc16;    ///< modbus crc16校验函数
     std::string lua_split;       ///< lua字符串分割函数
-    std::string register_clear; ///< lua寄存器清零函数
-    std::string lua_data_get;   ///< 定义数据拆分整合函数
+    std::string register_clear;  ///< lua寄存器清零函数
+    std::string lua_data_get;    ///< 定义数据拆分整合函数
     std::string concatenate_crc;    ///< 拼接crc校验函数
     std::string parse_little_endian_bytes;  ///< 每2个字符为一组（1字节），转换为整数
     std::string writeHex2Commu_reg;     ///< 将数据写入通讯变量

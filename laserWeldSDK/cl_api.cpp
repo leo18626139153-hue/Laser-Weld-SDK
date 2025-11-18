@@ -695,7 +695,6 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
 
     std::string endArcProtectionScript = R"(
     function endArcing()        
-        set_configurable_digital_out(0, false)  ---CO0 = 0
         set_configurable_digital_out(1, false)  ---CO1 = 0
         write_bool_register(608, 0)    ---开始焊接复位
         n = read_integer_register(673)     --起弧异常判断
@@ -745,11 +744,16 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
     sysEvent_pause_func_2_Result = sys_event_register(2, pause_func)
 
     function resume_func()
-        write_bool_register(600, 0)     -- 末端按钮拖动位
-        set_configurable_digital_out(1, true)  ---CO1 = 0
-        write_integer_register(821, 0)  -- 超时地址清空
-        write_integer_register(614, 1)  -- 自动收弧信号
-        sync()
+        while(true)
+        do
+            write_bool_register(600, 0)     -- 末端按钮拖动位
+            if read_boolean_register(611) then
+                set_configurable_digital_out(1, true)  ---CO1 = 0
+            end
+            write_integer_register(821, 0)  -- 超时地址清空
+            write_integer_register(614, 1)  -- 自动收弧信号
+            sync()
+        end
     end
     sysEvent_resume_func_3_Result = sys_event_register(3, resume_func)
     )";
@@ -1644,14 +1648,13 @@ LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachi
    // int32寄存器参数值列表（按顺序排列）
    int32_t register_values[] = {
        352387850,      // int32Reg_872
-       1234501888,      // int32Reg_873
+       1234501888,     // int32Reg_873
        2097929,        // int32Reg_850
        -2104622848,    // int32Reg_851
        18875145,       // int32Reg_852
        1121911040,     // int32Reg_853
        35652361,       // int32Reg_854
        1110376704,     // int32Reg_855
-
        772014857,      // int32Reg_856
        2078540032,     // int32Reg_857
        151257865,      // int32Reg_858

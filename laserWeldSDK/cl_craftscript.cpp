@@ -1,4 +1,4 @@
-﻿#include "cl_craftscript.h"
+#include "cl_craftscript.h"
 #include "cl_api.h"
 #include "cl_utils.h"
 #include "cl_message_prase.h"
@@ -647,14 +647,14 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         {
         case float10Reg:
             useScript << std::setprecision(1);  //保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue*10) << ", 3, SendCommuRegAddr,1)" << endstr;
+            useScript << "  write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue*10) << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);  //保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue*100) << ", 3, SendCommuRegAddr,1)" << endstr;
+            useScript << "  write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue*100) << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1)" << endstr;
+            useScript << "  write_value_port(0x0906, " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -763,17 +763,17 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue *10)
-                      << ", 3, SendCommuRegAddr," << needWait << ")" << endstr;
+            useScript << "  write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue *10)
+                        << ", 3, SendCommuRegAddr," << needWait << ")" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue *100)
-                      << ", 3, SendCommuRegAddr,"<< needWait<<")" << endstr;
+            useScript << "  write_value_port(0x0906, " << addr << "," << static_cast<int>(paramValue *100)
+                        << ", 3, SendCommuRegAddr,"<< needWait<<")" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0906, " << addr << "," << paramValue
-                      << ", 3, SendCommuRegAddr, needWait)" << endstr;
+            useScript << "  write_value_port(0x0906, " << addr << "," << paramValue
+                        << ", 3, SendCommuRegAddr, needWait)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -829,25 +829,23 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr, int receiptNeeded)
     {
         //无效写入地址
-        if(addr >= 0xFFFF)
+        if(addr >= 0x02FF)
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         std::string endstr = "\n";
         std::ostringstream useScript;
         switch (regType)
         {
         case float10Reg:
-            useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "write_value_port(0x0A06, " << addr << "," << static_cast<int>(paramValue*10)
-                      << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
+            useScript << "  write_value_port(0x0A06, " << addr << "," << static_cast<int>(paramValue*10)
+                        << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
             break;
         case float100Reg:
-            useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "write_value_port(0x0A06, " << addr << "," << static_cast<int>(paramValue*100)
-                      << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
+            useScript << "  write_value_port(0x0A06, " << addr << "," << static_cast<int>(paramValue*100)
+                        << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
             break;
         case int16Reg:
-            useScript << "write_value_port(0x0A06, " << addr << "," << paramValue
-                      << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
+            useScript << "  write_value_port(0x0A06, " << addr << "," << paramValue
+                        << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -1047,19 +1045,16 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;      ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝sudu
     machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝sudu
-
     machineResource.wireFeederParams.craftEndingwireRetraction = curCraftInfo.craftEndingwireRetraction; ///<断丝模式
-    //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
     {
         machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
         machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
         machineResource.wireFeedLengthLoc,          ///<  补丝长度地址 0x0105 261
-        //machineResource.wireFeedBackDelayLoc,       ///<  补丝延迟时间地址 0x0106 暂时开放
-        machineResource.breakWireFeedingModeLoc ,      ///< 断丝模式地址 0x010D  (控制回抽速度)
+        //machineResource.wireFeedBackDelayLoc,     ///<  补丝延迟时间地址 0x0106 暂时开放
+        machineResource.breakWireFeedingModeLoc ,   ///< 断丝模式地址 0x010D  (控制回抽速度)
     };
     craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, bodyScriptText);
-
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
@@ -1170,8 +1165,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
         int time = laserPowerParams.gasStartupAdvanceTime;
         try
         {
-            std::string arcStartProgram1 = "function slow_arc_start()\n";
-            
+            std::string arcStartProgram1 = "function slow_arc_start()\n";            
             std::string arcStartParam =
                     "   write_integer_register(673, 0) \n"
                     "   if read_integer_register(821) ~= 0 then \n"

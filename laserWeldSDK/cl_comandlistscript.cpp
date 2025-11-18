@@ -108,8 +108,9 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             {
                 if(isWeld)
                 {
-                    bodyScriptText += "--ARC_START_LIST--\n";
-                    isWelding = true; //设置焊接状态
+                    bodyScriptText += "--ARC_START_LIST--\n"
+                            "write_boolean_register(611,true)\n";
+                    isWelding = true; //设置焊接状态                    
                     std::string tmpScript ;
                     result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
@@ -130,7 +131,8 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
             {                
                 if (isWeld)
                 {
-                    bodyScriptText += " --ARC_STOP_LIST--\n";
+                    bodyScriptText += " --ARC_STOP_LIST--\n"
+                            "write_boolean_register(611,false)\n";
                     isWelding = false; //设置焊接状态
                     std::string tmpScript ;
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)

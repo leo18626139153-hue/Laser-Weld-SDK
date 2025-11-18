@@ -79,7 +79,7 @@ LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, co
  * @throws std::runtime_error 报文格式错误时抛出异常
  */
 int16_t* parse_modbus_register(const std::string& hexResponse, const int regIndex = 1, const int regLen = 1);
-
+//32寄存器报文分析
 int32_t parse_modbus_register32(const std::string& hexResponse);
 
 #endif // CL_MESSAGE_PRASE_H
