@@ -2,6 +2,7 @@
 #define CL_BASEDEFINE_H
 
 #define TCPTYPE 1 //tcp Z轴指向，z轴正向为抽丝方向时取1，z轴正向为送丝方向时取-1
+#define PI 3.14
 #include"basestruct.h"
 
 //#pragma execution_character_set("utf-8")   //防止中文乱码
@@ -38,18 +39,18 @@ enum LaserSdkResult
     WELD_LOCATE_THREAD_IS_RUN_LASER_SDK = 21,          // 焊丝寻位状态异常，寻位线程仍在运行
     WELD_LOCATE_HAVE_CIRCLE_POINT_LASER_SDK = 22,      // 焊丝寻位存在圆弧定点
     WELD_LOCATE_REFPOINT_LESS_LASER_SDK = 23,          // 焊丝寻位参考点数不足
-    IS_WELDING_LIST_ERROR_LASER_SDK = 24,                ///< 正在焊接
+    IS_WELDING_LIST_ERROR_LASER_SDK = 24,              ///< 正在焊接
     NEED_SET_PITCHANGLE_LASER_SDK = 25,                // 多层多道未设置俯仰角
     WELD_PARA_ERROR_LASER_SDK = 26,                    // 多层多道自动计算输入参数不合理（输入尺寸过小或者角度不合理）
     MLMC_ONLY_ONE_LAYER_LASER_SDK = 27,                // 多层多道自动计算，计算结果仅有一层一道（焊脚尺寸过小或层高太大）
     MUTLILAYER_CHANNEL_LASER_LINE_TYPE_ERROR = 28,     // 多层多道焊缝类型错误
     MUTLILAYER_CHANNEL_ADVANCE_ANGLE_TYPE_ERROR = 29,  // 多层多道前进角类型错误
     PARAM_TYPE_ERROR_LASER_SDK = 30,                   ///< 无效参数
+    PARAM_SCAN_FREQUENCY_ERROR_LASER_SDK = 31,         ///< 扫描速度、扫描宽度、扫描高度计算得到的扫描频率超限
 
 
     CALCULATION_RESULT_ILLOGICAL_SDK = 98,             // 计算过程中出现未考虑到的场景（计算失败，结算结果不可用）
-    OTHER_ERROR_LASER_SDK = 99,                        // 未知错误
-
+    OTHER_ERROR_LASER_SDK = 99,                        ///< 未知错误
     // cr_sdk
     UNDEFINDED_ERROR_CRSDK_LASER_SDK = 100,            ///< cr_sdk中未知错误
     ERROR_CRSDK_LASER_SDK = 101,                       ///< 一般错误
@@ -79,7 +80,6 @@ enum LaserSdkResult
     FORCECTRL_WRONGSENSOR_CRSDK_LASER_SDK = 125,       /// 力控SDK 传感器型号选择错误
     OUTPUT_RULE_ERROR_CRSDK_LASER_SDK = 126,           ///< 未设置系统输出，禁止启用自复位
     ANALOG_INPUT_TYPE_ERROR_CRSDK_LASER_SDK = 127      ///< 模拟量输入类型错误：注：工具端模拟量输入类型只有电压
-
 };
 
 //通讯形式
@@ -207,7 +207,7 @@ typedef struct CgxiWireFeederLaserSdk
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
     BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
 
-    WireBreakMode craftEndingwireRetraction;    ///<    送丝机断丝模式
+    WireBreakMode craftWireCutMode;    ///<    送丝机断丝模式
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederStartMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederStopMotorSpeed;              ///< 结束自动送丝速度 15~600cm/min 0x0100 R/W
@@ -341,9 +341,9 @@ struct CraftInfoLaserSdk
 {
     WeldModeLaserSdk craftweldMode; ///< 焊接模式
     WeldLineTypeLaserSdk craftWeldType; ///< 点焊类型
-    WireBreakMode craftEndingwireRetraction;    ///< 收尾抽丝 断丝模式
-    int craftSpotWeldDuration;      ///< 点焊持续时间
-    int craftSpotWeldInterval;      ///< 点焊间隔时间
+    WireBreakMode craftWireCutMode;     ///< 收尾抽丝 断丝模式
+    int craftSpotWeldDuration;          ///< 点焊持续时间
+    int craftSpotWeldInterval;          ///< 点焊间隔时间
 
     SpotPatternLaserSdk graphicsSwitching;  ///< 图形切换
     double craftScanWidth;      ///< 扫描宽度

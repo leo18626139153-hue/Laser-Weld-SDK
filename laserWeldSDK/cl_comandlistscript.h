@@ -20,12 +20,8 @@ LaserSdkResult GetPrePoints(LaserMachineHandle laserMachineHandle, LaserWeldStar
 //对比CraftInfoLaserSdk里面的参数相较machineResource是否发生了改变
 LaserSdkResult CraftInfo2MachineResource(LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfoLaserSdk, std::vector<unsigned int>& laserVect, std::vector<unsigned int>& laserHeadVect, std::vector<unsigned int>& wireVect);
 
-/// @brief 
-/// @param laserMachineHandle 
-/// @param weldStartData 
-/// @param bodyScriptText 
-/// @return 
-LaserSdkResult GetCraftScript(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData);
+
+LaserSdkResult GetCraftCheck(CraftInfoLaserSdk craftInfoCheck);
 
 /**
  * @brief GetBasicCraftScript    基本工艺指令列表的转换
