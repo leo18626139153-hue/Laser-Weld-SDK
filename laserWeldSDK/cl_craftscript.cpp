@@ -719,7 +719,7 @@ LaserSdkResult CommuRS485::craft_laser_mul_params_set_script_get(LaserMachineHan
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-
+    script += "--多参数修改--";
     std::map<uint16_t, uint16_t> crc16_modbus_map;
     try {
         // 激光器参数校验
@@ -767,10 +767,10 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
                     paramValue = static_cast<int>(laserHeadParams.laserSpotPattern);
                 break;
                 case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-                    paramValue = 5;
+                    paramValue = 4;
                 break;
                 case SpotPatternLaserSdk::CROSS_LASERSDK:
-                    paramValue = 4;
+                    paramValue = 5;
                 break;
             }
         }
@@ -1019,7 +1019,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     )";
 
     ///< 写入焊接模式
-    /// write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
+    write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
     ///< 写入激光头参数
     /// // 写入图案
@@ -1032,10 +1032,10 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
             write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
         break;
         case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-            write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
+            write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
         break;
         case SpotPatternLaserSdk::CROSS_LASERSDK:
-            write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
+            write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
         break;
     }
     bodyScriptText += strWriteInt32RegReplace(821, 0);      //存放超时地址的寄存器
@@ -1462,11 +1462,8 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
     )";
 
     ///< 写入焊接模式
-    if(true)
-    {
-        write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
-        machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
-    }
+    write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
+    machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
 
     ///< 写入激光头参数
     if(true)
@@ -1481,10 +1478,10 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
                 write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
             break;
             case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-                write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
+                write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
             break;
             case SpotPatternLaserSdk::CROSS_LASERSDK:
-                write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
+                write_laser_params += writeLuaScript("0x0906", std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
             break;
         }
     }

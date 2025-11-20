@@ -161,8 +161,9 @@ enum SpotPatternLaserSdk
     HORIZON_8_LASERSDK = 1, ///< 8 字形（参数：长轴mm）
     LINE_LASERSDK = 2,      ///< 水平线（参数：长度mm）
     STAR_LASERSDK = 3,      ///< 正方形（参数：边长mm）
-    TRIANGLE_LASERSDK = 4,  ///< 等边三角形（参数：边长mm）
-    CROSS_LASERSDK = 5      ///< 十字形（参数：边长mm）
+    CROSS_LASERSDK = 4,     ///< 十字形（参数：边长mm）
+    TRIANGLE_LASERSDK = 5   ///< 等边三角形（参数：边长mm）
+
 };
 
 ///< 激光头工艺参数
