@@ -749,6 +749,7 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
             write_bool_register(600, 0)     -- 末端按钮拖动位
             if read_boolean_register(611) then
                 set_configurable_digital_out(1, true)  ---CO1 = 0
+                wait(%1)
             end
             write_integer_register(821, 0)  -- 超时地址清空
             write_integer_register(614, 1)  -- 自动收弧信号
@@ -757,15 +758,17 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
     end
     sysEvent_resume_func_3_Result = sys_event_register(3, resume_func)
     )";
+    if(machineResource.laserPowerParams.gasStartupAdvanceTime < 0 || machineResource.laserPowerParams.gasStartupAdvanceTime > 3000)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
 
     std::string scriptText;
-    scriptText += endArcProtectionScript;
-    if(scriptText.size() > *scriptLen)
+    scriptText += strReplace(endArcProtectionScript,"%1", machineResource.laserPowerParams.gasStartupAdvanceTime);
+    if(static_cast<int>(scriptText.size()) > *scriptLen)
     {
         return MEMORY_ERROR_LASER_SDK;
     }
-    *scriptLen = scriptText.size()+1;
-    memcpy(scripts, scriptText.c_str(), *scriptLen);
+    *scriptLen = static_cast<int>(scriptText.size())+1;
+    memcpy(scripts, scriptText.c_str(), static_cast<size_t>(*scriptLen));
     memcpy(scripts + scriptText.size(), "\0", 1);
 
     return SUCCESS_LASER_SDK;
@@ -781,11 +784,11 @@ LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHand
     script += strWriteInt32RegReplace(programStopArcEndAddress, 0); // 程序停止后自动收弧关闭
     script += strWriteInt32RegReplace(signalSetpRunAddress, 0);
 
-    if(script.size() + 1 > *scriptLen)
+    if(static_cast<int>(script.size()) + 1 > *scriptLen)
     {
         return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
     }
-    *scriptLen = script.size()+1;
+    *scriptLen = static_cast<int>(script.size()) + 1;
     memcpy(scripts, script.c_str(), script.size());
     memcpy(scripts + script.size(), "\0", 1);
     return SUCCESS_LASER_SDK;
@@ -1011,12 +1014,10 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         {
             // 打开文件进行写入
             std::ofstream outFile("script.txt");
-
             if (!outFile) {
                 std::cerr << "无法打开文件进行写入！" << std::endl;
             }
             outFile << scripts;
-
             // 关闭文件
             outFile.close();
         }

@@ -1515,13 +1515,6 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
     machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝sudu
     machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝sudu
     machineResource.wireFeederParams.craftWireCutMode = curCraftInfo.craftWireCutMode;              ///<断丝模式
-    std::vector<unsigned int> laserVec =
-    {
-
-    };
-    std::vector<unsigned int> laserHeadVec =
-    {
-    };
     //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
     std::vector<unsigned int> wireFeedVec =
     {
