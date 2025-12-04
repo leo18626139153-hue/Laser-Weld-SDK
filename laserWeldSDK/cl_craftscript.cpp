@@ -1039,7 +1039,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         break;
     }
     bodyScriptText += strWriteInt32RegReplace(821, 0);      //存放超时地址的寄存器
-    bodyScriptText += write_laser_params;
+    bodyScriptText += write_laser_params + "    wait(290) \n";
     bodyScriptText += write_weld_params;
     // 送丝机参数
     int distance = curCraftInfo.craftRetractionDistance;    //回抽焊丝的过程距离 mm
@@ -1486,7 +1486,7 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
         }
     }
     script += strWriteInt32RegReplace(821, 0);  //存放超时地址的寄存器
-    script += write_laser_params;
+    script += write_laser_params + "    wait(290) \n";
     script += write_weld_params;
     // 送丝机参数
     //计算焊丝回抽的距离

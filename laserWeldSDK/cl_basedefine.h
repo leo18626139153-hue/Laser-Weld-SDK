@@ -426,12 +426,19 @@ enum InstTypeLaserSdk
 enum WeldControlAddressLaserSdk
 {
     // BOOL
-    BOOL_REG_EXTSTRUCT_600 = 600,
+    BOOL_REG_EXTSTRUCT_600 = 600,                           ///< 末端按钮拖动状态控制位：1 有效 0 无效，需要重置为1
     BOOL_REG_EXTSTRUCT_611 = 611,                           ///< 焊接触发信号
     BOOL_REG_EXTSTRUCT_612 = 612,                           ///< 安全点触发信号
 
-    // Int32
-    INT32_REG_TERMINAL_BUTTON_610 = 610,                     ///< 末端按钮拖动状态控制位：1 有效 0 无效，需要重置为1
+    BOOL_REG_EXTSTRUCT_650 = 650,                           ///< 检气
+    BOOL_REG_EXTSTRUCT_651 = 651,                           ///< 送丝
+    BOOL_REG_EXTSTRUCT_652 = 652,                           ///< 抽丝
+    BOOL_REG_EXTSTRUCT_653 = 653,                           ///< 点焊
+    BOOL_REG_EXTSTRUCT_654 = 654,                           ///< 手动控制
+    BOOL_REG_EXTSTRUCT_700 = 700,                           ///<  按压切换状态
+
+
+    // Int32               
 
     INT32_REG_WELD_STATUS_MONITOR_613 = 613,                 ///< 焊接中断检测开启状态位：1 有效 0 无效
     INT32_REG_PROGRAM_STOP_ARC_END_614 = 614,                ///< 程序停止后自动收弧开启状态位：1 有效 0 无效
@@ -447,6 +454,8 @@ enum WeldControlAddressLaserSdk
     INT32_REG_ARC_START_FAIL_673 = 673,   ///< 起弧异常信号
     INT32_REG_WELD_INTERRUPT_674 = 674,   ///< 焊接中断信号
     INT32_REG_ARC_END_FAIL_675 = 675,     ///< 收弧异常信号
+
+    INT32_REG_COMMU_TIMEOUT_821 = 821,                 ///< 发送超时
 
     // 激光通讯的交互
     INT_REG_WRITE_PARAMETER_30 = 30,    ///< 接收的数据从16位通讯变量的 30 地址开始存储
