@@ -19,7 +19,7 @@
 #endif
 #endif
 
-#define LASERWELDSDK_VERSION "1.0.0"
+#define LASERWELDSDK_VERSION "1.2.1"
 
 #ifdef __cplusplus
 extern "C" {

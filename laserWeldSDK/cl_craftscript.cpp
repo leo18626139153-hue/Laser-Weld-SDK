@@ -293,16 +293,17 @@ void CommuRS485::initData()
         local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
         if receiptNeed == 0 then
             serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr, 0)
-            wait(20)
+            wait(50)
             return
         else
+            receiptNeed = 1
             serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr, 1)
         end
         local tryTimes = 3
         local timeout = 1000
         while(read_int16_register(RecvCommuRegAddr) == 0) do
-            wait(10)
-            timeout = timeout - 10
+            wait(20)
+            timeout = timeout - 20
             if read_int16_register(RecvCommuRegAddr) ~= 0 then
                 print("recieve successful")
                 break
@@ -315,6 +316,9 @@ void CommuRS485::initData()
                 print(string.format("超时首地址 : 0x%04X", port_address))
                 write_integer_register(821, port_address)
                 return 0
+            elseif(tryTimes > 0 )
+            then
+                serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr,receiptNeed)
             end
         end
 
@@ -345,13 +349,13 @@ void CommuRS485::initData()
         local CommuReg_n = WriteHex2Commu_reg(mes_string)
         print("发送报文："..mes_string)
         --8. 发送报文
-        local timeout = 1000
+        local timeout = 500
         local tryTimes = 3
         --端口--写寄存器个数--寄存器类型--写起始地址--读取存放寄存器类型--读起始地址--是否需要回执
         serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType, RecvCommuRegAddr, 1)
         while true do
-            wait(10)
-            timeout = timeout - 10
+            wait(20)
+            timeout = timeout - 20
             if read_int16_register(RecvCommuRegAddr) ~= 0 then
                 print("recieve success")
                 break
@@ -364,6 +368,9 @@ void CommuRS485::initData()
                 print(string.format("发送超时|起始地址-0x%04X", addr_value_map[1][1]))
                 write_integer_register(821, addr_value_map[1][1])
                 return 0
+            elseif(tryTimes > 0 )
+            then
+                serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType, RecvCommuRegAddr, 1)
             end
         end
     end
@@ -1205,7 +1212,6 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                 -- 计算功率差，送丝速度差
                 local v = laserPower - openPower
                 local s = wirefeedeWeldSendSpeed - wirefeedeOpenSendSpeed
-
                 -- 计算降几次
                 local num = openLightTime // 200
                 print("num---------",num)
@@ -1218,7 +1224,6 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                 -- 计算每次降多少
                 local powerSingle = math.floor(v / num)
                 local speedSingle = math.floor(s / num)
-
                 -- 循环逐步调整功率和送丝速度
                 for i = 1, num do
                     print("power: ", i)
@@ -1285,48 +1290,59 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "   wireDelayTime = " + std::to_string(wireFeederParams.wireFeederWaitTime) + "\n" +
                     "   flag = 0";
 
+            /// flag -- 0: 正常缓降，1: 时间到,打断缓降    wire_off_done -- 0: 还没关丝机，1: 已经关过丝机
             std::string arcStartProgram =
             R"(
-                --laserPower, closePower, wirefeedeCloseSendSpeed, wirefeedeWeldSendSpeed, closeLightTime
-                function slow_descent()
-                    -- 计算功率差，送丝速度差
-                    local v = laserPower - closePower
-                    local s = wirefeedeWeldSendSpeed - wirefeedeCloseSendSpeed
-                    -- 计算降几次
-                    local num = closeLightTime // 200
-                    print("num2----------",num)
-                    if num < 1 then
-                        --缓降距离过短直接收弧，设置收弧功率和送丝速度即可
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,1000)
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,1000)
-                        return
-                    end
-                    -- 计算每次降多少
-                    local powerSingle = math.floor(v / num)
-                    local speedSingle = math.floor(s / num)
-                    -- 循环逐步调整功率和送丝速度
-                    for i = 1, num do
-                        if flag == 1 then
-                            break
+                    flag = 0
+                    wire_off_done = 0
+                    local function send_wire_off()
+                        if wire_off_done == 0 then
+                            write_value_port(0x0906,50, 0,3,0,1)
+                            wire_off_done = 1
                         end
-                        write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0,1)
-                        if flag == 1 then
-                            break
-                        end
-                        write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0,1)
                     end
-                    print("缓降结束！")
+                    function slow_descent()
+                        -- 计算功率差，送丝速度差
+                        local v = laserPower - closePower
+                        local s = wirefeedeWeldSendSpeed - wirefeedeCloseSendSpeed
+                        -- 计算降几次
+                        local num = closeLightTime // 200
+                        print("num2=",num)
+                        if num < 1 then
+                            write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,laserPower,3,0,1)
+                            write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed,2,0,1)
+                            send_wire_off()
+                            return
+                        end
+                        -- 计算每次降多少
+                        local powerSingle = math.floor(v / num)
+                        local speedSingle = math.floor(s / num)
+                        -- 循环逐步调整功率和送丝速度
+                        for i = 1, num do
+                            if flag == 1 then
+                                break
+                            end
+                            write_value_port(0x0906,)" + std::to_string(machineResource.laserHeadPeakPowerQuickLoc) + R"(,(laserPower - (powerSingle * i)),3,0,0)
+                            if flag == 1 then
+                                break
+                            end
+                            write_value_port(0x0A06,)" + std::to_string(machineResource.autoWireFeedSpeedLoc) + R"(,wirefeedeWeldSendSpeed - (speedSingle * i),2,0,0)
 
-                end
-                task_thread = task_create(slow_descent)
-                function timeController()
-                    wait(closeLightTime)
-                    flag = 1
-                    -- 出发送丝机信号开关
-                    write_value_port(0x0906,50, 0,3,0,1500)
-                end
-                task_thread2 = task_create(timeController)
-            )";
+                        end
+                        if flag == 0 then
+                            print("缓降结束...")
+                            send_wire_off()
+                        end
+                    end
+                    task_thread = task_create(slow_descent)
+                    function timeController()
+                        wait(closeLightTime)
+                        flag = 1
+                        send_wire_off()
+                    end
+                    task_thread2 = task_create(timeController)
+                    )";
+
             std::string arcStartProgram2 = "    end\n";
             script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
             return LaserSdkResult::SUCCESS_LASER_SDK;
@@ -1349,11 +1365,11 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_program_run_script_get(LaserMac
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
-        script += "slow_arc_start()\n";
+        script += " slow_arc_start()\n";
     }
     else if (startSwitch == SWITCH_OFF_LASER_SDK)
     {
-        script += "slow_arc_stop()\n";
+        script += " slow_arc_stop()\n";
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
