@@ -133,6 +133,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 if (isWeld)
                 {
                     bodyScriptText += " --ARC_STOP_LIST--\n"
+                            "wait(1) \n"
                             "write_boolean_register(611,false)\n";
                     isWelding = false; //设置焊接状态
                     std::string tmpScript ;
@@ -196,6 +197,10 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                         return result;
                     }
                 }
+                else if(isWelding && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
+                {
+                    transRadius = 0;
+                }
                 //非焊接 需要进行断点判断
                 if (!isWeld)
                 {
@@ -229,7 +234,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     speed = weldSpeed;
                     acc = weldTCPAcc;
                 }
-                if(isWelding && listLocToTypeID[instLoc+2].first != InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
+                if(isWelding && listLocToTypeID[instLoc+1].first != InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
                 {
                     // 根据速度与加速度计算交融半径
                     result = CalBlendingRadius(speed, acc, &transRadius);
@@ -238,11 +243,16 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                         return result;
                     }
                 }
+                else if(isWelding && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
+                {
+                    transRadius = 0;
+                }
 
                 if (!isWeld)
                 {
                     craftCommu->craft_script_judge_break_point_script_get(instLoc+1, bodyScriptText);
                 }
+
 
                 bodyScriptText += "--circlePoint--\n";
                 int nextCirclePointID = listLocToTypeID[instLoc+1].second;

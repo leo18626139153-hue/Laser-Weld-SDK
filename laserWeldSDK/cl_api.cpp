@@ -1684,12 +1684,10 @@ LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachi
 //       -163315456     // int32Reg_871
 //   };
    int32_t register_values[] = {
-
-       35652361,       // int32Reg_854
-       1110376704,     // int32Reg_855
-       772014857,      // int32Reg_856
-       2078540032,     // int32Reg_857
-
+       18875145,       // int32Reg_854
+       1121911040,     // int32Reg_855
+       35652361,       // int32Reg_856
+       1110376704,     // int32Reg_857
    };
    firstRegister = 854;
    CRresult cRes = cr_set_int32RegValue(machineResource.robotHandle, firstRegister, 4, register_values);
