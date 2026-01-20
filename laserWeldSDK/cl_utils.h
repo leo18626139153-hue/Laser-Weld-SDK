@@ -31,7 +31,7 @@ std::string generateLuaScript(const std::string funcName, const std::string func
  * @param portAddress 地址
  * @param paramValue 写入值
  * @param firstRegisterNum 寄存器首地址
- * @param receiptNeed   是否要回执
+ * @param receiptNeed   是否要重试
  */
 inline std::string writeLuaScript(const std::string functionCode , const std::string portAddress, const std::string paramValue, const std::string portNum, const std::string firstRegisterNum, const std::string receiptNeed)
 {

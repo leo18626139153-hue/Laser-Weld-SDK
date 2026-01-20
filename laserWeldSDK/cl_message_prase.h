@@ -26,7 +26,7 @@ uint16_t modbusCRC16Table(uint8_t *nData, uint16_t wLength);
 /**
  * @brief crc16Modbus       计算CRC16校验码
  * @param data              用于crc16计算的列表，按字节顺序存放
- * @return uint16_t          处理结果
+ * @return uint16_t          处理结果,高字节在前
  */
 uint16_t crc16Modbus(const std::vector<uint8_t> &data);
 
