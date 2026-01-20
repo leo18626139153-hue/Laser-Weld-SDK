@@ -132,7 +132,7 @@ void CommuRS485::initData()
     }
     )";
 
-    startData = R"(
+    std::string startData = R"(
     local SendDataType = 0 --bool位寄存器 通过bool寄存器发送字节数据
     local RecvDataType = 1 --16位寄存器 接收到的数据放到16位寄存器中
     local SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
@@ -143,7 +143,7 @@ void CommuRS485::initData()
     local flag = 0  --标识位
     )";
 
-    swap_bytes = R"(
+    std::string swap_bytes = R"(
     -- 1.高低字节交换函数
     function swap_bytes(data)
         -- 获取低字节 (通过与操作获取低8位)
@@ -155,7 +155,7 @@ void CommuRS485::initData()
     end
     )";
 
-    modbus_crc16 = R"(
+    std::string modbus_crc16 = R"(
     -- 2.CRC-16 (Modbus) 计算函数 无高低字节互转
     function modbus_crc16(data)
         local crc = 0xFFFF  		-- CRC寄存器初始化为0xFFFF
@@ -175,7 +175,7 @@ void CommuRS485::initData()
         return crc
     end
     )";
-    lua_split = R"(
+    std::string lua_split = R"(
     --3.高低字节拆分 如0x1234 输出{0x12, 0x34}
     function Lua_split(dataSplit)
         -- 处理负数 转换为无符号16位整数
@@ -187,7 +187,7 @@ void CommuRS485::initData()
         return {high_byte, low_byte}
     end
     )";
-    register_clear = R"(
+    std::string register_clear = R"(
     --4.定义寄存器清空函数(起始地址，清空位数)
     function register_clear(firstAddr, cleanNums)
         --------将通讯变量清零--------
@@ -202,7 +202,7 @@ void CommuRS485::initData()
         end
     end
     )";
-    lua_data_get = R"(
+    std::string lua_data_get = R"(
     --5.定义数据拆分整合函数 如0x1234 0x5678 输出0x1278
     function Lua_data_get(data1, data2)
         -- 如果数值小于0,则转换为无符号数计算
@@ -223,7 +223,7 @@ void CommuRS485::initData()
         return result
     end
     )";
-    concatenate_crc = R"(
+    std::string concatenate_crc = R"(
     -- 6.将十进制数转换为十六进制，并以两位字符表示
     function to_hex_string(number)
         return string.format("%02X", number)
@@ -245,7 +245,7 @@ void CommuRS485::initData()
         return result
     end
     )" ;
-    parse_little_endian_bytes = R"(
+    std::string parse_little_endian_bytes = R"(
     -- 每2个字符为一组(1字节)转换为整数
     local function parse_little_endian_bytes(hex_str)
         local bytes = {}
@@ -261,7 +261,7 @@ void CommuRS485::initData()
         return bytes
     end
     )";
-    writeHex2Commu_reg = R"(
+    std::string writeHex2Commu_reg = R"(
     --将数据写入通讯变量
     local function WriteHex2Commu_reg(hex)
         local byte_values = parse_little_endian_bytes(hex)
@@ -274,8 +274,8 @@ void CommuRS485::initData()
     end
     )";
 
-    task_write_port = R"(
-    --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执
+    std::string task_write_port = R"(
+    --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器, 接受回执)
     function write_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr, receiptNeed)
         --------将通讯变量清零--------
         bool_register_clear(SendCommuRegAddr, 8)
@@ -376,7 +376,7 @@ void CommuRS485::initData()
     end
     )";
 
-    read_value_port =
+    std::string read_value_port =
         "--单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执\n"
         "function read_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr,SendCommuReg_n)\n"
         "	--------将通讯变量清零--------\n"
@@ -408,103 +408,9 @@ void CommuRS485::initData()
         "    print(\"接收结果完成\")\n"
         "end\n";
 
-     hex_to_bytes =
-        "local function hex_to_bytes(hex_str)\n"
-        "    local bytes = {}\n"
-        "    for byte in hex_str:gmatch(\"%x%x\") do\n"
-        "        table.insert(bytes, tonumber(byte, 16))\n"
-        "    end\n"
-        "    return bytes\n"
-        "end\n";
-
-     swap_bytes_to_table =
-        "local function swap_bytes_to_table(bytes)\n"
-        "    local swapped = {}\n"
-        "    for i = 1, #bytes, 2 do\n"
-        "        local b1 = bytes[i]\n"
-        "        local b2 = bytes[i+1]\n"
-        "        if b2 then\n"
-        "            table.insert(swapped, b2)\n"
-        "            table.insert(swapped, b1)\n"
-        "        else\n"
-        "            table.insert(swapped, b1)\n"
-        "        end\n"
-        "    end\n"
-        "    return swapped\n"
-        "end\n";
-
-     get_swap_report =
-        "local function get_swap_report(hex_str)\n"
-        "    local bytes = hex_to_bytes(hex_str)\n"
-        "\n"
-        "    -- 第一步：高低位交换\n"
-        "    local swapped = swap_bytes_to_table(bytes)\n"
-        "	\n"
-        "    -- 第二步：去掉前三个字节\n"
-        "    local data = {}\n"
-        "    for i = 4, #swapped do\n"
-        "		--print(\"报文:\", swapped[i])\n"
-        "        table.insert(data, swapped[i])\n"
-        "    end\n"
-        "	return data\n"
-        "end\n";
-
-     int16_to_hex =
-        "local function int16_to_hex(val)\n"
-        "    -- 转成无符号16位\n"
-        "    if val < 0 then\n"
-        "        val = val + 0x10000\n"
-        "    end\n"
-        "    local high = (val >> 8) & 0xFF\n"
-        "    local low  = val & 0xFF\n"
-        "    return string.format(\"%02X%02X\", high, low)\n"
-        "end\n";
-
-     read_registers_as_hex =
-        "local function read_registers_as_hex(start_reg, end_reg)\n"
-        "    local report = {}\n"
-        "    for i = start_reg, end_reg do\n"
-        "        local value = read_int16_register(i)  -- 假设这个函数已存在\n"
-        "        local hex_str = int16_to_hex(value)\n"
-        "        table.insert(report, hex_str)\n"
-        "    end\n"
-        "    return table.concat(report)\n"
-        "end\n";
-
-    get_register_value =
-        "function get_register_value(data, reg_index)\n"
-        "	-- 第三步：按寄存器取值\n"
-        "    local pos = (reg_index - 1) * 2 + 1\n"
-        "    if pos + 1 > #data then\n"
-        "        print(\"寄存器索引超出范围\")\n"
-        "		return nil\n"
-        "    end\n"
-        "\n"
-        "    local high = data[pos]\n"
-        "    local low  = data[pos + 1]\n"
-        "    local value = (high << 8) | low\n"
-        "    if value >= 0x8000 then\n"
-        "        value = value - 0x10000\n"
-        "    end\n"
-        "    return value\n"
-        "end\n";
-
-     parse_alarm_word =
-        "function parse_alarm_word(value)\n"
-        "    if value == 0 then\n"
-        "		write_integer_register(803, value)\n"
-        "        return\n"
-        "    end\n"
-        "    for idx, i in ipairs(alarm_bits_list) do\n"
-        "        if (value >> i) & 0x1 == 1 then\n"
-        "            write_integer_register(803+idx, 1)\n"
-        "        end\n"
-        "    end\n"
-        "end\n";
-
     loadLuaFunctionScript = commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port
-     + read_value_port + get_register_value + parse_alarm_word;
+     + read_value_port ;
 }
 
 std::string CommuRS485::get_laser_param_set_script(std::map<unsigned int, int> locVec)
@@ -643,6 +549,7 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     std::unordered_map<unsigned int, std::string> writeDataHash;
+
     //参数类型 - 参数值 - 地址
     auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr)
     {
@@ -664,6 +571,7 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         }
         writeDataHash.emplace(addr, useScript.str());
     };
+
     // 1. 写入激光器功率 (0-5000W, 整型)
     addParam( int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc);
     // 2. 写入开光功率 (0-5000W, 整型)
@@ -739,8 +647,6 @@ LaserSdkResult CommuRS485::craft_laser_mul_params_set_script_get(LaserMachineHan
         crc16_modbus_map.emplace(machineResource.laserHeadXScaleLoc, machineResource.laserPowerParams.laserHeadXEnlarge);   //激光头X轴缩放
         crc16_modbus_map.emplace(machineResource.laserHeadXOffsetLoc, machineResource.laserPowerParams.laserHeadXOffset);   //激光头X轴偏移
         std::vector<std::vector<uint8_t>> messageVector = buildMessageVector(crc16_modbus_map, 0x09, 0x06);
-
-
     }
     catch (std::out_of_range) {
         writeLog("craft_laser_mul_params_set_script_get : PARAMETER_OUT_OF_RANGE_LASER_SDK \n");
@@ -1171,7 +1077,7 @@ LaserSdkResult CommuRS485::craft_script_wire_value_check_script_get(LaserMachine
 }
 
 //缓升缓降 起弧/收弧功能脚本
-LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string &script)
+LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch)
 {
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
@@ -1253,7 +1159,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
 
             std::string arcStartProgram = oss.str();
             std::string arcStartProgram2 = "end\n";
-            script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
+            std::string arcStartScript = arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
+            startLuaScripts.emplace("arcStartScript", arcStartScript);  //将脚本添加到map中，loadLuaFunctionScript()函数会加载这个脚本，避免重复添加增加脚本重量
             return LaserSdkResult::SUCCESS_LASER_SDK;
         }
         catch (const LaserSdkResult& errorResult)
@@ -1290,7 +1197,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     "   wireDelayTime = " + std::to_string(wireFeederParams.wireFeederWaitTime) + "\n" +
                     "   flag = 0";
 
-            /// flag -- 0: 正常缓降，1: 时间到,打断缓降    wire_off_done -- 0: 还没关丝机，1: 已经关过丝机
+            ///< flag -- 0: 正常缓降，1: 时间到,打断缓降    wire_off_done -- 0: 还没关丝机，1: 已经关过丝机
             std::string arcStartProgram =
             R"(
                     flag = 0
@@ -1344,7 +1251,8 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
                     )";
 
             std::string arcStartProgram2 = "    end\n";
-            script += arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
+            std::string arcStopScript = arcStartProgram1 + arcStartParam + arcStartProgram + arcStartProgram2;
+            startLuaScripts.emplace("arcStopScript", arcStopScript);    //将脚本添加到map中，loadLuaFunctionScript()函数会加载这个脚本，避免重复添加增加脚本重量
             return LaserSdkResult::SUCCESS_LASER_SDK;
         }
         catch (const LaserSdkResult& errorResult)
@@ -1514,9 +1422,8 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
     if ( wireDelayTime > 2000)
     {
         writeLog("补丝延迟时间过大");
-        //return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    //  回抽长度panduan
+    //  回抽长度判断
     if(curCraftInfo.craftRetractionLength < 0 || curCraftInfo.craftRetractionLength > 20)
     {
         curCraftInfo.craftRetractionLength = 20;
