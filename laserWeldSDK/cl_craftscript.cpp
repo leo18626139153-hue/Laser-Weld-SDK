@@ -823,6 +823,10 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     addParam(int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
     //写入脉冲频率高地址 (5~100000HZ, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc);
+    //写入脉冲频率
+    addParam(int16Reg, laserHeadParams.laserHeadFrequency, machineResource.laserHeadFrequencyLoc);
+    //写入图像大小
+    addParam(int16Reg, laserHeadParams.laserHeadPatternSize, machineResource.laserHeadPatternSizeLoc);
     for (unsigned int addr : locVec)
     {
         auto it = writeDataHash.find(addr);

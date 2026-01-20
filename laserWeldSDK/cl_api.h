@@ -273,6 +273,19 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int16_register(const Lase
 */
 LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int32_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, int32_t &value);
 
+/**
+* @brief cl_get_instance_function_script 获取指令函数脚本
+* @param funcName                       函数名称
+* @param funcParam                      函数参数
+* @param addr                           地址码
+* @param coAddr                         从站号
+* @param comNo                          com口号
+* @param scripts                        输出的脚本
+* @param scriptLen                      脚本长度
+* @return LaserSdkResult
+*/
+LASERWELDSDK_EXPORT LaserSdkResult cl_get_instance_function_script(const char* funcName, const char* funcParam, const unsigned int addr, const int regType,unsigned int coAddr, int comNo, char *scripts, int *scriptLen);
+
 #ifdef __cplusplus
 }
 #endif

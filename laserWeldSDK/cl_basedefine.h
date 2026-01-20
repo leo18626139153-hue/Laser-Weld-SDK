@@ -8,6 +8,13 @@
 //#pragma execution_character_set("utf-8")   //防止中文乱码
 typedef int LaserMachineHandle;
 
+//激光头品牌
+enum LaserHeadBrandSdk
+{
+    CQLASERPOWER_SDK = 0,   // 超强伟业
+    OSRPLASERPOWER_SDK = 1, // 欧斯睿普
+    BCXLASERPOWER_SDK = 2   // 宝辰鑫
+};
 
 // 接口调用结果
 enum LaserSdkResult
@@ -181,6 +188,10 @@ typedef struct CgxiLaserHeadLaserSdk
     SwitchTypeLaserSdk WireFeederGasSignalSwitch;      ///< 送气信号开关 激光头厂家内控地址
     SwitchTypeLaserSdk WireFeederSignalSwitch;         ///< 送丝信号开关 激光头厂家内控地址
 
+    /* 新激光头新增项*/
+    int laserHeadFrequency;         ///< 脉冲频率 无高低之分
+    int laserHeadPatternSize;       ///< 光斑大小 0~5*10mm
+
 } CgxiLaserHeadLaserSdk;
 
 // 水冷机 尚未使用
@@ -242,6 +253,7 @@ enum  WeldingProcessType {
 typedef struct MachineResource
 {
     CommuTypeLaserSdk commuType;    ///< 通讯形式
+    LaserHeadBrandSdk laserHeadBrand;  ///< 激光头品牌
     RobotHandle robotHandle;        ///< 机器人句柄
     WeldingProcessType weldingProcessType;     ///< 焊接工艺类型
     /* 读---------- 输入状态地址 ---------- */
@@ -277,6 +289,7 @@ typedef struct MachineResource
     unsigned int gasValveSignalLoc;                   ///<  送气信号开关地址 0x0031 → ​​49​ 激光头厂家内控地址
     unsigned int wireFeedSignalLoc;                   ///<  送丝信号开关地址 0x0032 → ​​50 激光头厂家内控地址
     unsigned int laserHeadPeakPowerQuickLoc;               ///<  峰值功率 0x0033 51 快速写入峰值功率
+
     /* 写---------- 焊接工艺 ---------- */
     unsigned int weldingModeLoc;             ///< 焊接模式地址 0x0202  ​​514​
     /* 读|写 ------   激光器 ---------- */
@@ -319,8 +332,27 @@ typedef struct MachineResource
     unsigned int breakWireFeedingModeLoc;       ///< 断丝模式地址 0x010D  (控制回抽速度)
     unsigned int delayWireFeedingLoc;           ///< 运行状态地址 0x0115
 
-    /*写 --- 送丝机参数--- */
+    /* 写 --- 送丝机参数--- */
     unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
+
+    /* 欧斯睿普 激光头新增项*/
+    unsigned int systemStatusLoc;           ///< 系统状态
+    unsigned int controlModeLoc;            ///< 控制方式
+    unsigned int craftInnerOutControlLoc;   ///< 工艺内外控
+    unsigned int lightingModeLoc;           ///< 光闸控制模式->出光模式
+    unsigned int wireFeedModeLoc;           ///< 送丝控制模式
+    unsigned int runModeLoc;                ///< 运行模式
+    unsigned int scanSwitchLoc;             ///< 振镜开关   宝+欧
+    unsigned int scanDataSaveLoc;           ///< 振镜数据写入使能
+    unsigned int laserHeadPatternSizeLoc;   ///< 光斑大小 0x0095 激光头图案大小    宝+欧
+    unsigned int laserHeadFrequencyLoc;     ///< 脉冲频率   宝+欧
+    unsigned int laserOffDelayTimeLoc;      ///< 关光延迟时间
+
+    /* 宝辰鑫 激光头新增项*/
+    unsigned int wireRetractAndFeedSpeedLoc;    ///< 抽丝/补丝速度
+    unsigned int singleWireFeedLengthLoc;       ///< 单步送丝长度
+    unsigned int singleWireFeedSwitchLoc;       ///< 执行单步送丝
+    unsigned int singleWireRetractSwitchLoc;    ///< 执行单步抽丝
 
     CgxiLaserHeadLaserSdk laserHeadParams;     ///< 激光头参数
     CgxiLaserPowerLaserSdk laserPowerParams;   ///< 激光器参数

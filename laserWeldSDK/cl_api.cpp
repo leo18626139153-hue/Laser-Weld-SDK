@@ -101,42 +101,113 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
 
-    //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
-    std::vector<unsigned int> laserPowerVec =
+    std::vector<unsigned int> laserPowerVec;
+    std::vector<unsigned int> laserHeadVec;
+    std::vector<unsigned int> wireFeedVec;
+    if(machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
     {
-        machineResource.gasONDelayLoc,              ///<  开气延时地址 0x0235  先等送气结束
-        machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
-        machineResource.laserOnPowerLoc,            ///<  开光功率地址 0x0231 561
-        machineResource.laserOnRampTimeLoc,         ///<  开光渐进时间地址 0x0232 562
-        machineResource.laserHeadYOffsetLoc,        ///<  Y轴偏移地址 0x0239 569
-        machineResource.laserHeadXOffsetLoc,        ///<  X轴偏移地址 0x023b 571
-        machineResource.laserHeadYScaleLoc,         ///<  Y轴放大地址 0x0238 568
-        machineResource.laserHeadXScaleLoc,         ///<  X轴放大地址 0x023a 570
-        machineResource.spotWeldTypeLoc             ///<  点焊类型地址 0x0242 578
-    };
-    //需要设置的激光头地址参数 - 扫描速度 - 扫描宽 - 峰值功率 - 占空比 - 脉冲频率 - 扫描高度 - 旋转角度 - 图形切换
-    std::vector<unsigned int> laserHeadVec =
-    {
-        machineResource.laserHeadPatternIdLoc,      //图形首位
-        machineResource.laserHeadScanSpeedLoc,
-        machineResource.laserHeadScanWidthLoc,
-        machineResource.laserHeadPeakPowerLoc,
-        machineResource.laserHeadDutyCycleLoc,
-        machineResource.laserHeadFrequencyLowLoc,   ///<  脉冲频率 : 15~0位地址  0x0005  5
-        machineResource.laserHeadFrequencyHighLoc,  ///<  脉冲频率 : 31~16位地址 0x0004  4
-        machineResource.laserHeadScanHeightLoc,     ///<  扫描高度地址 0x0006 6
-        machineResource.laserHeadRotationAngleLoc,  ///<  旋转角度地址 0x0007 7
-        machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
-        machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
-    };
+        //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
+        laserPowerVec =
+        {
+            machineResource.gasONDelayLoc,              ///<  开气延时地址 0x0235  先等送气结束
+            machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
+            machineResource.laserOnPowerLoc,            ///<  开光功率地址 0x0231 561
+            machineResource.laserOnRampTimeLoc,         ///<  开光渐进时间地址 0x0232 562
+            machineResource.laserHeadYOffsetLoc,        ///<  Y轴偏移地址 0x0239 569
+            machineResource.laserHeadXOffsetLoc,        ///<  X轴偏移地址 0x023b 571
+            machineResource.laserHeadYScaleLoc,         ///<  Y轴放大地址 0x0238 568
+            machineResource.laserHeadXScaleLoc,         ///<  X轴放大地址 0x023a 570
+            machineResource.spotWeldTypeLoc             ///<  点焊类型地址 0x0242 578
+        };
+        //需要设置的激光头地址参数 - 扫描速度 - 扫描宽 - 峰值功率 - 占空比 - 脉冲频率 - 扫描高度 - 旋转角度 - 图形切换
+        laserHeadVec =
+        {
+            machineResource.laserHeadPatternIdLoc,      //图形首位
+            machineResource.laserHeadScanSpeedLoc,
+            machineResource.laserHeadScanWidthLoc,
+            machineResource.laserHeadPeakPowerLoc,
+            machineResource.laserHeadDutyCycleLoc,
+            machineResource.laserHeadFrequencyLowLoc,   ///<  脉冲频率 : 15~0位地址  0x0005  5
+            machineResource.laserHeadFrequencyHighLoc,  ///<  脉冲频率 : 31~16位地址 0x0004  4
+            machineResource.laserHeadScanHeightLoc,     ///<  扫描高度地址 0x0006 6
+            machineResource.laserHeadRotationAngleLoc,  ///<  旋转角度地址 0x0007 7
+            machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
+            machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
+        };
 
-    //送丝机地址参数 - 自动送丝速度
-    std::vector<unsigned int> wireFeedVec =
+        //送丝机地址参数 - 自动送丝速度
+        wireFeedVec =
+        {
+            machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
+            machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
+            machineResource.wireFeedLengthLoc,          ///<  送丝长度地址 0x0105 261
+        };
+    }
+    else if(machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
     {
-        machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
-        machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
-        machineResource.wireFeedLengthLoc,          ///<  送丝长度地址 0x0105 261
-    };
+        laserPowerVec =
+        {
+            machineResource.gasONDelayLoc,              ///<  开气延时地址 0x0235  先等送气结束
+            machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
+            machineResource.laserOnPowerLoc,            ///<  开光功率地址 0x0231 561
+            machineResource.laserOnRampTimeLoc,         ///<  开光渐进时间地址 0x0232 562
+            machineResource.laserHeadYOffsetLoc,        ///<  Y轴偏移地址 0x0239 569
+            machineResource.laserHeadXOffsetLoc,        ///<  X轴偏移地址 0x023b 571
+            machineResource.laserHeadYScaleLoc,         ///<  Y轴放大地址 0x0238 568
+            machineResource.laserHeadXScaleLoc,         ///<  X轴放大地址 0x023a 570
+        };
+        //需要设置的激光头地址参数 - 扫描速度 - 扫描宽 - 峰值功率 - 占空比 - 脉冲频率 - 扫描高度 - 旋转角度 - 图形切换
+        laserHeadVec =
+        {
+            machineResource.laserHeadPatternIdLoc,      ///< 图形首位
+            machineResource.laserHeadScanSpeedLoc,      ///< 扫描速度
+            machineResource.laserHeadPeakPowerLoc,      ///< 焊接功率
+            machineResource.laserHeadDutyCycleLoc,      ///< 占空比
+            machineResource.laserHeadFrequencyLoc,      ///< 脉冲频率
+            machineResource.wireFeedSignalLoc,          ///< 送丝信号开关地址
+        };
+
+        //送丝机地址参数 - 自动送丝速度
+        wireFeedVec =
+        {
+            machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
+            machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
+            machineResource.wireFeedLengthLoc,          ///<  送丝长度地址 0x0105 261
+        };
+    }
+    else if(machineResource.laserHeadBrand == LaserHeadBrandSdk::OSRPLASERPOWER_SDK)
+    {
+        //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
+        laserPowerVec =
+        {
+            machineResource.gasONDelayLoc,              ///<  开气延时地址 0x0235  先等送气结束
+            machineResource.laserOnPowerLoc,            ///<  开光功率地址 0x0231 561
+            machineResource.laserOnRampTimeLoc,         ///<  开光渐进时间地址 0x0232 562
+            machineResource.laserHeadYOffsetLoc,        ///<  Y轴偏移地址 0x0239 569
+            machineResource.laserHeadXOffsetLoc,        ///<  X轴偏移地址 0x023b 571
+            machineResource.laserHeadYScaleLoc,         ///<  Y轴放大地址 0x0238 568
+            machineResource.laserHeadXScaleLoc,         ///<  X轴放大地址 0x023a 570
+        };
+        //需要设置的激光头地址参数 - 扫描速度 - 扫描宽 - 峰值功率 - 占空比 - 脉冲频率 - 扫描高度 - 旋转角度 - 图形切换
+        laserHeadVec =
+        {
+            machineResource.laserHeadPatternIdLoc,      ///< 图形首位
+            machineResource.laserHeadScanSpeedLoc,
+            machineResource.laserHeadPeakPowerLoc,
+            machineResource.laserHeadDutyCycleLoc,
+            machineResource.laserHeadFrequencyLoc,      ///<  脉冲频率
+        };
+
+        //送丝机地址参数 - 自动送丝速度
+        wireFeedVec =
+        {
+            machineResource.autoWireFeedSpeedLoc,       ///<  自动送丝速度地址 0x0100 256
+            machineResource.wireRetractLengthLoc,       ///<  抽丝长度地址 0x0104 260
+            machineResource.wireFeedLengthLoc,          ///<  送丝长度地址 0x0105 261
+        };
+    }
+
+
     //获取脚本
     std::string scriptGet;
     try
@@ -188,26 +259,78 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
 
-    //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
-    std::vector<unsigned int> laserPowerVec =
+    std::vector<unsigned int> laserPowerVec;
+    std::vector<unsigned int> laserHeadVec;
+    std::vector<unsigned int> wireFeedVec;
+    if(machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
     {
-        machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
-        machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
-//        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
-    };
-    //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
-    std::vector<unsigned int> wireFeedVec =
-    {
-        machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
-        machineResource.wireFeedLengthLoc,          //261 补丝长度地址
-    };
+        //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
+        laserPowerVec =
+        {
+            machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
+            machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
+    //        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
+        };
+        //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
+        wireFeedVec =
+        {
+            machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
+            machineResource.wireFeedLengthLoc,          //261 补丝长度地址
+        };
 
-    //需要设置的激光头地址参数  关气 关送丝信号
-    std::vector<unsigned int> laserHeadVec =
+        //需要设置的激光头地址参数  关气 关送丝信号
+        laserHeadVec =
+        {
+            machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
+            machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
+            machineResource.gasOffDelayLoc,             ///< 关气延时
+        };
+    }
+    else if(machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
     {
-        machineResource.gasValveSignalLoc,          ///<  送气信号开关地址 0x0031 → ​​49​
-        machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
-    };
+        //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
+        laserPowerVec =
+        {
+            machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
+            machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
+    //        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
+        };
+        //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
+        wireFeedVec =
+        {
+            machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
+            machineResource.wireFeedLengthLoc,          //261 补丝长度地址
+        };
+
+        //需要设置的激光头地址参数  关气 关送丝信号
+        laserHeadVec =
+        {
+            machineResource.wireFeedSignalLoc,          ///<  送丝信号开关地址 0x0032 → ​​50
+            machineResource.gasOffDelayLoc,             ///< 关气延时
+        };
+    }
+    else if(machineResource.laserHeadBrand == LaserHeadBrandSdk::OSRPLASERPOWER_SDK)
+    {
+        //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
+        laserPowerVec =
+        {
+            machineResource.laserOffPowerLoc,            ///<  关光功率地址 0x0233 563
+            machineResource.laserOffRampTimeLoc,         ///<  关光渐进时间地址 0x0234 564
+    //        machineResource.laserPowerLoc,               ///<  激光器功率地址 0x0230 560
+        };
+        //送丝机地址参数 - 自动送丝速度 - 收尾抽丝
+        wireFeedVec =
+        {
+            machineResource.wireRetractLengthLoc,       //260 焊丝回抽长度
+            machineResource.wireFeedLengthLoc,          //261 补丝长度地址
+        };
+
+        //需要设置的激光头地址参数  关气 关送丝信号
+        laserHeadVec =
+        {
+            machineResource.gasOffDelayLoc,             ///< 关气延时
+        };
+    }
 
     //获取脚本
     std::string scriptGet;
@@ -834,7 +957,6 @@ LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle la
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-
 //圆弧 计算 降功率点
 LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData)
 {
@@ -874,7 +996,7 @@ LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMach
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-//缓升起弧
+//缓升起弧-阿文
 LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
 {
     //获取句柄对应的焊机资源对象
@@ -1040,7 +1162,7 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-//缓降收弧
+//缓降收弧-阿文
 LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
 {
     //获取句柄对应的焊机资源对象
@@ -1165,7 +1287,6 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
-
 
 //设备状态监控
 LaserSdkResult cl_craft_weld_status_monitor_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
@@ -1350,7 +1471,7 @@ LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandl
     return SUCCESS_LASER_SDK;
 }
 
-
+//系统设备参数设置
 LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen)
 {
     //获取句柄对应的焊机资源对象
@@ -1373,30 +1494,74 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     {
         return LaserSdkResult::COMMU_ERROR_LASER_SDK;
     }
-    //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
-    std::vector<unsigned int> laserPowerVec =
-    {        
-        machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
-        machineResource.driverTempLoc,              ///<  驱动器温度值地址 0x023f 575
-        machineResource.protectiveWindowTempLoc,    ///<  保护镜温度值地址 0x0240 576
-        machineResource.collimatorTempLoc           ///<  准直镜温度值地址 0x0241 577
-    };
 
-    std::vector<unsigned int> laserHeadVec =
+    std::vector<unsigned int> laserPowerVec;
+    std::vector<unsigned int> laserHeadVec;
+    std::vector<unsigned int> wireFeedVec;
+    if(machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
     {
-        machineResource.laserHeadDutyCycleLoc,
-        machineResource.laserHeadFrequencyHighLoc,
-        machineResource.laserHeadFrequencyLowLoc,
+        //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
+        laserPowerVec =
+        {
+            machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
+            machineResource.driverTempLoc,              ///<  驱动器温度值地址 0x023f 575
+            machineResource.protectiveWindowTempLoc,    ///<  保护镜温度值地址 0x0240 576
+            machineResource.collimatorTempLoc           ///<  准直镜温度值地址 0x0241 577
+        };
 
-    };
+        laserHeadVec =
+        {
+            machineResource.laserHeadDutyCycleLoc,
+            machineResource.laserHeadFrequencyHighLoc,
+            machineResource.laserHeadFrequencyLowLoc,
 
-    //送丝机地址参数 - 自动送丝速度
-    std::vector<unsigned int> wireFeedVec =
+        };
+
+        //送丝机地址参数 - 自动送丝速度
+        wireFeedVec =
+        {
+            machineResource.manualWireFeedSpeedLoc,       ///<  手动送丝速度地址 0x0101 257
+            machineResource.manualWireRetractSpeedLoc,       ///<  手动抽丝速度地址 0x0102 258
+        };
+    }
+    else if(machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
     {
-        0x0115,
-        machineResource.manualWireFeedSpeedLoc,       ///<  手动送丝速度地址 0x0101 257
-        machineResource.manualWireRetractSpeedLoc,       ///<  手动抽丝速度地址 0x0102 258
-    };
+        laserPowerVec =
+        {
+            machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
+        };
+
+        laserHeadVec =
+        {
+            machineResource.laserHeadDutyCycleLoc,
+            machineResource.laserHeadFrequencyLoc,
+        };
+
+        wireFeedVec =
+        {
+            machineResource.autoWireFeedSpeedLoc,
+        };
+    }
+    else if(machineResource.laserHeadBrand == LaserHeadBrandSdk::OSRPLASERPOWER_SDK)
+    {
+        //需要设置的激光器地址参数 - 激光器功率 - 关光功率 - 关光渐进时间 -
+        laserPowerVec =
+        {
+            machineResource.laserPowerLoc,              ///<  激光器功率地址 0x0230 560
+        };
+
+        laserHeadVec =
+        {
+            machineResource.laserHeadDutyCycleLoc,
+            machineResource.laserHeadFrequencyLoc,
+        };
+
+        //送丝机地址参数 - 自动送丝速度
+        wireFeedVec =
+        {
+            machineResource.autoWireFeedSpeedLoc,       ///<  手动抽丝速度地址 0x0102 258
+        };
+    }
 
     //获取脚本
     std::string scriptGet;
@@ -1433,6 +1598,7 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+//修改工艺-小吴
 LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char *scripts, int *scriptLen)
 {    
     try
@@ -1487,7 +1653,6 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
         return OTHER_ERROR_LASER_SDK;
     }
 }
-
 
 LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message,int *length)
 {
@@ -1649,6 +1814,7 @@ LaserSdkResult cl_parse_modbus_to_int32_register(const LaserMachineHandle laserM
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+//将状态监控报文写入Int32寄存器-小吴
 LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister)
 {
    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
@@ -1696,4 +1862,39 @@ LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachi
        return crsdk_return_value_transfer(cRes);
    }
    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_get_instance_function_script(const char* funcName, const char* funcParam, const unsigned int addr, const int regType,unsigned int coAddr, int comNo, char *scripts, int *scriptLen)
+{
+    try
+    {
+        std::string cppFuncName  = funcName  ? funcName  : "";
+        std::string cppFuncParam = funcParam ? funcParam : "";
+        CommuRegType cppRegType = static_cast<CommuRegType>(regType);
+        std::string scriptGet = generateLuaScript(cppFuncName, cppFuncParam, addr, cppRegType, coAddr, comNo);
+        if(!strToChar(scripts, scriptLen, scriptGet))
+        {
+            throw LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+        //将脚本存入示教器日志中
+        else
+        {
+            // 打开文件进行写入
+            std::ofstream outFile("script.txt");
+            if (!outFile) {
+                std::cerr << "无法打开文件进行写入！" << std::endl;
+            }
+            outFile << scripts;
+            // 关闭文件
+            outFile.close();
+        }
+        return LaserSdkResult::SUCCESS_LASER_SDK;
+    }
+    catch (const LaserSdkResult& errorResult)
+    {
+        return errorResult;
+    }
+    catch (...) {
+        return OTHER_ERROR_LASER_SDK;
+    }
 }
