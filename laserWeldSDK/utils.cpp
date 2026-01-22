@@ -532,7 +532,7 @@ std::string generateLuaScript(const std::string funcName, const std::string func
             << "        write_int16_register(i+61, mes_3[i])\n"
             << "    end\n";
     luaCode << "    -- 发送报文\n";
-    luaCode << "    serial_send(" << comNo <<",4,1,62)  -- 默认使用int16类型\n";
+    luaCode << "    serial_send_receive(" << comNo <<",4,1,62,66,0)  -- 默认使用int16类型\n";
     luaCode << "end\n";
     return luaCode.str();
 }
