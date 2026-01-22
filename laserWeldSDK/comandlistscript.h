@@ -1,9 +1,9 @@
-#ifndef CL_COMANDLISTSCRIPT_H
-#define CL_COMANDLISTSCRIPT_H
+#ifndef COMANDLISTSCRIPT_H
+#define COMANDLISTSCRIPT_H
 #include "cl_basedefine.h"
-#include "cl_internaldatadefine.h"
-#include "cl_craftscript.h"
-#include "cl_utils.h"
+#include "internaldatadefine.h"
+#include "craftscript.h"
+#include "utils.h"
 
 //生成唯一ID
 int distributionID(std::unordered_set<int>& IDSet);
@@ -11,16 +11,11 @@ int distributionID(std::unordered_set<int>& IDSet);
 //返回相应的工艺通讯类
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass);
 
-/// @brief 
-/// @param laserMachineHandle 
-/// @param weldStartData 
-/// @return 
-LaserSdkResult GetPrePoints(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData);
-
-//对比CraftInfoLaserSdk里面的参数相较machineResource是否发生了改变
-LaserSdkResult CraftInfo2MachineResource(LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfoLaserSdk, std::vector<unsigned int>& laserVect, std::vector<unsigned int>& laserHeadVect, std::vector<unsigned int>& wireVect);
-
-
+/**
+ * @brief GetCraftCheck 超强伟业图案参数检查
+ * @param craftInfoCheck    工艺参数
+ * @return LaserSdkResult
+ */
 LaserSdkResult GetCraftCheck(CraftInfoLaserSdk craftInfoCheck);
 
 /**

@@ -1,9 +1,9 @@
-#ifndef CL_MESSAGE_PRASE_H
-#define CL_MESSAGE_PRASE_H
+#ifndef MESSAGEPRASE_H
+#define MESSAGEPRASE_H
 
 #include "robotapi.h"
 #include "cl_basedefine.h"
-#include "cl_utils.h"
+#include "utils.h"
 #include <string>
 #include <vector>
 #include <map>

@@ -44,7 +44,7 @@ public:
     //送丝机参数检查
     virtual LaserSdkResult craft_script_wire_value_check_script_get(LaserMachineHandle laserMachineHandle, std::string& script) = 0;
 
-    virtual LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) = 0;
+    virtual LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch) = 0;
 
     virtual LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) = 0;
     //将CraftInfo中的参数逐个判断并写入到machineResource,焊接过程中修改工艺参数
@@ -72,6 +72,7 @@ private:
     void initData();
     static CommuRS485* s_commuRS485;
     static std::once_flag initFlag; ///< initFlag >>> 保证单例对象只被初始化一次，且线程安全
+    int funcCode;  ///<  功能码
 
 public:
     //--报文组件
@@ -91,14 +92,32 @@ public:
     LaserSdkResult craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string& script) override;    
 
     //缓升缓降 起收弧功能脚本
-    LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch, std::string& script) override;
+    LaserSdkResult craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch) override;
     //缓升缓降 起收弧执行程序
     LaserSdkResult craft_script_slow_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startWelding, std::string& script) override;
 
-    /*--10连续写地址相关接口，无法兼容超强以外的参数--*/
-    //工艺参数修改配置生效脚本
+
+    /**
+     * @brief 10连续写地址相关接口，无法兼容超强以外的参数
+     * @param multipleRegistersValue  传入的初始化脚本（通过loadLuaFunctionScript放入脚本中的初始变量），如果输入""，则调用超强板卡的专用接口
+     */
+    void init_multiple_registers_value(std::string multipleRegistersValue);
+
+    /**
+     * @brief 工艺参数修改配置生效脚本
+     * @param laserMachineHandle 句柄
+     * @param craftInfo 工艺参数
+     * @param script    输出脚本
+     * @return LaserSdkResult
+     */
     LaserSdkResult craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo ,std::string& script) override;
-    //焊接过程中修改工艺
+    /**
+     * @brief 修改工艺参数，多写（送丝机参数除外）
+     * @param laserMachineHandle 句柄
+     * @param craftInfo 焊接工艺参数
+     * @param script    输出脚本
+     * @return LaserSdkResult
+     */
     LaserSdkResult craft_script_write_craft_resource_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo, std::string& script) override;
 
     /************* 未使用的接口，请勿用 ***********/ 

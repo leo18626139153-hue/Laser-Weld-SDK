@@ -1,9 +1,9 @@
 ﻿#include "cl_api.h"
-#include "cl_utils.h"
-#include "cl_craftscript.h"
-#include "cl_message_prase.h"
-#include "cl_comandlistscript.h"
-#include "cl_math.h"
+#include "utils.h"
+#include "craftscript.h"
+#include "messageprase.h"
+#include "comandlistscript.h"
+#include "clmath.h"
 #include <functional>
 #include <thread>
 #include <chrono>
@@ -1656,33 +1656,7 @@ LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachi
        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
    }
    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-   // int32寄存器参数值列表（按顺序排列）
-//   int32_t register_values[] = {
-//       352387850,      // int32Reg_872
-//       1234501888,     // int32Reg_873
-//       2097929,        // int32Reg_850
-//       -2104622848,    // int32Reg_851
-//       18875145,       // int32Reg_852
-//       1121911040,     // int32Reg_853
-//       35652361,       // int32Reg_854
-//       1110376704,     // int32Reg_855
-//       772014857,      // int32Reg_856
-//       2078540032,     // int32Reg_857
-//       151257865,      // int32Reg_858
-//       1884553472,     // int32Reg_859
-//       184812297,      // int32Reg_860
-//       -1326120704,    // int32Reg_861
-//       235143945,      // int32Reg_862
-//       -1310392064,    // int32Reg_863
-//       251921161,      // int32Reg_864
-//       1907622144,     // int32Reg_865
-//       285475593,      // int32Reg_866
-//       2010382592,     // int32Reg_867
-//       302252809,      // int32Reg_868
-//       1998848256,     // int32Reg_869
-//       1006764809,     // int32Reg_870
-//       -163315456     // int32Reg_871
-//   };
+
    int32_t register_values[] = {
        18875145,       // int32Reg_854
        1121911040,     // int32Reg_855

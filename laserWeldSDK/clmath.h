@@ -1,9 +1,9 @@
-﻿#ifndef CL_MATH_H
-#define CL_MATH_H
+﻿#ifndef CLMATH_H
+#define CLMATH_H
 
 #include "cl_basedefine.h"
 #include "robotapi.h"
-#include "cl_internaldatadefine.h"
+#include "internaldatadefine.h"
 #include <stdio.h>
 #include <cmath>
 #include <iostream>

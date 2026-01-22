@@ -1,7 +1,7 @@
-#ifndef CWUTILS_H
-#define CWUTILS_H
+#ifndef UTILS_H
+#define UTILS_H
 #include "cl_basedefine.h"
-#include"cl_internaldatadefine.h"
+#include"internaldatadefine.h"
 #include <iostream>
 #include <vector>
 #include <string>

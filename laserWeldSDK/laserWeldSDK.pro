@@ -20,23 +20,23 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     cl_api.cpp \
-    cl_comandlistscript.cpp \
-    cl_craftscript.cpp \
-    cl_message_prase.cpp \
-    cl_math.cpp \
-    cl_utils.cpp
+    clmath.cpp \
+    comandlistscript.cpp \
+    craftscript.cpp \
+    messageprase.cpp \
+    utils.cpp
 
 HEADERS += \
     cl_api.h \
     cl_basedefine.h \
-    cl_math.h \
-    cl_utils.h \
-    cl_comandlistscript.h \
-    cl_craftscript.h \
-    cl_internaldatadefine.h \
-    cl_message_prase.h \
+    clmath.h \
+    comandlistscript.h \
     cr_sdk/include/basestruct.h \
-    cr_sdk/include/robotapi.h \
+    cr_sdk/include/robotapi.h \ \
+    craftscript.h \
+    internaldatadefine.h \
+    messageprase.h \
+    utils.h
 
 
 #如果编译时报错找不到WDK相关系统文件，解开这段注释并修改为当前电脑中相应的WDK地址

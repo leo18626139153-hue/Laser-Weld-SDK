@@ -1,9 +1,9 @@
-#include "cl_comandlistscript.h"
-#include "cl_utils.h"
-#include "cl_internaldatadefine.h"
-#include "cl_craftscript.h"
-#include "cl_message_prase.h"
-#include "cl_math.h"
+#include "comandlistscript.h"
+#include "utils.h"
+#include "internaldatadefine.h"
+#include "craftscript.h"
+#include "messageprase.h"
+#include "clmath.h"
 
 //返回相应的工艺通讯
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass)
@@ -113,7 +113,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                             "write_boolean_register(611,true)\n";
                     isWelding = true; //设置焊接状态                    
                     std::string tmpScript ;
-                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
+                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
                         return result;
@@ -158,7 +158,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     // 生成缓降脚本
                     bodyScriptText += " --SLOW_DOWN--\n";
                     std::string tmpScript ;
-                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, tmpScript);
+                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
                         return result;

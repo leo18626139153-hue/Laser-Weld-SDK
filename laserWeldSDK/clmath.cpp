@@ -1,7 +1,7 @@
-﻿#include "cl_math.h"
+﻿#include "clmath.h"
 #include <sstream>
 #include <iomanip>
-#include "cl_utils.h"
+#include "utils.h"
 
 #include <vector>
 #include <string>
