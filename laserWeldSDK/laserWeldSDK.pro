@@ -19,6 +19,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    brandadapter.cpp \
     cl_api.cpp \
     clmath.cpp \
     comandlistscript.cpp \
@@ -27,6 +28,7 @@ SOURCES += \
     utils.cpp
 
 HEADERS += \
+    brandadapter.h \
     cl_api.h \
     cl_basedefine.h \
     clmath.h \
