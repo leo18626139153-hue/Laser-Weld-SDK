@@ -455,6 +455,10 @@ std::string decimalToHexStringStream(unsigned int value)
 
 std::string double2str(double value, int precision)
 {
+    if(precision < 0 || static_cast<size_t>(precision) > sizeof (value))
+    {
+        precision = 2;
+    }
     std::ostringstream out;
     out << std::fixed << std::setprecision(precision) << value;
     return out.str();
