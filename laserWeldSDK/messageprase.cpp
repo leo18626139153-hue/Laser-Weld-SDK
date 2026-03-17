@@ -1,17 +1,19 @@
 #include "messageprase.h"
 
-
 uint16_t crc16Modbus(const std::vector<uint8_t> &data)
 {
     uint16_t crc = 0xFFFF;
-    for (size_t i = 0; i < data.size(); ++i) {
+    for (size_t i = 0; i < data.size(); ++i)
+    {
         crc ^= data[i];
-        for (int b = 0; b < 8; ++b) {
-            if (crc & 0x0001) crc = (crc >> 1) ^ 0xA001;
-            else              crc = (crc >> 1);
+        for (int b = 0; b < 8; ++b)
+        {
+            if (crc & 0x0001)
+                crc = (crc >> 1) ^ 0xA001;
+            else
+                crc = (crc >> 1);
         }
     }
-    //return crc; // 返回的数值 低字节在前
     return ((crc << 8) | (crc >> 8)); // 返回的数值 高字节在前
 }
 
@@ -119,23 +121,27 @@ uint16_t modbusCRC16Table(uint8_t *nData, uint16_t wLength)
     uint16_t wCRCResult = 0;
     while (wLength--)
     {
-    nTemp = *nData++ ^ wCRCWord;
-    wCRCWord >>= 8;
-    wCRCWord ^= wCRCTable[nTemp];
+        nTemp = *nData++ ^ wCRCWord;
+        wCRCWord >>= 8;
+        wCRCWord ^= wCRCTable[nTemp];
     }
     //将 CRC 高低字节交换
-    wCRCResult = wCRCWord>>8;
+    wCRCResult = wCRCWord >> 8;
     wCRCResult = wCRCResult | (wCRCWord << 8);
     return wCRCResult;
 }
 
-uint16_t crc16_modbus(const std::vector<uint8_t>& data) {
+uint16_t modbusCRC16(const std::vector<uint8_t>& data) {
     uint16_t crc = 0xFFFF;
-    for (size_t i = 0; i < data.size(); ++i) {
+    for (size_t i = 0; i < data.size(); ++i)
+    {
         crc ^= data[i];
-        for (int b = 0; b < 8; ++b) {
-            if (crc & 0x0001) crc = (crc >> 1) ^ 0xA001;
-            else              crc = (crc >> 1);
+        for (int b = 0; b < 8; ++b)
+        {
+            if (crc & 0x0001)
+                crc = (crc >> 1) ^ 0xA001;
+            else
+                crc = (crc >> 1);
         }
     }
 
@@ -145,10 +151,10 @@ uint16_t crc16_modbus(const std::vector<uint8_t>& data) {
 int16_t* parse_modbus_register(const std::string& hexResponse, const int regIndex, const int regLen) {
     // ---- 第一步：参数校验 ----
     if (hexResponse.empty() || hexResponse.size() % 2 != 0) {
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
     if (regIndex < 1) {
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
     // ---- 第二步：十六进制转字节 ----
     std::vector<uint8_t> bytes;
@@ -159,12 +165,12 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
             push_back(static_cast<uint8_t>(std::stoi(hexResponse.substr(i, 2), nullptr, 16)));
         }
         catch(...) {
-            throw LaserSdkResult::ERROR_LASER_SDK;
+            throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
         }
     }
     // ---- 第三步：校验最小长度 ----
     if (bytes.size() < 6) { // 返回字节数1 + 地址1 + 功能码1 + 字节计数1 + 数据2 + CRC2
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
     // ---- 第四步：高低位交换（整个报文）----
     std::vector<uint8_t> swappedBytes;
@@ -178,7 +184,7 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
     // ---- 第五步：跳过前3字节（交换后的地址+功能码+字节计数）----
     size_t dataStart = 4;
     if (dataStart >= swappedBytes.size()) {
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
     uint8_t dataByteCount = swappedBytes[3];
     int num = dataByteCount / 2;  // 实际寄存器数量
@@ -187,11 +193,11 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
     // ---- 第六步：提取目标寄存器值 ----
     if (regLen < 1 || regLen > num) {
         std::cout << "Error: regLen (" << regIndex << ") out of range [1, " << num << "]" << std::endl;
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
     if (regIndex < 1 || regIndex > num) {
         std::cout << "Error: regIndex (" << regIndex << ") out of range [1, " << num << "]" << std::endl;
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
     int16_t* values = new int16_t[static_cast<size_t>(regLen)];
@@ -201,7 +207,7 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
         if (pos + 1 >= swappedBytes.size()) {
             // 发生错误时释放已分配的内存
             delete[] values;
-            throw LaserSdkResult::ERROR_LASER_SDK;
+            throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
         }
         uint16_t rawValue = (swappedBytes[pos] << 8) | swappedBytes[pos + 1];
         values[i] = static_cast<int16_t>(rawValue >= 0x8000 ? rawValue - 0x10000 : rawValue);
@@ -212,11 +218,11 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
 int32_t parse_modbus_register32(const std::string& hexResponse){
     // ---- 第一步：参数校验 ----
     if (hexResponse.empty() || hexResponse.size() % 2 != 0) {
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
     if (hexResponse.size() < 14) { // 最小长度：地址1+功能码1+字节数1+数据4+CRC2 = 7字节 = 14字符
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
     // ---- 第二步：十六进制转字节 ----
@@ -226,7 +232,7 @@ int32_t parse_modbus_register32(const std::string& hexResponse){
             uint8_t byte = static_cast<uint8_t>(std::stoi(hexResponse.substr(i, 2), nullptr, 16));
             bytes.push_back(byte);
         } catch (...) {
-            throw LaserSdkResult::ERROR_LASER_SDK;
+            throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
         }
     }
 
@@ -236,13 +242,13 @@ int32_t parse_modbus_register32(const std::string& hexResponse){
 
     // 检查功能码
     if (bytes[1] != 0x03) {
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
     // 检查字节计数
     uint8_t byte_count = bytes[3];
     if (byte_count != 0x07) {
-        throw LaserSdkResult::ERROR_LASER_SDK;
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
     // 数据长度应该是 2N (N=寄存器数量)
@@ -258,7 +264,7 @@ int32_t parse_modbus_register32(const std::string& hexResponse){
     size_t data_start_index = 6;
 
     if (data_start_index + 2 > bytes.size()) {
-        LaserSdkResult::ERROR_LASER_SDK;
+        LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
     // ---- 第五步：组合int32数据（考虑字节序）----
