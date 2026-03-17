@@ -5,10 +5,19 @@
 #include "craftscript.h"
 #include "utils.h"
 
-//生成唯一ID
+/**
+ * @brief distributionID 生成指令列表转换过程中需要用到的ID，保证每次调用GetBasicCraftScript生成的ID不重复
+ * @param IDSet  已生成的ID集合，传入时包含之前生成的ID，函数内部会将新生成的ID加入集合
+ * @return int 生成的ID
+ */
 int distributionID(std::unordered_set<int>& IDSet);
 
-//返回相应的工艺通讯类
+/**
+ * @brief craft_script_commu_class_get 获取焊机通讯类实例
+ * @param laserMachineHandle 焊机资源句柄
+ * @param craftCommuClass 焊机通讯类实例 传出参数
+ * @return LaserSdkResult 处理结果
+ */
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass);
 
 /**

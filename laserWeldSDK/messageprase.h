@@ -9,11 +9,11 @@
 #include <map>
 
 /**
- * crc16_modbus crc16校验码计算
+ * modbusCRC16 crc16校验码计算
  * @param[in] data  输入校验数据，单字节组成的数组
  * @return uint16_t 校验码，低字节在前
  */
-uint16_t crc16_modbus(const std::vector<uint8_t>& data);
+uint16_t modbusCRC16(const std::vector<uint8_t>& data);
 
 /**
  * @brief modbusCRC16Calculate     查表法计算CRC16校验码;C风格
@@ -26,7 +26,7 @@ uint16_t modbusCRC16Table(uint8_t *nData, uint16_t wLength);
 /**
  * @brief crc16Modbus       计算CRC16校验码
  * @param data              用于crc16计算的列表，按字节顺序存放
- * @return uint16_t          处理结果,高字节在前
+ * @return uint16_t         处理结果,高字节在前
  */
 uint16_t crc16Modbus(const std::vector<uint8_t> &data);
 

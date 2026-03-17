@@ -11,9 +11,9 @@ typedef int LaserMachineHandle;
 //激光头品牌
 enum LaserHeadBrandSdk
 {
-    CQLASERPOWER_SDK = 0,   // 超强伟业
-    OSRPLASERPOWER_SDK = 1, // 欧斯睿普
-    BCXLASERPOWER_SDK = 2   // 宝辰鑫
+    CQLASERPOWER_SDK = 0,   ///< 超强伟业
+    OSRPLASERPOWER_SDK = 1, ///< 欧斯睿普
+    BCXLASERPOWER_SDK = 2   ///< 宝辰鑫
 };
 
 // 接口调用结果
