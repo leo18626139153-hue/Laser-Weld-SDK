@@ -13,10 +13,7 @@ protected:
     //功能函数脚本内容
     std::map<std::string, std::string> startLuaScripts;     //初始化接口
     std::map<std::string, std::string> startDataScripts;    //初始化变量
-
-    /**
-     * 功能函数脚本内容
-     */
+    //输出功能函数脚本
     std::string loadLuaFunctionScript;
 public:
     CommuBase(){}
@@ -66,6 +63,7 @@ class CommuRS485 : public CommuBase
 public:
     ~CommuRS485() override{}
     static CommuRS485* GetInstance();
+    int funcCode;
 
 private:
     CommuRS485();
