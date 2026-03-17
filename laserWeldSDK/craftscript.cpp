@@ -86,7 +86,7 @@ CommuRS485::CommuRS485()
 
 void CommuRS485::initData()
 {
-    funcCode = 0x0906;
+    //funcCode = 0x0906;
     std::string startData = R"(
     local SendDataType = 0 --bool位寄存器 通过bool寄存器发送字节数据
     local RecvDataType = 1 --16位寄存器 接收到的数据放到16位寄存器中
