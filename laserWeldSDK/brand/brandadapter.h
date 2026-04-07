@@ -14,9 +14,9 @@ public:
 };
 
 /**
- * @brief GetCraftCheck 超强伟业图案参数检查
- * @param craftInfoCheck    工艺参数
- * @return LaserSdkResult
+ * @brief   “  超强伟业激光头 ” 图案 参数检查
+ * @param   craftInfoCheck    工艺参数
+ * @return  LaserSdkResult
  */
 LaserSdkResult GetCraftCheck(CraftInfoLaserSdk craftInfoCheck);
 
