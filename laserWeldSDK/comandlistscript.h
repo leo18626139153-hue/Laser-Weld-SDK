@@ -2,8 +2,8 @@
 #define COMANDLISTSCRIPT_H
 #include "cl_basedefine.h"
 #include "internaldatadefine.h"
-#include "craftscript.h"
 #include "utils.h"
+#include "craftscript.h"
 
 /**
  * @brief distributionID 生成指令列表转换过程中需要用到的ID，保证每次调用GetBasicCraftScript生成的ID不重复
@@ -20,12 +20,7 @@ int distributionID(std::unordered_set<int>& IDSet);
  */
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass);
 
-/**
- * @brief GetCraftCheck 超强伟业图案参数检查
- * @param craftInfoCheck    工艺参数
- * @return LaserSdkResult
- */
-LaserSdkResult GetCraftCheck(CraftInfoLaserSdk craftInfoCheck);
+
 
 /**
  * @brief GetBasicCraftScript    基本工艺指令列表的转换
