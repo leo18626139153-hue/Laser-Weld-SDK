@@ -186,9 +186,6 @@ std::string strMoveCReplace(S points0, T joints0, X points1, Y joints1, Z speed,
 /// 比较两个浮点数是否相等的函数
 bool isEqual(double a, double b);
 
-//对16位数据进行高低字节拆分
-std::tuple<int, int> splitHighLowByteValue(double value);
-
 /**
  * @brief   CRresult转LaserSdkResult
  * @param   res CRresult
