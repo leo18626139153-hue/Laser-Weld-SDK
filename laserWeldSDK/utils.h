@@ -189,10 +189,18 @@ bool isEqual(double a, double b);
 //对16位数据进行高低字节拆分
 std::tuple<int, int> splitHighLowByteValue(double value);
 
-//CRresult转LaserSdkResult
+/**
+ * @brief   CRresult转LaserSdkResult
+ * @param   res CRresult
+ * @return  LaserSdkResult
+ */
 LaserSdkResult crsdk_return_value_transfer(CRresult res);
 
-//十进制转16进制，输出为对应十六进制的字符串类型
+/**
+ * @brief   十进制转16进制，输出为对应十六进制的字符串类型
+ * @param   value 十进制value
+ * @return  十六进制的字符串类型
+ */
 std::string decimalToHexStringStream(unsigned int value);
 
 /**

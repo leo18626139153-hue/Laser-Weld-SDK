@@ -383,22 +383,11 @@ std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc, int writeValue)
     std::string scriptText;
     //读手动测试地址中的数据
     scriptText += strReadInt16RegReplace(returnVal,addr);
-
     //给某个数的指定位（从1开始计数）写值  setLocBit函数在之前已经定义
     scriptText += strReplace("%1=setLocBit(%1, %2, %3)\n",std::vector<std::string>{returnVal, std::to_string(wireBitLoc-1),std::to_string(writeValue)});
     //重新写入值
     scriptText += strWriteInt16RegReplace(addr, returnVal);
     return scriptText;
-}
-
-// 定义splitPdoValue的C++版本
-std::tuple<int, int> splitHighLowByteValue(double value) {
-    int intValue = static_cast<int>(value);
-    // 获取高8位
-    int high8Bits = (intValue >> 8) & 0xFF;
-    // 获取低8位
-    int low8Bits = intValue & 0xFF;
-    return std::make_tuple(high8Bits, low8Bits);
 }
 
 std::string doubleArray2Str(double* array, int size)
