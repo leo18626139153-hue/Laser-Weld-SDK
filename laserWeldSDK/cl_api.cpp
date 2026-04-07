@@ -3,7 +3,6 @@
 #include "craftscript.h"
 #include "rs485_communicater.h"
 #include "messageprase.h"
-#include "comandlistscript.h"
 #include "clmath.h"
 #include <functional>
 #include <thread>
