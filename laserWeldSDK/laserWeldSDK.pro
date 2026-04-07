@@ -23,6 +23,7 @@ SOURCES += \
     cl_api.cpp \
     clmath.cpp \
     comandlistscript.cpp \
+    common/rs485_communicater.cpp \
     craftscript.cpp \
     messageprase.cpp \
     utils.cpp
@@ -33,6 +34,7 @@ HEADERS += \
     cl_basedefine.h \
     clmath.h \
     comandlistscript.h \
+    common/rs485_communicater.h \
     cr_sdk/include/basestruct.h \
     cr_sdk/include/robotapi.h \ \
     craftscript.h \
@@ -40,7 +42,7 @@ HEADERS += \
     messageprase.h \
     utils.h
 
-
+INCLUDEPATH += $$PWD/common
 #如果编译时报错找不到WDK相关系统文件，解开这段注释并修改为当前电脑中相应的WDK地址
 #INCLUDEPATH += "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17763.0/ucrt"
 
