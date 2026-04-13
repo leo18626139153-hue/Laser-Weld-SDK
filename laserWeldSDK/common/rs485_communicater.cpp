@@ -4,8 +4,7 @@
 #include "internaldatadefine.h"
 #include "brandadapter.h"
 #include <vector>
-#include <iomanip>  // 必须有这个
-#include <sstream>  // 你用了 ostringstream，也需要这个
+
 //RS485单例
 CommuRS485 *CommuRS485::s_commuRS485 = nullptr;
 std::once_flag CommuRS485::initFlag;

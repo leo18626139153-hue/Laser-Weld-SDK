@@ -183,7 +183,12 @@ std::string strMoveCReplace(S points0, T joints0, X points1, Y joints1, Z speed,
                       "%8", data6);
 }
 
-/// 比较两个浮点数是否相等的函数
+/**
+ * @brief 比较两个浮点数是否相等的函数
+ * @param a double
+ * @param b double
+ * @return bool
+ */
 bool isEqual(double a, double b);
 
 /**

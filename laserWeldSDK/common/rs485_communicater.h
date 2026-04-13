@@ -1,20 +1,17 @@
 #include "craftscript.h"
 #include <mutex>
 
-
 class CommuRS485 : public CommuBase
 {
 public:
     ~CommuRS485() override{}
     static CommuRS485* GetInstance();
-
-
 private:
     CommuRS485();
     void initData();
     static CommuRS485* s_commuRS485;
     static std::once_flag initFlag; ///< initFlag >>> 保证单例对象只被初始化一次，且线程安全
-    int funcCode = 0x0906;
+    int funcCode = 0x0906;  //暂时写死
 
 public:
     //--报文组件
