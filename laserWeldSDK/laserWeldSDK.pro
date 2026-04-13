@@ -21,7 +21,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     brand/brandadapter.cpp \
-    brandadapter.cpp \
     cl_api.cpp \
     clmath.cpp \
     common/rs485_communicater.cpp \
@@ -31,20 +30,17 @@ SOURCES += \
 
 HEADERS += \
     brand/brandadapter.h \
-    brandadapter.h \
     cl_api.h \
     cl_basedefine.h \
     clmath.h \
     common/rs485_communicater.h \
     cr_sdk/include/basestruct.h \
-    cr_sdk/include/robotapi.h \ \
+    cr_sdk/include/robotapi.h \
     craftscript.h \
     internaldatadefine.h \
     messageprase.h \
     utils.h
 
-INCLUDEPATH += $$PWD/common
-INCLUDEPATH += $$PWD/brand
 #如果编译时报错找不到WDK相关系统文件，解开这段注释并修改为当前电脑中相应的WDK地址
 #INCLUDEPATH += "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17763.0/ucrt"
 
@@ -55,12 +51,15 @@ INCLUDEPATH += $$PWD/brand
 #INCLUDEPATH += 'C:/Program Files (x86)/Windows Kits/10/Lib/10.0.17763.0/ucrt/x64'
 #DEPENDPATH += 'C:/Program Files (x86)/Windows Kits/10/Lib/10.0.17763.0/ucrt/x64'
 
+INCLUDEPATH += $$PWD/common
+INCLUDEPATH += $$PWD/brand
+
 win32: LIBS += -L$$PWD/cr_sdk/windows/libs/x64/ -lcr_sdk
 
-INCLUDEPATH += $$PWD/cr_sdk/windows/include
-DEPENDPATH += $$PWD/cr_sdk/windows/include
+INCLUDEPATH += $$PWD/cr_sdk/include
+DEPENDPATH += $$PWD/cr_sdk/windows/libs/x64
 
 unix:!macx: LIBS += -L$$PWD/cr_sdk/arm/libs/ -lcr_sdk
 
-INCLUDEPATH += $$PWD/cr_sdk/arm/libs
+INCLUDEPATH += $$PWD/cr_sdk/include
 DEPENDPATH += $$PWD/cr_sdk/arm/libs
