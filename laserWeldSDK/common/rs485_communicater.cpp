@@ -30,6 +30,51 @@ CommuRS485::CommuRS485()
 void CommuRS485::initData()
 {
     funcCode = 0x0906;
+    //组装最终要下发执行的脚本
+    std::string commandListStartData =
+    R"(--激光器工艺
+    local laserRegisterMap = {
+        [1] = {0x0230, 2000},  -- 激光功率
+        [2] = {0x0231, 100},  -- 开光功率
+        [3] = {0x0232, 0},    -- 开光功率上升时间
+        [4] = {0x0233, 100},  -- 关光功率
+        [5] = {0x0234, 0},   -- 关光功率下降时间
+        [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间
+        [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间
+        [8] = {0x0237, 0},    -- 送丝延时 默认0
+        [9] = {0x0238, 1},    -- 激光头Y轴缩放
+        [10] = {0x0239, 0},   -- 激光头Y轴偏移
+        [11] = {0x023A, 1 },  -- 激光头X轴缩放
+        [12] = {0x023B, 0 },  -- 激光头X轴偏移
+    }
+    --送丝机参数
+    local wireRegisterMap = {
+        [1] = {0x0103, 0},      --自动送丝延时
+        [2] = {0x0104, 100},    --回抽长度
+        [3] = {0x0105, 100},    --补丝长度
+        [4] = {0x0106, 0},    --补丝延时
+
+        [100] = {0x0100, 123},  --自动送丝速度
+        [115] = {0x0115, 0},    --送丝机运行状态
+    }
+    --点焊工艺
+    local spotWeld = {
+        [1] = {0x0242, 0}, --点焊类型
+        [2] = {0x0243, 0}, --点焊持续时间  0 ~ 60000 ms
+        [3] = {0x0244, 0} --点焊间隔时间   0 ~ 60000 ms
+    }
+    -- 激光头控制参数
+    local laserHeadRegisterMap = {
+        [1] = { 0x0000, 2000},  -- 激光头扫描速度
+        [2] = { 0x0001, 25 },    -- 激光头扫描宽度
+        [3] = { 0x0002, 3000 },    -- 峰值功率，焊接功率
+        [4] = { 0x0003, 100},   -- 占空比
+        [5] = { 0x0004, 0 },
+        [6] = { 0x0005, 20000 },    --脉冲频率/工艺无控制
+        [7] = { 0x0006, 25 },    -- 激光头扫描高度
+        [8] = { 0x0007, 0 },    -- 激光头旋转角度
+    }
+    )";
     std::string startData = R"(
     local SendDataType = 0 --bool位寄存器 通过bool寄存器发送字节数据
     local RecvDataType = 1 --16位寄存器 接收到的数据放到16位寄存器中
@@ -299,7 +344,7 @@ void CommuRS485::initData()
         "    print(\"接收结果完成\")\n"
         "end\n";
 
-    loadLuaFunctionScript = startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
+    loadLuaFunctionScript = commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port
      + read_value_port ;
 }
