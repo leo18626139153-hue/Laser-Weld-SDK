@@ -487,6 +487,8 @@ enum WeldControlAddressLaserSdk
     INT32_REG_WELD_INTERRUPT_674 = 674,   ///< 焊接中断信号
     INT32_REG_ARC_END_FAIL_675 = 675,     ///< 收弧异常信号
 
+    INT32_REG_NORMAL_RUN_ALL_SCRIPT_LOC = 800,
+
     INT32_REG_COMMU_TIMEOUT_821 = 821,                 ///< 发送超时
 
     // 激光通讯的交互

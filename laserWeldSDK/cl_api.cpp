@@ -917,9 +917,11 @@ LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHand
 
     int programStopArcEndAddress = WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614;   // 程序停止后自动收弧开启状态位：1 有效 0 无效
     int signalSetpRunAddress = WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616;  // 单步运行状态位：1 有效 0 无效
-
+    int normalRunAllScriptAddress = WeldControlAddressLaserSdk::INT32_REG_NORMAL_RUN_ALL_SCRIPT_LOC;
     script += strWriteInt32RegReplace(programStopArcEndAddress, 0); // 程序停止后自动收弧关闭
     script += strWriteInt32RegReplace(signalSetpRunAddress, 0);
+
+    script += strWriteInt32RegReplace(normalRunAllScriptAddress, 1);
 
     if(static_cast<int>(script.size()) + 1 > *scriptLen)
     {
