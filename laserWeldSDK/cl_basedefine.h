@@ -246,15 +246,15 @@ typedef struct CgxiRobotLaserSdk
 // 焊接工艺类型枚举
 enum  WeldingProcessType {
     WIRE_WELDING_LASERSDK = 0,  // 焊丝焊
-    SELF_WELDING_LASERSDK = 1   // 自焊焊
+    SELF_WELDING_LASERSDK = 1   // 自熔焊
 };
 
 /// 焊机资源 ///
 typedef struct MachineResource
 {
-    CommuTypeLaserSdk commuType;    ///< 通讯形式
-    LaserHeadBrandSdk laserHeadBrand;  ///< 激光头品牌
-    RobotHandle robotHandle;        ///< 机器人句柄
+    CommuTypeLaserSdk commuType;         ///< 通讯形式
+    LaserHeadBrandSdk laserHeadBrand;    ///< 激光头品牌
+    RobotHandle robotHandle;             ///< 机器人句柄
     WeldingProcessType weldingProcessType;     ///< 焊接工艺类型
     /* 读---------- 输入状态地址 ---------- */
     //送丝机参数
@@ -469,9 +469,7 @@ enum WeldControlAddressLaserSdk
     BOOL_REG_EXTSTRUCT_654 = 654,                           ///< 手动控制
     BOOL_REG_EXTSTRUCT_700 = 700,                           ///<  按压切换状态
 
-
-    // Int32               
-
+    // Int32
     INT32_REG_WELD_STATUS_MONITOR_613 = 613,                 ///< 焊接中断检测开启状态位：1 有效 0 无效
     INT32_REG_PROGRAM_STOP_ARC_END_614 = 614,                ///< 程序停止后自动收弧开启状态位：1 有效 0 无效
     INT32_REG_SINGLE_STEP_RUN_616 = 616, ///< 单步运行状态位： 1 ： 有效 | 0 ： 无效
@@ -489,7 +487,7 @@ enum WeldControlAddressLaserSdk
 
     INT32_REG_NORMAL_RUN_ALL_SCRIPT_LOC = 800,  ///< 焊接后处理，工件队列中使用，第一个工件运行结束后写1，然后继续运行第二个工件
 
-    INT32_REG_COMMU_TIMEOUT_821 = 821,                 ///< 发送超时
+    INT32_REG_COMMU_TIMEOUT_821 = 821,          ///< 发送超时
 
     // 激光通讯的交互
     INT_REG_WRITE_PARAMETER_30 = 30,    ///< 接收的数据从16位通讯变量的 30 地址开始存储

@@ -416,7 +416,7 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
 
         checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_WELD_STATUS_MONITOR_613, 1, &intVal));
         checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_PROGRAM_STOP_ARC_END_614, 1, &intVal));
-        checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616, 1, &intVal));
+        //checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_SINGLE_STEP_RUN_616, 1, &intVal));
         checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_RUN_BREAK_POINT_617, 1, &intVal));
 
         checkCrSdkResult(cr_set_int32RegValue(machineResource.robotHandle, WeldControlAddressLaserSdk::INT32_REG_ARC_START_FAIL_673, 1, &intVal));
