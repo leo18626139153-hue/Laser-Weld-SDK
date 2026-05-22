@@ -361,11 +361,6 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult cl_laser_current_craft_set_read(const LaserMachineHandle laserMachineHandle, char *script, int *scriptLen)
-{
-    return LaserSdkResult::SUCCESS_LASER_SDK;
-}
-
 // 初始化焊机相关的寄存机值
 LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHandle)
 {
@@ -1668,29 +1663,45 @@ LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, 
         {
             return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
         }
-        MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-        // 生成报文
-        if (message != nullptr)
+
+        // 【修改理由】原代码未校验 length 空指针，直接解引用会导致崩溃
+        if (message == nullptr || length == nullptr)
         {
-            *message = 0;  // 初始化报文
+            return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }
-        funcCode = 0x06;
-        std::vector<std::vector<uint8_t>> msg;
+
+        // 【修改理由】原代码 funcCode = 0x06 强制覆盖了调用者传入的参数，形参失去意义
+        // 【逻辑】删除强制覆盖，使用调用者传入的 funcCode，保持接口灵活性
         std::map<uint16_t, uint16_t> msgMap;
         msgMap.insert(std::make_pair(firstAddr, parameter));
-        msg = buildMessageVector(msgMap, slaveAddr, funcCode);
-        size_t len = 0;
-        for(auto vecL : msg)
+        std::vector<std::vector<uint8_t>> msg = buildMessageVector(msgMap, slaveAddr, funcCode);
+
+        // 【修改理由】原代码 len += msg.size() 取的是外层vector的大小（帧数）而非每帧字节数
+        // 【逻辑】遍历每帧，累加各帧字节数得到总报文长度
+        size_t totalLen = 0;
+        for (const auto& frame : msg)
         {
-            len += msg.size();
+            totalLen += frame.size();
         }
-        *length = static_cast<int>(len);
+
+        // 【修改理由】原代码未检查缓冲区是否足够，直接写入可能越界
+        if (static_cast<size_t>(*length) < totalLen)
+        {
+            *length = static_cast<int>(totalLen);  // 通知调用者所需大小
+            return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
+        }
+
+        // 【修改理由】原代码 memcpy(message, msg.data(), msg.size()) 在循环中对同一位置重复写入
+        //  且 msg.data() 是外层vector的指针(指向vector<vector>的数据)，不是实际的报文数据
+        // 【逻辑】逐帧按偏移量拼接到输出缓冲区
         size_t offset = 0;
-        for(auto vecL : msg)
+        for (const auto& frame : msg)
         {
-            memcpy(message, msg.data(), msg.size());
-            offset += msg.size();
+            memcpy(message + offset, frame.data(), frame.size());
+            offset += frame.size();
         }
+        *length = static_cast<int>(totalLen);
+
         return LaserSdkResult::SUCCESS_LASER_SDK;
     }
     catch (const LaserSdkResult& errorResult) {

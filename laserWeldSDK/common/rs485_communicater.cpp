@@ -82,7 +82,6 @@ void CommuRS485::initData()
     local SendCommuReg_n = 16		--发送指令从bool通讯变量的 0 地址开始存储
     local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
     local RecvCommuReg_n = 60		--接收30个字节
-    local alarm_bits_list = {0,1,2,4,5,10,11,14}		--接收50个字节
     local flag = 0  --标识位
     )";
 
@@ -140,27 +139,8 @@ void CommuRS485::initData()
         end
     end
     )";
-    std::string lua_data_get = R"(
-    --5.定义数据拆分整合函数 如0x1234 0x5678 输出0x1278
-    function Lua_data_get(data1, data2)
-        -- 如果数值小于0,则转换为无符号数计算
-        if data1 < 0 then
-            data1 = 65536 + data1
-        end
-        if data2 < 0 then
-            data2 = 65536 + data2
-        end
-        -- 拆分数据1
-        local data_1_1 = data1 // (16^3)
-        local data_1_2 = (data1 % (16^3)) // (16^2)
-        -- 拆分数据2
-        local data_2_3 = (data2 % (16^2)) // 16
-        local data_2_4 = data2 % 16
-        -- 整合数据1和数据2
-        local result = (data_1_1 * (16^3)) + (data_1_2 * (16^2)) + (data_2_3 * 16 + data_2_4)
-        return result
-    end
-    )";
+    // 【修改理由】删除了 Lua_data_get 函数：该函数在任何生成的Lua脚本中均未被调用，属于僵尸代码
+    // 【逻辑】保留其他功能函数，不影响 write_value_port / write_multi_value_port 的执行
     std::string concatenate_crc = R"(
     -- 6.将十进制数转换为十六进制，并以两位字符表示
     function to_hex_string(number)
@@ -344,7 +324,9 @@ void CommuRS485::initData()
         "    print(\"接收结果完成\")\n"
         "end\n";
 
-    loadLuaFunctionScript = commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear + lua_data_get
+    // 【修改理由】移除了 lua_data_get（零引用僵尸函数）和 alarm_bits_list（状态监控已注释）
+    // 【逻辑】其余函数按依赖顺序拼接：基础工具 → 数据表 → 变量 → CRC → 拆分 → 清空 → 串口读写
+    loadLuaFunctionScript = commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port
      + read_value_port ;
 }
@@ -1118,53 +1100,10 @@ void CommuRS485::init_multiple_registers_value(std::string multipleRegistersValu
         startLuaScripts.emplace("multipleRegistersValue", multipleRegistersValue); //写多个寄存器的初始化变量
         return;
     }
-    //组装最终要下发执行的脚本
-    std::string commandListStartData =
-    R"(--激光器工艺
-    local laserRegisterMap = {
-        [1] = {0x0230, 2000},  -- 激光功率
-        [2] = {0x0231, 100},  -- 开光功率
-        [3] = {0x0232, 0},    -- 开光功率上升时间
-        [4] = {0x0233, 100},  -- 关光功率
-        [5] = {0x0234, 0},   -- 关光功率下降时间
-        [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间
-        [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间
-        [8] = {0x0237, 0},    -- 送丝延时 默认0
-        [9] = {0x0238, 1},    -- 激光头Y轴缩放
-        [10] = {0x0239, 0},   -- 激光头Y轴偏移
-        [11] = {0x023A, 1 },  -- 激光头X轴缩放
-        [12] = {0x023B, 0 },  -- 激光头X轴偏移
-    }
-    --送丝机参数
-    local wireRegisterMap = {
-        [1] = {0x0103, 0},      --自动送丝延时
-        [2] = {0x0104, 100},    --回抽长度
-        [3] = {0x0105, 100},    --补丝长度
-        [4] = {0x0106, 0},    --补丝延时
-
-        [100] = {0x0100, 123},  --自动送丝速度
-        [115] = {0x0115, 0},    --送丝机运行状态
-    }
-    --点焊工艺
-    local spotWeld = {
-        [1] = {0x0242, 0}, --点焊类型
-        [2] = {0x0243, 0}, --点焊持续时间  0 ~ 60000 ms
-        [3] = {0x0244, 0} --点焊间隔时间   0 ~ 60000 ms
-    }
-    -- 激光头控制参数
-    local laserHeadRegisterMap = {
-        [1] = { 0x0000, 2000},  -- 激光头扫描速度
-        [2] = { 0x0001, 25 },    -- 激光头扫描宽度
-        [3] = { 0x0002, 3000 },    -- 峰值功率，焊接功率
-        [4] = { 0x0003, 100},   -- 占空比
-        [5] = { 0x0004, 0 },
-        [6] = { 0x0005, 20000 },    --脉冲频率/工艺无控制
-        [7] = { 0x0006, 25 },    -- 激光头扫描高度
-        [8] = { 0x0007, 0 },    -- 激光头旋转角度
-    }
-    )";
-    startLuaScripts.emplace("multipleRegistersValue", commandListStartData); //写多个寄存器的初始化变量
-
+    // 【修改理由】删除与 initData() 中完全重复的 40+ 行数据表定义（laserRegisterMap/wireRegisterMap/spotWeld/laserHeadRegisterMap）
+    // 【逻辑】initData() 已将4个数据表写入 loadLuaFunctionScript（持久存在，不会被 loadLuaFunctionScriptOut() 擦除）
+    //   因此每次脚本输出都自动包含表的初始定义，init_multiple_registers_value("") 无需重复添加
+    //   非空参数路径保留，用于外部调用者注入自定义初始化数据
 }
 
 LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo, std::string &script)
