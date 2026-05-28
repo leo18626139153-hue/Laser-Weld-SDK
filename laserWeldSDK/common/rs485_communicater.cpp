@@ -34,6 +34,81 @@ static std::string scriptCodeToLuaHex(unsigned int scriptCode)
     return oss.str();
 }
 
+LaserSdkResult CommuRS485::addWriteParamScript(std::unordered_map<unsigned int, std::string>& writeDataHash,
+                                               const std::string& writeSingleFuncCode,
+                                               CommuRegType regType,
+                                               double paramValue,
+                                               unsigned int addr,
+                                               int comNo,
+                                               int receiptNeeded)
+{
+    if (addr >= 0xFFFF)
+    {
+        return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
+    }
+
+    std::ostringstream useScript;
+    switch (regType)
+    {
+    case float10Reg:
+        useScript << std::setprecision(1);
+        useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << ","
+                  << static_cast<int>(paramValue * 10) << ", " << comNo << ", SendCommuRegAddr,"
+                  << receiptNeeded << ")\n";
+        break;
+    case float100Reg:
+        useScript << std::setprecision(2);
+        useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << ","
+                  << static_cast<int>(paramValue * 100) << ", " << comNo << ", SendCommuRegAddr,"
+                  << receiptNeeded << ")\n";
+        break;
+    case int16Reg:
+        useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << ","
+                  << paramValue << ", " << comNo << ", SendCommuRegAddr,"
+                  << receiptNeeded << ")\n";
+        break;
+    }
+    writeDataHash.insert(std::make_pair(addr, useScript.str()));
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult CommuRS485::addWireFeederRoleParamScript(std::unordered_map<unsigned int, std::string>& writeDataHash,
+                                                        const BrandProtocolAdapter& adapter,
+                                                        const std::string& writeSingleFuncCode,
+                                                        BrandRegisterRole role,
+                                                        double paramValue,
+                                                        unsigned int fallbackAddr,
+                                                        int receiptNeeded)
+{
+    if (adapter.hasRegister(role))
+    {
+        BrandRegisterInfo info = adapter.registerInfo(role);
+        LaserSdkResult res = addWriteParamScript(writeDataHash,
+                                                 writeSingleFuncCode,
+                                                 info.regType,
+                                                 paramValue / info.scale,
+                                                 info.writeAddr,
+                                                 2,
+                                                 receiptNeeded);
+        if (res != LaserSdkResult::SUCCESS_LASER_SDK)
+        {
+            return res;
+        }
+        if (fallbackAddr != 0 && fallbackAddr != info.writeAddr)
+        {
+            return addWriteParamScript(writeDataHash,
+                                       writeSingleFuncCode,
+                                       info.regType,
+                                       paramValue / info.scale,
+                                       fallbackAddr,
+                                       2,
+                                       receiptNeeded);
+        }
+        return LaserSdkResult::SUCCESS_LASER_SDK;
+    }
+    return addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, paramValue, fallbackAddr, 2, receiptNeeded);
+}
+
 // 【修改理由】外部传入的 locVec 仍是地址列表，适配器规则需要基于 BrandRegisterRole 判断。
 // 【逻辑】先匹配当前品牌地址；若旧调用方仍传 MachineResource 中的历史地址，则用 fallback 维持兼容。
 bool CommuRS485::findWireFeederRoleByAddr(const BrandProtocolAdapter &adapter, const MachineResource &machineResource, unsigned int addr, BrandRegisterRole &role)
@@ -762,64 +837,42 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     std::unordered_map<unsigned int, std::string> writeDataHash;
 
-    //参数类型 - 参数值 - 地址
-    auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr)
-    {
-        std::string endstr = "\n";
-        std::ostringstream useScript;
-        switch (regType)
-        {
-        case float10Reg:
-            useScript << std::setprecision(1);  //保留小数点后1位
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*10) << ", 3, SendCommuRegAddr,1)" << endstr;
-            break;
-        case float100Reg:
-            useScript << std::setprecision(2);  //保留小数点后2位
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*100) << ", 3, SendCommuRegAddr,1)" << endstr;
-            break;
-        case int16Reg:
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1)" << endstr;
-            break;
-        }
-        writeDataHash.emplace(addr, useScript.str());
-    };
-
     // 1. 写入激光器功率 (0-5000W, 整型)
-    addParam( int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc, 3, 1);
     // 2. 写入开光功率 (0-5000W, 整型)
-    addParam( int16Reg, laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc, 3, 1);
     // 3. 写入开光渐进时间 (0~1000ms, 整型)
-    addParam( int16Reg, 0, machineResource.laserOnRampTimeLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, 0, machineResource.laserOnRampTimeLoc, 3, 1);
     // 4. 写入关光功率 (0-5000W, 整型)
-    addParam( int16Reg, laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc, 3, 1);
     // 5. 写入关光渐进时间 (0~300mm, 整型)
-    addParam( int16Reg, 0, machineResource.laserOffRampTimeLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, 0, machineResource.laserOffRampTimeLoc, 3, 1);
     // 6. 写入开气延时函数 提前送气时间	0~3000ms
-    addParam( int16Reg, laserPowerParams.gasStartupAdvanceTime, machineResource.gasONDelayLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.gasStartupAdvanceTime, machineResource.gasONDelayLoc, 3, 1);
     // 7. 写入关气延时函数
-    addParam( int16Reg, laserPowerParams.gasShutoffDelayTime, machineResource.gasOffDelayLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.gasShutoffDelayTime, machineResource.gasOffDelayLoc, 3, 1);
     // 8. 写入送丝延时函数
-    addParam( int16Reg, laserPowerParams.wireFeedAdvanceTime, machineResource.wireOutDelayLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.wireFeedAdvanceTime, machineResource.wireOutDelayLoc, 3, 1);
     // 9. 写入驱动器温度报警阈值函数
-    addParam( int16Reg, laserPowerParams.driverTemp, machineResource.driverTempLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.driverTemp, machineResource.driverTempLoc, 3, 1);
     //10. 写入保护镜报警阈值
-    addParam( int16Reg, laserPowerParams.protectiveWindowTemp, machineResource.protectiveWindowTempLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.protectiveWindowTemp, machineResource.protectiveWindowTempLoc, 3, 1);
     //11. 写入准直镜温度报警阈值
-    addParam( int16Reg, laserPowerParams.collimatorTemp, machineResource.collimatorTempLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.collimatorTemp, machineResource.collimatorTempLoc, 3, 1);
     //12. 写入X偏移
-    addParam( float100Reg, laserPowerParams.laserHeadXOffset, machineResource.laserHeadXOffsetLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, float100Reg, laserPowerParams.laserHeadXOffset, machineResource.laserHeadXOffsetLoc, 3, 1);
     //13. 写入Y偏移
-    addParam( float100Reg, laserPowerParams.laserHeadYOffset, machineResource.laserHeadYOffsetLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, float100Reg, laserPowerParams.laserHeadYOffset, machineResource.laserHeadYOffsetLoc, 3, 1);
     //14. 写入X放大
-    addParam( float100Reg, laserPowerParams.laserHeadXEnlarge, machineResource.laserHeadXScaleLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, float100Reg, laserPowerParams.laserHeadXEnlarge, machineResource.laserHeadXScaleLoc, 3, 1);
     //15. 写入Y放大
-    addParam( float100Reg, laserPowerParams.laserHeadYEnlarge, machineResource.laserHeadYScaleLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, float100Reg, laserPowerParams.laserHeadYEnlarge, machineResource.laserHeadYScaleLoc, 3, 1);
     //16. 写入点焊类型
-    addParam( int16Reg, static_cast<int>(laserPowerParams.spotWeldType), machineResource.spotWeldTypeLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, static_cast<int>(laserPowerParams.spotWeldType), machineResource.spotWeldTypeLoc, 3, 1);
     //17. 写入点焊持续时间
-    addParam( int16Reg, laserPowerParams.spotWeldDurationTime, machineResource.spotWeldDurationLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.spotWeldDurationTime, machineResource.spotWeldDurationLoc, 3, 1);
     //18. 写入点焊间隔时间
-    addParam( int16Reg, laserPowerParams.spotWeldIntervalTime, machineResource.spotWeldIntervalLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.spotWeldIntervalTime, machineResource.spotWeldIntervalLoc, 3, 1);
     // 按指定地址顺序添加脚本
     for (unsigned int addr : locVec)
     {
@@ -847,68 +900,40 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     CgxiLaserHeadLaserSdk &laserHeadParams = machineResource.laserHeadParams;
 
     std::unordered_map<unsigned int, std::string> writeDataHash;
-    auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr = 0xFFFFFFFF, int needWait = 1)
-    {
-        //没有写入地址
-        if(addr >= 0xFFFF)
-            return   LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
-        std::string endstr = "\n";
-        std::ostringstream useScript;
-        if(addr == machineResource.laserHeadPatternIdLoc)
-        {
-            switch (laserHeadParams.laserSpotPattern) {
-                case SpotPatternLaserSdk::CIR_LASERSDK:
-                case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
-                case SpotPatternLaserSdk::LINE_LASERSDK:
-                case SpotPatternLaserSdk::STAR_LASERSDK:
-                    paramValue = static_cast<int>(laserHeadParams.laserSpotPattern);
-                break;
-                case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-                    paramValue = 4;
-                break;
-                case SpotPatternLaserSdk::CROSS_LASERSDK:
-                    paramValue = 5;
-                break;
-            }
-        }
-        switch (regType)
-        {
-        case float10Reg:
-            useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue *10)
-                        << ", 3, SendCommuRegAddr," << needWait << ")" << endstr;
-            break;
-        case float100Reg:
-            useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue *100)
-                        << ", 3, SendCommuRegAddr,"<< needWait<<")" << endstr;
-            break;
-        case int16Reg:
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << paramValue
-                        << ", 3, SendCommuRegAddr," <<  needWait << ")" << endstr;
-            break;
-        }
-        writeDataHash.emplace(addr, useScript.str());
-        return LaserSdkResult::SUCCESS_LASER_SDK;
-    };
     // 1. 写入扫描速度 (0~30000mm/s,)
-    addParam(int16Reg, laserHeadParams.laserHeadScanSpeed, machineResource.laserHeadScanSpeedLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserHeadParams.laserHeadScanSpeed, machineResource.laserHeadScanSpeedLoc, 3, 1);
     // 2. 写入扫描宽度 (0.1~5mm, 浮点型)
-    addParam(float10Reg, laserHeadParams.laserHeadScanWidth, machineResource.laserHeadScanWidthLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, float10Reg, laserHeadParams.laserHeadScanWidth, machineResource.laserHeadScanWidthLoc, 3, 1);
     // 3. 写入峰值功率 (0-3000W, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadPeakPower, machineResource.laserHeadPeakPowerLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserHeadParams.laserHeadPeakPower, machineResource.laserHeadPeakPowerLoc, 3, 1);
     // 4. 写入占空比 (0~100, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadDutyCycle, machineResource.laserHeadDutyCycleLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserHeadParams.laserHeadDutyCycle, machineResource.laserHeadDutyCycleLoc, 3, 1);
     // 7. 写入扫描高度 (0.1~5mm, 浮点型)
-    addParam(float10Reg, laserHeadParams.laserHeadScanHeight, machineResource.laserHeadScanHeightLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, float10Reg, laserHeadParams.laserHeadScanHeight, machineResource.laserHeadScanHeightLoc, 3, 1);
     // 8. 写入旋转角度 (0~360°, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadSpinAngle, machineResource.laserHeadRotationAngleLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserHeadParams.laserHeadSpinAngle, machineResource.laserHeadRotationAngleLoc, 3, 1);
     // 9. 写入图形（特殊处理）图形
-    addParam(int16Reg, static_cast<int>(laserHeadParams.laserSpotPattern), machineResource.laserHeadPatternIdLoc);
+    int spotPatternValue = static_cast<int>(laserHeadParams.laserSpotPattern);
+    switch (laserHeadParams.laserSpotPattern)
+    {
+    case SpotPatternLaserSdk::CIR_LASERSDK:
+    case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
+    case SpotPatternLaserSdk::LINE_LASERSDK:
+    case SpotPatternLaserSdk::STAR_LASERSDK:
+        spotPatternValue = static_cast<int>(laserHeadParams.laserSpotPattern);
+        break;
+    case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
+        spotPatternValue = 4;
+        break;
+    case SpotPatternLaserSdk::CROSS_LASERSDK:
+        spotPatternValue = 5;
+        break;
+    }
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, spotPatternValue, machineResource.laserHeadPatternIdLoc, 3, 1);
     //脉冲频率低地址 (5~100000HZ, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc, 3, 1);
     //写入脉冲频率高地址 (5~100000HZ, 整型)
-    addParam(int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc);
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc, 3, 1);
     for (unsigned int addr : locVec)
     {
         auto it = writeDataHash.find(addr);
@@ -953,76 +978,36 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
 
     // 存储所有函数定义和调用脚本的数据结构
     std::unordered_map<unsigned int, std::string> writeDataHash;
-    auto addParam = [&](CommuRegType regType, double paramValue, unsigned int addr, int receiptNeeded)
-    {
-        //无效写入地址
-        if(addr >= 0xFFFF)  return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
-        std::string endstr = "\n";
-        std::ostringstream useScript;
-        switch (regType)
-        {
-        case float10Reg:
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*10)
-                        << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
-            break;
-        case float100Reg:
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*100)
-                        << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
-            break;
-        case int16Reg:
-            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << paramValue
-                        << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
-            break;
-        }
-        writeDataHash.emplace(addr, useScript.str());
-        return LaserSdkResult::SUCCESS_LASER_SDK;
-    };
-    auto addRoleParam = [&](BrandRegisterRole role, double paramValue, unsigned int fallbackAddr, int receiptNeeded)
-    {
-        if (adapter.hasRegister(role))
-        {
-            // 【修改理由】同一语义在不同品牌下地址可能不同，写脚本必须使用适配器返回的品牌地址。
-            // 【逻辑】同时保留 fallback 地址脚本，兼容调用方仍按 MachineResource 旧地址请求的场景。
-            BrandRegisterInfo info = adapter.registerInfo(role);
-            addParam(info.regType, paramValue / info.scale, info.writeAddr, receiptNeeded);
-            if (fallbackAddr != 0 && fallbackAddr != info.writeAddr)
-            {
-                addParam(info.regType, paramValue / info.scale, fallbackAddr, receiptNeeded);
-            }
-            return LaserSdkResult::SUCCESS_LASER_SDK;
-        }
-        return addParam(int16Reg, paramValue, fallbackAddr, receiptNeeded);
-    };
 
     // 【修改理由】0x0115 等送丝机启动/暂停地址已迁移到品牌适配器，通讯类只表达运行状态语义。
     // 【逻辑】自熔焊由适配器返回暂停值，填丝焊由适配器返回恢复值。
     if (machineResource.weldingProcessType == WeldingProcessType::SELF_WELDING_LASERSDK)
     {   //自融焊
-        addRoleParam(BrandRegisterRole::WireFeederRunStatus, adapter.wireFeederRunStatusValue(machineResource.weldingProcessType), machineResource.wireFeederStatusLoc, 0);  //自动送丝暂停
+        addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::WireFeederRunStatus, adapter.wireFeederRunStatusValue(machineResource.weldingProcessType), machineResource.wireFeederStatusLoc, 0);  //自动送丝暂停
     }
     else
     {   //送丝焊
-        addRoleParam(BrandRegisterRole::WireFeederRunStatus, adapter.wireFeederRunStatusValue(machineResource.weldingProcessType), machineResource.wireFeederStatusLoc, 0);  //自动送丝恢复
+        addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::WireFeederRunStatus, adapter.wireFeederRunStatusValue(machineResource.weldingProcessType), machineResource.wireFeederStatusLoc, 0);  //自动送丝恢复
     }
 
     // 0x0100 自动送丝速度
-    addRoleParam(BrandRegisterRole::AutoWireFeedSpeed, wireFeederParams.wireFeederMotorSpeed, machineResource.autoWireFeedSpeedLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::AutoWireFeedSpeed, wireFeederParams.wireFeederMotorSpeed, machineResource.autoWireFeedSpeedLoc, 1);
     // 0x0101手动送丝速度
-    addRoleParam(BrandRegisterRole::ManualWireFeedSpeed, wireFeederParams.wireFeederManualFeedSpeed, machineResource.manualWireFeedSpeedLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::ManualWireFeedSpeed, wireFeederParams.wireFeederManualFeedSpeed, machineResource.manualWireFeedSpeedLoc, 1);
     // 0x0102手动抽丝速度
-    addRoleParam(BrandRegisterRole::ManualWireRetractSpeed, wireFeederParams.wireFeederManualBackSpeed, machineResource.manualWireRetractSpeedLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::ManualWireRetractSpeed, wireFeederParams.wireFeederManualBackSpeed, machineResource.manualWireRetractSpeedLoc, 1);
     // 0x0105 补丝长度
-    addRoleParam(BrandRegisterRole::WireFeedLength, wireFeederParams.wireFeederFeedLength, machineResource.wireFeedLengthLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::WireFeedLength, wireFeederParams.wireFeederFeedLength, machineResource.wireFeedLengthLoc, 1);
     // 0x0104 抽丝长度
-    addRoleParam(BrandRegisterRole::WireRetractLength, wireFeederParams.wireFeederBackLength, machineResource.wireRetractLengthLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::WireRetractLength, wireFeederParams.wireFeederBackLength, machineResource.wireRetractLengthLoc, 1);
     // 0x0106 补丝延时
-    addRoleParam(BrandRegisterRole::WireFeedBackDelay, wireFeederParams.wireFeederWaitTime, machineResource.wireFeedBackDelayLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::WireFeedBackDelay, wireFeederParams.wireFeederWaitTime, machineResource.wireFeedBackDelayLoc, 1);
     // 0x010D 断丝模式
-    addRoleParam(BrandRegisterRole::BreakWireFeedingMode, static_cast<int>(wireFeederParams.craftWireCutMode), machineResource.breakWireFeedingModeLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::BreakWireFeedingMode, static_cast<int>(wireFeederParams.craftWireCutMode), machineResource.breakWireFeedingModeLoc, 1);
     // 0x0140 手动送丝开关
-    addRoleParam(BrandRegisterRole::ManualWireFeedSwitch, static_cast<int>(wireFeederParams.isWireFeederManualFeedSwitch), machineResource.manualWireFeedSwitchLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::ManualWireFeedSwitch, static_cast<int>(wireFeederParams.isWireFeederManualFeedSwitch), machineResource.manualWireFeedSwitchLoc, 1);
     // 0x0141 手动回抽开关
-    addRoleParam(BrandRegisterRole::ManualWireRetractSwitch, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc, 1);
+    addWireFeederRoleParamScript(writeDataHash, adapter, writeSingleFuncCode, BrandRegisterRole::ManualWireRetractSwitch, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc, 1);
 
     for (unsigned int addr : locVec)
     {

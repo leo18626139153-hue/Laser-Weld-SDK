@@ -6,6 +6,7 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 /**
@@ -25,6 +26,50 @@ private:
     int funcCode = 0;
 
 private:
+    /**
+     * @brief 添加单寄存器写入脚本
+     * @param writeDataHash 地址到 Lua 写入脚本的映射
+     * @param writeSingleFuncCode 品牌单写脚本功能码
+     * @param regType 参数编码类型
+     * @param paramValue 参数值
+     * @param addr 写寄存器地址
+     * @param comNo 通讯口编号
+     * @param receiptNeeded 是否等待回执
+     * @return SDK 结果码
+     *
+     * 修改理由：多个参数接口都会按寄存器类型拼接 write_value_port，集中实现避免重复 lambda。
+     * 逻辑：按寄存器类型完成缩放后写入 writeDataHash，调用方只负责按地址取出脚本。
+     */
+    static LaserSdkResult addWriteParamScript(std::unordered_map<unsigned int, std::string>& writeDataHash,
+                                              const std::string& writeSingleFuncCode,
+                                              CommuRegType regType,
+                                              double paramValue,
+                                              unsigned int addr,
+                                              int comNo,
+                                              int receiptNeeded);
+
+    /**
+     * @brief 添加品牌语义对应的送丝机写入脚本
+     * @param writeDataHash 地址到 Lua 写入脚本的映射
+     * @param adapter 品牌协议适配器
+     * @param writeSingleFuncCode 送丝机单写脚本功能码
+     * @param role 送丝机参数语义
+     * @param paramValue 参数值
+     * @param fallbackAddr 当前 MachineResource 中的地址
+     * @param receiptNeeded 是否等待回执
+     * @return SDK 结果码
+     *
+     * 修改理由：送丝机脚本要同时支持品牌地址和当前内部 locVec 地址，不能在接口中重复写分支。
+     * 逻辑：优先使用品牌适配器地址，同时保留 fallback 地址脚本以匹配当前 SDK 内部调用点。
+     */
+    static LaserSdkResult addWireFeederRoleParamScript(std::unordered_map<unsigned int, std::string>& writeDataHash,
+                                                       const BrandProtocolAdapter& adapter,
+                                                       const std::string& writeSingleFuncCode,
+                                                       BrandRegisterRole role,
+                                                       double paramValue,
+                                                       unsigned int fallbackAddr,
+                                                       int receiptNeeded);
+
     /**
      * @brief 根据寄存器地址识别送丝机参数角色
      * @param adapter 品牌协议适配器
