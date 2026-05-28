@@ -1,4 +1,4 @@
-﻿#ifndef CL_BASEDEFINE_H
+#ifndef CL_BASEDEFINE_H
 #define CL_BASEDEFINE_H
 
 #define TCPTYPE 1 //tcp Z轴指向，z轴正向为抽丝方向时取1，z轴正向为送丝方向时取-1
@@ -117,14 +117,12 @@ enum WeldLineTypeLaserSdk
     TIG_WELD_LASER_SDK = 0,           //鱼鳞焊 Tungsten Inert Gas Welding || TIG焊
     INTERVAL_WELD_LASER_SDK = 1       //间断焊
 };
-
 ///高低电平
 enum PulseTypeLaserSdk
 {
     HIGH_LASER_SDK = 0,      //高电平
     LOW_LASER_SDK = 1        //低电平
 };
-
 //开关类型
 enum SwitchTypeLaserSdk
 {
@@ -135,8 +133,6 @@ enum SwitchTypeLaserSdk
 //激光器
 typedef struct CgxiLaserPowerLaserSdk
 {
-    BOOL isLaserOn;             ///< 是否 出光
-    BOOL isLaserAlarm;          ///< 激光器有无报警
     WeldModeLaserSdk weldMode;  ///< 焊接模式   (0 点焊 - 1 连续)
 
     int laserPower;             ///< 激光器功率 0-5000W
@@ -149,17 +145,11 @@ typedef struct CgxiLaserPowerLaserSdk
     int gasStartupAdvanceTime;     ///< 开气渐进 提前送气时间	0~3000ms
     int spotWeldDurationTime;      ///<点焊持续时间 0~60000ms	整型
     int spotWeldIntervalTime;      ///<点焊间隔时间 0~60000ms	整型
-    int driverTemp;             ///<  驱动器温度报警阈值 0~85°
-    int protectiveWindowTemp;   ///<  保护镜温度报警阈值 0~85°
-    int collimatorTemp;         ///<  准直镜温度报警阈值 0~85°
     double laserHeadXOffset;    ///< X偏移 -3~+3mm	浮点型
     double laserHeadYOffset;    ///< Y偏移 -3~+3mm	浮点型
     double laserHeadXEnlarge;   ///< X放大 0.01~4	浮点型
     double laserHeadYEnlarge;   ///< Y放大 0.01~4	浮点型
     WeldLineTypeLaserSdk spotWeldType;       ///<  点焊类型 (0:间断焊 1:鱼鳞焊)
-    PulseTypeLaserSdk laserAlarmType;        ///<  激光器报警类型 (0:高电平 1:低电平)
-    PulseTypeLaserSdk waterCoolerAlarm;      ///<  水冷机报警 (0:高电平 1:低电平)
-    PulseTypeLaserSdk gasPressureAlarm;      ///<  气压报警 (0:高电平 1:低电平)
 } CgxiLaserPowerLaserSdk;
 
 enum SpotPatternLaserSdk
@@ -181,17 +171,10 @@ typedef struct CgxiLaserHeadLaserSdk
     int laserHeadPeakPower;         ///< 峰值功率
     int laserHeadDutyCycle;         ///< 占空比
     int laserHeadLowPulseFrequency;      ///< 脉冲频率 低位
-    int laserHeadHighPulseFrequency;     ///< 脉冲频率 高位
+    int laserHeadHighPulseFrequency;     ///< 脉冲频率 高位 //如果脉冲频率高低位地址相同则默认采用低位来做脉冲频率参数
     int laserHeadScanSpeed;      ///< 扫描速度 0~3000mm/s	整型
     double laserHeadScanWidth;   ///< 扫描宽度 0.1~5mm 	浮点型
     double laserHeadScanHeight;  ///< 扫描高度 0.1~5mm	浮点型
-    SwitchTypeLaserSdk WireFeederGasSignalSwitch;      ///< 送气信号开关 激光头厂家内控地址
-    SwitchTypeLaserSdk WireFeederSignalSwitch;         ///< 送丝信号开关 激光头厂家内控地址
-
-    /* 新激光头新增项*/
-    int laserHeadFrequency;         ///< 脉冲频率 无高低之分
-    int laserHeadPatternSize;       ///< 光斑大小 0~5*10mm
-
 } CgxiLaserHeadLaserSdk;
 
 // 水冷机 尚未使用
@@ -213,12 +196,8 @@ enum WireBreakMode
 typedef struct CgxiWireFeederLaserSdk
 {
     BOOL isWireFeederStart;                   ///< 送丝机是否开机
-    BOOL isWireFeederEnable;                  ///< 是否 使能 送丝机连接状态？
-    BOOL isWireFeederDataSave;                ///< 是否保存送丝机数据
     BOOL isWireFeederManualFeedSwitch;        ///< 手动送丝 停止 | 运行
     BOOL isWireFeederManualRetractSwitch;     ///< 手动回抽 停止 | 运行
-    BOOL isWireFeederDangerCurrentSave;       ///< 过流报警信号
-
     WireBreakMode craftWireCutMode;    ///<    送丝机断丝模式
     int wireFeederMotorSpeed;                  ///< 自动送丝速度 15~600cm/min 0x0100 R/W
     int wireFeederStartMotorSpeed;             ///< 开始自动送丝速度 15~600cm/min 0x0100 R/W
@@ -331,28 +310,6 @@ typedef struct MachineResource
 
     unsigned int breakWireFeedingModeLoc;       ///< 断丝模式地址 0x010D  (控制回抽速度)
     unsigned int delayWireFeedingLoc;           ///< 运行状态地址 0x0115
-
-    /* 写 --- 送丝机参数--- */
-    unsigned int saveCurrentWireFeederDataLoc; ///<  保存当前送丝机数据 地址 0x013F → ​​319​
-
-    /* 欧斯睿普 激光头新增项*/
-    unsigned int systemStatusLoc;           ///< 系统状态
-    unsigned int controlModeLoc;            ///< 控制方式
-    unsigned int craftInnerOutControlLoc;   ///< 工艺内外控
-    unsigned int lightingModeLoc;           ///< 光闸控制模式->出光模式
-    unsigned int wireFeedModeLoc;           ///< 送丝控制模式
-    unsigned int runModeLoc;                ///< 运行模式
-    unsigned int scanSwitchLoc;             ///< 振镜开关   宝+欧
-    unsigned int scanDataSaveLoc;           ///< 振镜数据写入使能
-    unsigned int laserHeadPatternSizeLoc;   ///< 光斑大小 0x0095 激光头图案大小    宝+欧
-    unsigned int laserHeadFrequencyLoc;     ///< 脉冲频率   宝+欧
-    unsigned int laserOffDelayTimeLoc;      ///< 关光延迟时间
-
-    /* 宝辰鑫 激光头新增项*/
-    unsigned int wireRetractAndFeedSpeedLoc;    ///< 抽丝/补丝速度
-    unsigned int singleWireFeedLengthLoc;       ///< 单步送丝长度
-    unsigned int singleWireFeedSwitchLoc;       ///< 执行单步送丝
-    unsigned int singleWireRetractSwitchLoc;    ///< 执行单步抽丝
 
     CgxiLaserHeadLaserSdk laserHeadParams;     ///< 激光头参数
     CgxiLaserPowerLaserSdk laserPowerParams;   ///< 激光器参数
@@ -501,31 +458,6 @@ enum WeldControlAddressLaserSdk
     INT_REG_READ_PARAMETER_69 = 69,
     INT_REG_RESULT_77 = 77
 };
-
-//// WeldSdk XXX ////
-/*
- //计算俯仰角
-struct PitchAngleData
-{
-    double waypoint1[3];                ///<焊缝路径上的第一个点
-    double waypoint2[3];                ///<焊缝路径上的第二个点
-    double planePoint1[3];              ///<焊缝其中一个面上的点
-    double planePoint2[3];              ///<焊缝另一个面上的点
-
-    double pitchAngleOut;               ///<俯仰角角度
-    double angleBisectLineOut[3];       ///<角平分线单位向量
-    double planeUnitVector1[3];         //面上垂直焊缝的单位向量1
-    double planeUnitVector2[3];         //另一个面上垂直焊缝的单位向量2
-};
-
-enum AdvanceAngleType
-{
-    USE_TEACH_POSE = 0,           //起点和终点的前进角按照示教姿态确定
-    USE_START_POINT_TEACH_POSE = 1, //起点和终点的前进角按照起点的示教姿态确定
-    USE_INPUT_POSE = 2,            //起点和终点的前进角由输入参数指定
-
-};
-*/
 
 //计算回退点 - 圆弧
 struct RollbackCircleData

@@ -1,4 +1,4 @@
-#include "craftscript.h"
+﻿#include "craftscript.h"
 #include "cl_api.h"
 #include "clmath.h"
 #include "utils.h"
@@ -162,7 +162,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     bodyScriptText += oss.str();
                 }
                 else {
-                    bodyScriptText += scriptTmp;
+                    //bodyScriptText += scriptTmp;
                 }
 
                 break;

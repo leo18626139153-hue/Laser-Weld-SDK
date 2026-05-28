@@ -52,7 +52,6 @@ bool CommuRS485::findWireFeederRoleByAddr(const BrandProtocolAdapter &adapter, c
         else if (addr == machineResource.breakWireFeedingModeLoc) role = BrandRegisterRole::BreakWireFeedingMode;
         else if (addr == machineResource.manualWireFeedSwitchLoc) role = BrandRegisterRole::ManualWireFeedSwitch;
         else if (addr == machineResource.manualWireRetractSwitchLoc) role = BrandRegisterRole::ManualWireRetractSwitch;
-        else if (addr == machineResource.saveCurrentWireFeederDataLoc) role = BrandRegisterRole::SaveWireFeederData;
         else if (addr == machineResource.wireFeedSignalLoc) role = BrandRegisterRole::WireFeedSignal;
         else return false;
         return true;
@@ -781,12 +780,12 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     addParam( int16Reg, laserPowerParams.gasShutoffDelayTime, machineResource.gasOffDelayLoc);
     // 8. 写入送丝延时函数
     addParam( int16Reg, laserPowerParams.wireFeedAdvanceTime, machineResource.wireOutDelayLoc);
-    // 9. 写入驱动器温度报警阈值函数
-    addParam( int16Reg, laserPowerParams.driverTemp, machineResource.driverTempLoc);
-    //10. 写入保护镜报警阈值
-    addParam( int16Reg, laserPowerParams.protectiveWindowTemp, machineResource.protectiveWindowTempLoc);
-    //11. 写入准直镜温度报警阈值
-    addParam( int16Reg, laserPowerParams.collimatorTemp, machineResource.collimatorTempLoc);
+//    // 9. 写入驱动器温度报警阈值函数
+//    addParam( int16Reg, laserPowerParams.driverTemp, machineResource.driverTempLoc);
+//    //10. 写入保护镜报警阈值
+//    addParam( int16Reg, laserPowerParams.protectiveWindowTemp, machineResource.protectiveWindowTempLoc);
+//    //11. 写入准直镜温度报警阈值
+//    addParam( int16Reg, laserPowerParams.collimatorTemp, machineResource.collimatorTempLoc);
     //12. 写入X偏移
     addParam( float100Reg, laserPowerParams.laserHeadXOffset, machineResource.laserHeadXOffsetLoc);
     //13. 写入Y偏移
@@ -870,10 +869,6 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         writeDataHash.emplace(addr, useScript.str());
         return LaserSdkResult::SUCCESS_LASER_SDK;
     };
-    ///<01. 送气信号开关
-    addParam(int16Reg, static_cast<int>(laserHeadParams.WireFeederGasSignalSwitch), machineResource.gasValveSignalLoc);
-    ///<02. 送丝信号开关
-    addParam(int16Reg, static_cast<int>(laserHeadParams.WireFeederSignalSwitch), machineResource.wireFeedSignalLoc);
     // 1. 写入扫描速度 (0~30000mm/s,)
     addParam(int16Reg, laserHeadParams.laserHeadScanSpeed, machineResource.laserHeadScanSpeedLoc);
     // 2. 写入扫描宽度 (0.1~5mm, 浮点型)
@@ -892,10 +887,6 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     addParam(int16Reg, laserHeadParams.laserHeadLowPulseFrequency, machineResource.laserHeadFrequencyLowLoc);
     //写入脉冲频率高地址 (5~100000HZ, 整型)
     addParam(int16Reg, laserHeadParams.laserHeadHighPulseFrequency, machineResource.laserHeadFrequencyHighLoc);
-    //写入脉冲频率
-    addParam(int16Reg, laserHeadParams.laserHeadFrequency, machineResource.laserHeadFrequencyLoc);
-    //写入图像大小
-    addParam(int16Reg, laserHeadParams.laserHeadPatternSize, machineResource.laserHeadPatternSizeLoc);
     for (unsigned int addr : locVec)
     {
         auto it = writeDataHash.find(addr);
@@ -1008,8 +999,7 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     addRoleParam(BrandRegisterRole::ManualWireFeedSwitch, static_cast<int>(wireFeederParams.isWireFeederManualFeedSwitch), machineResource.manualWireFeedSwitchLoc, 1);
     // 0x0141 手动回抽开关
     addRoleParam(BrandRegisterRole::ManualWireRetractSwitch, static_cast<int>(wireFeederParams.isWireFeederManualRetractSwitch), machineResource.manualWireRetractSwitchLoc, 1);
-    // 0x013F 是否保存当前送丝机数据 地址  → ​​319​
-    addRoleParam(BrandRegisterRole::SaveWireFeederData, wireFeederParams.isWireFeederDataSave, machineResource.saveCurrentWireFeederDataLoc, 1);
+
     for (unsigned int addr : locVec)
     {
         BrandRegisterRole role = BrandRegisterRole::AutoWireFeedSpeed;
