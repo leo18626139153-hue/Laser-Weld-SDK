@@ -49,6 +49,9 @@ struct BrandProtocolProfile
     unsigned int readFuncCode;        ///< 读寄存器功能码
     unsigned int writeSingleFuncCode; ///< 写单寄存器功能码
     unsigned int writeMultiFuncCode;  ///< 写多寄存器功能码
+    unsigned int laserWriteSingleScriptCode;      ///< 激光器和激光头单写脚本功能码
+    unsigned int wireFeederWriteSingleScriptCode; ///< 送丝机单写脚本功能码
+    unsigned int writeMultiScriptCode;            ///< 批量写脚本功能码
     int baudRate;                     ///< 串口波特率
     int dataBits;                     ///< 串口数据位
     int stopBits;                     ///< 串口停止位

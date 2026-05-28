@@ -135,6 +135,10 @@ typedef struct CgxiLaserPowerLaserSdk
 {
     WeldModeLaserSdk weldMode;  ///< 焊接模式   (0 点焊 - 1 连续)
 
+    int driverTemp;
+    int protectiveWindowTemp;
+    int collimatorTemp;
+
     int laserPower;             ///< 激光器功率 0-5000W
     int laserPowerOpen;         ///< 开光功率   百分比   外控
     int laserPowerClose;        ///< 关光功率   百分比   外控

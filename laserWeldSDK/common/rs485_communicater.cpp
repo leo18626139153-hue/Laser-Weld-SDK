@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "internaldatadefine.h"
 #include "brandadapter.h"
+#include <iomanip>
 #include <sstream>
 #include <vector>
 
@@ -23,6 +24,15 @@ static const BrandRegisterRole WIRE_FEEDER_ROLES[] =
     BrandRegisterRole::SaveWireFeederData,
     BrandRegisterRole::WireFeedSignal
 };
+
+// 【修改理由】品牌层返回的是数值型脚本功能码，Lua 脚本需要保持 0x0906 / 0x5A06 这类可读形式。
+// 【逻辑】统一格式化为四位十六进制字符串，避免通讯层再次散落品牌功能码常量。
+static std::string scriptCodeToLuaHex(unsigned int scriptCode)
+{
+    std::ostringstream oss;
+    oss << "0x" << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << scriptCode;
+    return oss.str();
+}
 
 // 【修改理由】外部传入的 locVec 仍是地址列表，适配器规则需要基于 BrandRegisterRole 判断。
 // 【逻辑】先匹配当前品牌地址；若旧调用方仍传 MachineResource 中的历史地址，则用 fallback 维持兼容。
@@ -68,6 +78,9 @@ std::string CommuRS485::buildSlowArcStartFunctionScript(const MachineResource &m
     const CgxiWireFeederLaserSdk &wireFeederParams = machineResource.wireFeederParams;
     const CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     const bool writeWireFeeder = adapter.allowWireFeederWrite(machineResource.weldingProcessType, BrandRegisterRole::AutoWireFeedSpeed);
+    const BrandProtocolProfile profile = adapter.profile();
+    const std::string laserWriteCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
+    const std::string wireFeederWriteCode = scriptCodeToLuaHex(profile.wireFeederWriteSingleScriptCode);
 
     std::ostringstream script;
     script << "function slow_arc_start()\n"
@@ -87,10 +100,10 @@ std::string CommuRS485::buildSlowArcStartFunctionScript(const MachineResource &m
         script << "   wirefeedeOpenSendSpeed = " << wireFeederParams.wireFeederStartMotorSpeed << "\n"
                << "   wirefeedeWeldSendSpeed = " << wireFeederParams.wireFeederMotorSpeed << "\n";
     }
-    script << "   write_value_port(0x0906," << machineResource.laserHeadPeakPowerQuickLoc << ", openPower,3,0,1)\n";
+    script << "   write_value_port(" << laserWriteCode << "," << machineResource.laserHeadPeakPowerQuickLoc << ", openPower,3,0,1)\n";
     if (writeWireFeeder)
     {
-        script << "   write_value_port(0x0A06," << machineResource.autoWireFeedSpeedLoc << ", wirefeedeOpenSendSpeed,2,0,1000)\n";
+        script << "   write_value_port(" << wireFeederWriteCode << "," << machineResource.autoWireFeedSpeedLoc << ", wirefeedeOpenSendSpeed,2,0,1000)\n";
     }
     script << R"(
             function slow_ascent()
@@ -109,10 +122,10 @@ std::string CommuRS485::buildSlowArcStartFunctionScript(const MachineResource &m
                 if num < 1 then
                     -- 缓升距离过短直接起弧，设置起弧功率即可
 )";
-    script << "                 write_value_port(0x0906," << machineResource.laserHeadPeakPowerQuickLoc << ",laserPower,3,0,1)\n";
+    script << "                 write_value_port(" << laserWriteCode << "," << machineResource.laserHeadPeakPowerQuickLoc << ",laserPower,3,0,1)\n";
     if (writeWireFeeder)
     {
-        script << "                    write_value_port(0x0A06," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeWeldSendSpeed,2,0,1)\n";
+        script << "                    write_value_port(" << wireFeederWriteCode << "," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeWeldSendSpeed,2,0,1)\n";
     }
     script << R"(                    return
                 end
@@ -128,10 +141,10 @@ std::string CommuRS485::buildSlowArcStartFunctionScript(const MachineResource &m
                 for i = 1, num do
                     print("power: ", i)
 )";
-    script << "                    write_value_port(0x0906," << machineResource.laserHeadPeakPowerQuickLoc << ",openPower + (powerSingle * i),3,0,1)\n";
+    script << "                    write_value_port(" << laserWriteCode << "," << machineResource.laserHeadPeakPowerQuickLoc << ",openPower + (powerSingle * i),3,0,1)\n";
     if (writeWireFeeder)
     {
-        script << "                    write_value_port(0x0A06," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeOpenSendSpeed + (speedSingle * i),2,0,1)\n";
+        script << "                    write_value_port(" << wireFeederWriteCode << "," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeOpenSendSpeed + (speedSingle * i),2,0,1)\n";
     }
     script << R"(                end
                 print("缓升结束!")
@@ -167,6 +180,9 @@ std::string CommuRS485::buildSlowArcStopFunctionScript(const MachineResource &ma
     const CgxiWireFeederLaserSdk &wireFeederParams = machineResource.wireFeederParams;
     const CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     const bool writeWireFeeder = adapter.allowWireFeederWrite(machineResource.weldingProcessType, BrandRegisterRole::AutoWireFeedSpeed);
+    const BrandProtocolProfile profile = adapter.profile();
+    const std::string laserWriteCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
+    const std::string wireFeederWriteCode = scriptCodeToLuaHex(profile.wireFeederWriteSingleScriptCode);
 
     std::ostringstream script;
     script << "    function slow_arc_stop()\n"
@@ -198,7 +214,7 @@ std::string CommuRS485::buildSlowArcStopFunctionScript(const MachineResource &ma
         script << R"(                    local function send_wire_off()
                         if wire_off_done == 0 then
 )";
-        script << "                            write_value_port(0x0906," << machineResource.wireFeedSignalLoc << ", 0,3,0,1)\n";
+        script << "                            write_value_port(" << laserWriteCode << "," << machineResource.wireFeedSignalLoc << ", 0,3,0,1)\n";
         script << R"(                            wire_off_done = 1
                         end
                     end
@@ -219,10 +235,10 @@ std::string CommuRS485::buildSlowArcStopFunctionScript(const MachineResource &ma
                         print("num2=",num)
                         if num < 1 then
 )";
-    script << "                            write_value_port(0x0906," << machineResource.laserHeadPeakPowerQuickLoc << ",laserPower,3,0,1)\n";
+    script << "                            write_value_port(" << laserWriteCode << "," << machineResource.laserHeadPeakPowerQuickLoc << ",laserPower,3,0,1)\n";
     if (writeWireFeeder)
     {
-        script << "                            write_value_port(0x0A06," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeWeldSendSpeed,2,0,1)\n"
+        script << "                            write_value_port(" << wireFeederWriteCode << "," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeWeldSendSpeed,2,0,1)\n"
                << "                            send_wire_off()\n";
     }
     script << R"(                            return
@@ -241,14 +257,14 @@ std::string CommuRS485::buildSlowArcStopFunctionScript(const MachineResource &ma
                                 break
                             end
 )";
-    script << "                            write_value_port(0x0906," << machineResource.laserHeadPeakPowerQuickLoc << ",(laserPower - (powerSingle * i)),3,0,0)\n";
+    script << "                            write_value_port(" << laserWriteCode << "," << machineResource.laserHeadPeakPowerQuickLoc << ",(laserPower - (powerSingle * i)),3,0,0)\n";
     if (writeWireFeeder)
     {
         script << R"(                            if flag == 1 then
                                 break
                             end
 )";
-        script << "                            write_value_port(0x0A06," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeWeldSendSpeed - (speedSingle * i),2,0,0)\n";
+        script << "                            write_value_port(" << wireFeederWriteCode << "," << machineResource.autoWireFeedSpeedLoc << ",wirefeedeWeldSendSpeed - (speedSingle * i),2,0,0)\n";
     }
     script << R"(
                         end
@@ -303,7 +319,7 @@ CommuRS485::CommuRS485()
 
 void CommuRS485::initData()
 {
-    funcCode = 0x0906;
+    funcCode = GetBrandProtocolAdapter(LaserHeadBrandSdk::CQLASERPOWER_SDK).profile().laserWriteSingleScriptCode;
     //组装最终要下发执行的脚本
     std::string commandListStartData =
     R"(--激光器工艺
@@ -519,12 +535,14 @@ void CommuRS485::initData()
         bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
         register_clear(RecvCommuRegAddr, RecvCommuReg_n)
         local crc_mes = {}
+        -- 1 功能码由品牌层传入, 例如超强 0x0910, 宝辰鑫 0x5A09
+        local split_function_code = Lua_split(slave_addr)
         -- 2 寄存器首地址
         local split_data_2 = Lua_split(addr_value_map[1][1])
         -- 3 寄存器数量
         local split_data_3 = Lua_split(#addr_value_map)
         -- 4 字节数量
-        crc_mes = {slave_addr, 0x10, split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
+        crc_mes = {split_function_code[1], split_function_code[2], split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
         -- 5. 将对应的变量进行高低字节拆分 放入mes中
         for k, address  in ipairs(addr_value_map) do
             local split_data_x = Lua_split(address[2])
@@ -739,6 +757,8 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
 LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string &script)
 {
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    const BrandProtocolProfile profile = GetBrandProtocolAdapter(machineResource.laserHeadBrand).profile();
+    const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
     CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     std::unordered_map<unsigned int, std::string> writeDataHash;
 
@@ -751,14 +771,14 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         {
         case float10Reg:
             useScript << std::setprecision(1);  //保留小数点后1位
-            useScript << "  write_value_port("<< funcCode <<", " << addr << "," << static_cast<int>(paramValue*10) << ", 3, SendCommuRegAddr,1)" << endstr;
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*10) << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);  //保留小数点后2位
-            useScript << "  write_value_port("<< funcCode <<", " << addr << "," << static_cast<int>(paramValue*100) << ", 3, SendCommuRegAddr,1)" << endstr;
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*100) << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         case int16Reg:
-            useScript << "  write_value_port("<< funcCode <<", " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1)" << endstr;
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << paramValue << ", 3, SendCommuRegAddr,1)" << endstr;
             break;
         }
         writeDataHash.emplace(addr, useScript.str());
@@ -780,12 +800,12 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     addParam( int16Reg, laserPowerParams.gasShutoffDelayTime, machineResource.gasOffDelayLoc);
     // 8. 写入送丝延时函数
     addParam( int16Reg, laserPowerParams.wireFeedAdvanceTime, machineResource.wireOutDelayLoc);
-//    // 9. 写入驱动器温度报警阈值函数
-//    addParam( int16Reg, laserPowerParams.driverTemp, machineResource.driverTempLoc);
-//    //10. 写入保护镜报警阈值
-//    addParam( int16Reg, laserPowerParams.protectiveWindowTemp, machineResource.protectiveWindowTempLoc);
-//    //11. 写入准直镜温度报警阈值
-//    addParam( int16Reg, laserPowerParams.collimatorTemp, machineResource.collimatorTempLoc);
+    // 9. 写入驱动器温度报警阈值函数
+    addParam( int16Reg, laserPowerParams.driverTemp, machineResource.driverTempLoc);
+    //10. 写入保护镜报警阈值
+    addParam( int16Reg, laserPowerParams.protectiveWindowTemp, machineResource.protectiveWindowTempLoc);
+    //11. 写入准直镜温度报警阈值
+    addParam( int16Reg, laserPowerParams.collimatorTemp, machineResource.collimatorTempLoc);
     //12. 写入X偏移
     addParam( float100Reg, laserPowerParams.laserHeadXOffset, machineResource.laserHeadXOffsetLoc);
     //13. 写入Y偏移
@@ -822,6 +842,8 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
 LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string &script)
 {
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    const BrandProtocolProfile profile = GetBrandProtocolAdapter(machineResource.laserHeadBrand).profile();
+    const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
     CgxiLaserHeadLaserSdk &laserHeadParams = machineResource.laserHeadParams;
 
     std::unordered_map<unsigned int, std::string> writeDataHash;
@@ -853,16 +875,16 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         {
         case float10Reg:
             useScript << std::setprecision(1);//保留小数点后1位
-            useScript << "  write_value_port("<< funcCode <<", " << addr << "," << static_cast<int>(paramValue *10)
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue *10)
                         << ", 3, SendCommuRegAddr," << needWait << ")" << endstr;
             break;
         case float100Reg:
             useScript << std::setprecision(2);//保留小数点后2位
-            useScript << "  write_value_port("<< funcCode <<", " << addr << "," << static_cast<int>(paramValue *100)
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue *100)
                         << ", 3, SendCommuRegAddr,"<< needWait<<")" << endstr;
             break;
         case int16Reg:
-            useScript << "  write_value_port("<< funcCode <<", " << addr << "," << paramValue
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << paramValue
                         << ", 3, SendCommuRegAddr," <<  needWait << ")" << endstr;
             break;
         }
@@ -909,6 +931,8 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
 {
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     const BrandProtocolAdapter &adapter = GetBrandProtocolAdapter(machineResource.laserHeadBrand);
+    const BrandProtocolProfile profile = adapter.profile();
+    const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.wireFeederWriteSingleScriptCode);
     CgxiWireFeederLaserSdk &wireFeederParams = machineResource.wireFeederParams;
 
     // 【修改理由】自熔焊模式下大部分送丝机报文需要被直接截断，避免用户关闭送丝机后 SDK 仍然访问断联设备。
@@ -938,15 +962,15 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
         switch (regType)
         {
         case float10Reg:
-            useScript << "  write_value_port(0x0A06, " << addr << "," << static_cast<int>(paramValue*10)
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*10)
                         << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
             break;
         case float100Reg:
-            useScript << "  write_value_port(0x0A06, " << addr << "," << static_cast<int>(paramValue*100)
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << static_cast<int>(paramValue*100)
                         << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
             break;
         case int16Reg:
-            useScript << "  write_value_port(0x0A06, " << addr << "," << paramValue
+            useScript << "  write_value_port(" << writeSingleFuncCode << ", " << addr << "," << paramValue
                         << ", 2, SendCommuRegAddr," << receiptNeeded << ")" << endstr;
             break;
         }
@@ -1034,6 +1058,9 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    const BrandProtocolProfile profile = GetBrandProtocolAdapter(machineResource.laserHeadBrand).profile();
+    const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
+    const std::string writeMultiFuncCode = scriptCodeToLuaHex(profile.writeMultiScriptCode);
     CraftInfoLaserSdk curCraftInfo = craftInfo;
     LaserSdkResult res = LaserSdkResult::SUCCESS_LASER_SDK;
     res = GetBrandProtocolAdapter(machineResource.laserHeadBrand).checkCraft(curCraftInfo);//参数判断
@@ -1120,16 +1147,15 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n";
     machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;
     ///<写入激光焊接参数、点焊参数
-    std::string write_weld_params = R"(
-    comNo = 3
-    slave_addr = 0x09
-    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
-    write_multi_value_port(laserHeadRegisterMap)  --写入激光头
-    write_multi_value_port(spotWeld)              --写入点焊参数
-    )";
+    std::string write_weld_params =
+            "    comNo = 3\n"
+            "    slave_addr = " + writeMultiFuncCode + "\n"
+            "    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数\n"
+            "    write_multi_value_port(laserHeadRegisterMap)  --写入激光头\n"
+            "    write_multi_value_port(spotWeld)              --写入点焊参数\n";
 
     ///< 写入焊接模式
-    write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
+    write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
     ///< 写入激光头参数
     /// // 写入图案
@@ -1139,13 +1165,13 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
         case SpotPatternLaserSdk::LINE_LASERSDK:
         case SpotPatternLaserSdk::STAR_LASERSDK:
-            write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
+            write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
         break;
         case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-            write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
+            write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
         break;
         case SpotPatternLaserSdk::CROSS_LASERSDK:
-            write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
+            write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
         break;
     }
     bodyScriptText += strWriteInt32RegReplace(821, 0);      //存放超时地址的寄存器
@@ -1268,6 +1294,9 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    const BrandProtocolProfile profile = GetBrandProtocolAdapter(machineResource.laserHeadBrand).profile();
+    const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
+    const std::string writeMultiFuncCode = scriptCodeToLuaHex(profile.writeMultiScriptCode);
     //  2.初始化写多个寄存器的参数；
     init_multiple_registers_value("");
     CraftInfoLaserSdk curCraftInfo = craftInfo;
@@ -1356,16 +1385,15 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
     write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n";
     machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;
     //  19.写入激光焊接参数、点焊参数
-    std::string write_weld_params = R"(
-    comNo = 3
-    slave_addr = 0x09
-    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数
-    write_multi_value_port(laserHeadRegisterMap)  --写入激光头
-    write_multi_value_port(spotWeld)              --写入点焊参数
-    )";
+    std::string write_weld_params =
+            "    comNo = 3\n"
+            "    slave_addr = " + writeMultiFuncCode + "\n"
+            "    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数\n"
+            "    write_multi_value_port(laserHeadRegisterMap)  --写入激光头\n"
+            "    write_multi_value_port(spotWeld)              --写入点焊参数\n";
 
     ///< 写入焊接模式
-    write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
+    write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
 
     ///< 写入激光头参数
@@ -1378,13 +1406,13 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
             case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
             case SpotPatternLaserSdk::LINE_LASERSDK:
             case SpotPatternLaserSdk::STAR_LASERSDK:
-                write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
+                write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
             break;
             case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-                write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
+                write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
             break;
             case SpotPatternLaserSdk::CROSS_LASERSDK:
-                write_laser_params += writeLuaScript(std::to_string(funcCode), std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
+                write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
             break;
         }
     }

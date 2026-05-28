@@ -103,6 +103,9 @@ BrandProtocolProfile SupProtocolAdapter::profile() const
     profile.readFuncCode = 0x03;
     profile.writeSingleFuncCode = 0x06;
     profile.writeMultiFuncCode = 0x10;
+    profile.laserWriteSingleScriptCode = 0x0906;
+    profile.wireFeederWriteSingleScriptCode = 0x0A06;
+    profile.writeMultiScriptCode = 0x0910;
     profile.baudRate = 115200;
     profile.dataBits = 8;
     profile.stopBits = 1;
@@ -203,12 +206,15 @@ LaserHeadBrandSdk BcxOmniProtocolAdapter::brand() const
 BrandProtocolProfile BcxOmniProtocolAdapter::profile() const
 {
     // 修改理由: 宝辰鑫 X-Weld Omni Controller 1 协议基础参数来自板卡地址表, 应固定在品牌层.
-    // 逻辑: 使用从站 0x5A, 支持 0x03 读, 0x06 单写, 0x10 多写, 串口为 115200/8N1.
+    // 逻辑: 脚本功能码按板卡协议使用 0x5A06 单写和 0x5A09 批量写, 串口为 115200/8N1.
     BrandProtocolProfile profile;
     profile.slaveAddr = 0x5A;
     profile.readFuncCode = 0x03;
     profile.writeSingleFuncCode = 0x06;
-    profile.writeMultiFuncCode = 0x10;
+    profile.writeMultiFuncCode = 0x09;
+    profile.laserWriteSingleScriptCode = 0x5A06;
+    profile.wireFeederWriteSingleScriptCode = 0x5A06;
+    profile.writeMultiScriptCode = 0x5A09;
     profile.baudRate = 115200;
     profile.dataBits = 8;
     profile.stopBits = 1;
