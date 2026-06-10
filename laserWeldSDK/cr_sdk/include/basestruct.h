@@ -9,13 +9,13 @@
 #define CR6_CO_NUM 8
 #define CR6_AI_NUM 3
 #define CR6_AO_NUM 1
-#define CR6_TOOL_DI_NUM 4
-#define CR6_TOOL_DO_NUM 4
+#define CR6_TOOL_DI_NUM 10
+#define CR6_TOOL_DO_NUM 10
 #define CR6_TOOL_AI_NUM 2
-#define CR6_COM_NUM 4
 
 #define ModbusMasterConfigNumber 20
 #define ModbusAddrMapNumber 100
+#define CustomAddrMapNumber 100
 #define CR6_SAFETY_LIMITS_BOUNDARY_PLANE_NUM 8
 
 #define CR6_BOOL_REG_NUM 1000
@@ -25,8 +25,6 @@
 #define CR6_REG_MAX_NUM 100
 
 #define ENCODER_TICK_NUM 2
-
-#define  COR_MAX_NUM 50
 
 #define DH_PARA_MAX_NUM 100
 #define DY_PARA_MAX_NUM 100
@@ -42,7 +40,7 @@
 #define COR_MAX_NUM 50 ///协程最大个数
 #define CR6_EQEP_NUM    2
 #define TCP_MAX_NUM 20
-#define NAMELENTH  32
+#define NAMELENTH  50
 
 #define CR6_DIGITIAL_INPUT_NUM 8
 #define CR6_DIGITIAL_OUTPUT_NUM 8
@@ -50,13 +48,12 @@
 #define CR6_CONFIGURABLED_OUTPUT_NUM 8
 #define CR6_ANALOG_INPUT_NUM 3
 #define CR6_ANALOG_OUTPUT_NUM 1
-#define CR6_TOOL_INPUT_NUM 4
-#define CR6_TOOL_OUTPUT_NUM 4
 #define CR6_TOOL_ANALOG_INPUT_NUM 2
 
 #define CR6_POSE_NODE_NUM 10
 #define CR6_LINE_NODE_NUM 10
 #define CR6_PLANE_NODE_NUM 10
+#define CR6_WCS_CONF_NUM 5
 #define CR6_COM_NUM 4
 #define LOG_MAX_NUM 3000
 #define LOG_RPC_MAX_NUM 10
@@ -65,15 +62,27 @@
 
 #define VERSION_MAX_LENGTH 50
 
+#define EXTERNAL_MAX_NUM 10 //扩展轴最大个数
+#define ROB_EXJ_AXIS_NUM 12
+#define ROB_EXJOG_AXIS_NUM 16
+
+#define MECHANICAL_MAX_NUM 10 //机械单元最大个数
+#define REF_EXJ_CONFIG_MAX_NUM 6 //每个机械单元最大扩展轴数量
+
+#define SENSORPOSE_MAX_NUM 5 //力传感器安装位置最大个数
+#define SENSOR_RANGE_DIM 6//力传感器量程最大维度
+
 typedef int RobotHandle;
 
 typedef int BOOL;
 #define TRUE 1
 #define FALSE 0
 
+#define sucess success
+
 typedef enum CRresult
 {
-    sucess = 0,             ///<成功；分别有以下3种：连接、获取参数、写入参数
+    success = 0,             ///<成功；分别有以下3种：连接、获取参数、写入参数
     error = 1,              ///<一般错误
     thread_running = 2,     ///<通讯连接重复建立
     operate_timeout = 3,    ///<操作超时，无返回值；注：处理超时导致无结果输出
@@ -119,7 +128,10 @@ typedef enum CoordinateType
     LineCoordinate = 3,         ///<线坐标系
     PlaneCoordinate = 4,        ///<面坐标系
     ToolBaseCoordinate = 5,     ///<工具坐标系
-    visionCoordinate = 6        ///<视角坐标系
+    visionCoordinate = 6,       ///<视角坐标系
+    pathCoordinate = 7,         ///<轨迹坐标系
+    worldCoordinate = 8,        ///<世界坐标系
+    workCoordinate = 9          ///<工件坐标系
 }CoordinateType;
 
 typedef enum PointTransType
@@ -203,8 +215,8 @@ typedef struct  PointControlParaSimple
 
 typedef enum MoveType
 {
-    DecStop = 0,    ///<减速停止
-    ImdStop = 1,	///<立即停止
+    DecStop = 0,    ///<当前运动减速停止
+    ImdStop = 1,	///<当前运动立即停止
     Run = 2  		///<运动
 }MoveType;
 
@@ -238,10 +250,10 @@ typedef enum RobotModes
     Closed = 0,                           ///< 关闭
     Disconnect = 1,                       ///< 断开连接状态
     ConfirmSafty = 2,                     ///< 安全确认状态
-    Booting = 3,                          ///< 控制器正在启动
-    ControlerIdle = 4,                    ///< 控制器启动完成，空闲状态
+    Booting = 3,                          ///< 控制柜正在启动
+    ControlerIdle = 4,                    ///< 控制柜启动完成，空闲状态
     ControlerUpdataFirmWare = 5,          ///< 固件更新
-    JointPowerOff = 6,                    ///< 控制器启动完成，本体未上电
+    JointPowerOff = 6,                    ///< 控制柜启动完成，本体未上电
     JointPowerOn = 7,                     ///< 机器人上电过程
     JointIdle = 8,                        ///< 机器人上电完成，空闲
     BackDrive = 9,                        ///< 反向驱动
@@ -266,7 +278,7 @@ typedef enum RobotModes
 
 typedef enum ControlModes
 {
-    CONTROL_MODE_POSITION = 0,					///< 控制器启动后的各种RobotModes
+    CONTROL_MODE_POSITION = 0,					///< 控制柜启动后的各种RobotModes
     CONTROL_MODE_TEACH = 1,						///< ROBOT_MODE_RUNNING下，按下示教按钮或者执行teach_mode()，在此模式下手动使机器人来回移动
     CONTROL_MODE_FORCE = 2,						///< 力控命令内
     CONTROL_MODE_TORQUE = 3						///< 自由驱动模式
@@ -294,6 +306,12 @@ typedef enum ProgramState
     PROGRAM_STATE_PAUSE = 1,        ///< 程序暂停
     PROGRAM_STATE_RUN = 2          ///< 程序运行
 }ProgramState;
+
+typedef struct ProgFileInfo    ///控制器程序信息
+{
+    int progfileIndex;     ///程序索引
+    char progfileName[NAMELENTH];     ///程序名称
+}ProgFileInfo;
 
 typedef struct Version
 {
@@ -394,7 +412,7 @@ typedef struct RobotLogMsg
     unsigned int robotMessageCode;      ///<消息代码
     unsigned int robotMessageType;      ///<消息类型
     enum CommMessageSource source;      ///<消息来源
-    char textMessage[100];              ///<消息信息
+    char textMessage[200];              ///<消息信息
     WorldTime worldTime;                ///<时间戳
     enum WarningLevel warningLevel;     ///<警告等级
     RobotModes robotMode;               ///<机器人状态
@@ -481,7 +499,8 @@ typedef enum VarDigitialIOType   ///IO类型
     Digitial = 1,               ///标准数字量
     ConfigureableDigitial = 2,  ///可配置数字量
     ToolDigitial = 3,           ///工具数字量
-    Analog = 4 /// 模拟量
+    Analog = 4,                 /// 模拟量
+    ToolAnalog = 5              ///工具模拟量
 }VarDigitialIOType;
 
 typedef struct InstallAngle
@@ -555,6 +574,29 @@ typedef struct IOOutputConfiguration
     OutputRule outputRule;          ///输出信号状态（自动复位）
 }IOOutputConfiguration;
 
+typedef enum StaticCollisionProtectionMode
+{
+    StaticCollisionProtection_Off = 0,                    ///关闭静止时碰撞保护和快速切回
+    StaticCollisionProtection_Enable = 1,                 ///仅开启静止时碰撞保护
+    StaticCollisionProtection_EnableWithFastReturn = 2    ///开启静止时碰撞保护和快速切回
+}StaticCollisionProtectionMode;
+
+typedef enum  ExjLineDirection  ///扩展轴直线运动方向
+{
+    X_PLUS = 0,  /// X+
+    X_MINUS = 1, /// X-
+    Y_PLUS = 2,  /// Y+
+    Y_MINUS = 3, /// Y-
+    Z_PLUS = 4,  /// Z+
+    Z_MINUS = 5  /// Z-
+}ExjLineDirection;
+
+typedef enum ToolIoType
+{
+    IO_OUTPUT = 0,        ///输出
+    IO_INPUT = 1          ///输入
+}ToolIoType;
+
 typedef enum AnalogType
 {
     Current = 0,         ///电流,对应值的单位:mA
@@ -580,6 +622,14 @@ typedef enum ToolPower
     Power_off = 2,     ///0V
 }ToolPower;
 
+typedef struct EncoderConfiguration
+{
+    int eqepType;       ///< 类型
+    int eqepCountMode;      ///< 模式
+    int strobeInputMode;    ///< 探针
+    int eqepEnabled;        ///< 控制
+}EncoderConfiguration;
+
 typedef struct BitRegisterConfiguration
 {
     char GeneralPurposeBOOLeanRegisterName[NAMELENTH];    	///BOOL型寄存器名称
@@ -587,6 +637,11 @@ typedef struct BitRegisterConfiguration
     OutputAction GeneralPurposeBOOLeanRegisterOutputActions;///BOOL型寄存器置位的条件
     OutputRule GeneralPurposeBOOLeanRegisterOutputRule; ///BOOL型寄存器自复位
 }BitRegisterConfiguration;
+
+typedef struct RegisterConfiguration
+{
+    char GeneralPurposeRegisterName[NAMELENTH];    	///寄存器名称
+}RegisterConfiguration;
 
 typedef struct PoseMessage
 {
@@ -623,7 +678,15 @@ typedef struct PlaneCSNode
     PointCSNode thirdPoint;                    ///第三个点的数据相关信息
     double coordinatePose[ROB_AXIS_NUM];       ///面坐标系位姿数据:x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     double coordinateJointPos[ROB_AXIS_NUM];   ///面坐标系关节数据:关节1~6（单位：°）
-}PlaneCSNode;  ///面坐标系
+}PlaneCSNode;  /// 面坐标系
+
+typedef struct WCSConfig
+{
+    char name[NAMELENTH];           ///< 工件坐标系名字
+    int id;                         ///< 工件坐标系id号
+    int baselineID;                 ///< 基准id,-1为世界坐标系,非负为机械单元的id
+    double root2Ref[ROB_AXIS_NUM];  ///< 工件坐标系相对于基准的位姿
+} WCSConfig;  ///< 工件坐标系
 
 typedef enum SafetyLimitsValuesType
 {
@@ -756,6 +819,22 @@ typedef struct ModbusMasterConfig
     int autoConnect;	                           ///自动连接,1-自动连接 0-非自动连接
 }ModbusMasterConfig; ///modbusMaster配置
 
+typedef struct CustomAddrMap
+{
+    CommuVarType requestRegType;    ///< 请求寄存器类型
+    int requestStartAddr;           ///< 请求寄存器首地址
+    int requestOffsetNo;            ///< 请求寄存器个数
+    int responseType;               ///< 应答寄存器类型  0-无应答 1-bool类型  2-16bit整数类型 3-32bit整数类型 4-32bit浮点类型
+    int responseStartAddr;
+}CustomAddrMap;
+
+typedef struct CustomMasterConfig
+{
+    int scanTime;                       ///< 扫描周期
+    ModbusMasterOperate modbusMasterOperate;    ///< 操作功能码
+    int autoConnect;                    ///< 自动连接,1-自动连接 0-非自动连接
+}CustomMasterConfig;
+
 typedef struct PopUpMsg
 {
     int popupType;				///弹窗类型，0-输出弹窗，1-输入弹窗
@@ -778,7 +857,10 @@ typedef struct PathPoint
 typedef struct PathPara  ///<轨迹参数
 {
     int index;          ///<轨迹索引 下载时：0~9
-    int moveType;       ///<运动轨迹类型，0-透传，1-样条
+    int moveType;       ///<运动轨迹类型，0-透传，1-样条，3-movex
+    double speed; 		///<速度  moveType为3时有效
+    double acc; 		///<加速度 moveType为3时有效
+    double blendRadius; ///<过渡半径 moveType为3时有效
 }PathPara;
 
 typedef struct PathData     ///<轨迹数据
@@ -947,7 +1029,110 @@ typedef struct RobotStateData
     RobotModes robotMode; //机械臂当前状态
     BOOL robotMoveStatus; //机械臂运动状态
     unsigned int robotSpeedPercent; //机械臂速度百分比
-    int configurableDigitalOutput[CR6_CO_NUM]; //控制器可配置数字输出
+    int configurableDigitalOutput[CR6_CO_NUM]; //控制柜可配置数字输出
 }RobotStateData;
+
+//机械臂和扩展轴数据
+typedef struct RobotExjData
+{
+    double actualExjointPos[EXTERNAL_MAX_NUM];  ///< 扩展轴实际位置
+    double actualJointPos[ROB_AXIS_NUM];        ///< 实际关节角度
+    double actualTcpVector[ROB_AXIS_NUM];       ///< 实际TCP位姿
+}RobotExjData;
+
+typedef struct MoveExjPara
+{
+    double pose[ROB_EXJ_AXIS_NUM];              ///< 前六个代表关节姿态（x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）），后六个代表扩展轴位置
+    double jointPos[ROB_EXJ_AXIS_NUM];          ///< 前六个代表关节1~6关节角度，后六个代表扩展轴位置
+    double speed[ROB_EXJ_AXIS_NUM];             ///< 前六个代表机械臂速度，当坐标系类型为关节坐标系时，分别代表一到六关节的速度 °/s，其他时候代表tcp速度 mm/s，第七个代表扩展轴直线速度 mm/s，第八个代表扩展轴旋转速度 °/s
+    double acc[ROB_EXJ_AXIS_NUM];               ///< 前六个代表关节加速度，后六个无效
+                                                ///< acc可以是tcp加速度或者是关节加速度,当coordinateType设置为jointCoordinate时，该速度为关节加速度，其它情况是tcp加速度
+                                                ///< 作为tcp加速度时，单位为：mm/s²; 作为关节加速度时，单位为：°/s²
+    double tcpOffset[ROB_AXIS_NUM];             ///< tcp偏移量:x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
+    int tcpId;                                  ///< tcp的ID号
+    enum CoordinateType coordinateType;         ///< 坐标系类型
+    double coordinatePose[ROB_AXIS_NUM];        ///< 参考坐标系位姿:x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
+    double pointTransRadius;                    ///< 过渡半径
+    enum MotiontriggerMode motiontriggerMode;   ///< 运动轨迹触发方式
+}MoveExjPara;
+
+//扩展轴点动运动参数
+typedef struct MoveJogExjPara
+{
+    double jointPos[EXTERNAL_MAX_NUM];          ///< 扩展轴位置
+    double speed[EXTERNAL_MAX_NUM];             ///< 扩展轴速度
+    double acc[EXTERNAL_MAX_NUM];               ///< 扩展轴加速度
+}MoveJogExjPara;
+
+//扩展轴运动参数
+typedef struct ExjMovePara
+{
+    int exjCount;                                   ///< 扩展轴数量
+    int index[EXTERNAL_MAX_NUM];                    ///< 扩展轴索引
+    double speed[EXTERNAL_MAX_NUM];                 ///< 扩展轴速度
+    double position[EXTERNAL_MAX_NUM];              ///< 扩展轴位置
+    double acctime;                                 ///< 扩展轴加速时间
+    enum MotiontriggerMode motiontriggerMode;       ///< 运动轨迹触发方式
+}ExjMovePara;
+
+//扩展轴类型
+typedef enum ExternalJointType
+{
+    line_externalJoint = 0,  //直线
+    rotation_externalJoint = 1 //旋转
+}ExternalJointType;
+
+//扩展轴配置
+typedef struct ExjConfig
+{
+    char name[NAMELENTH];                   ///< 扩展轴名称
+    enum ExternalJointType type;            ///< 扩展轴类型
+    double ratio;                           ///< 传动比
+    double minlimit;                        ///< 最小值
+    double maxlimit;                        ///< 最大值
+    long long zeroPosition;                 ///< 零位(pulse)
+    double exjToRef[ROB_AXIS_NUM];          ///< 扩展轴相对于参考系的关系
+    char masterExjName[NAMELENTH];          ///< 主轴名称
+    double masterSlaveRate;                 ///< 主从比
+}ExjConfig;
+
+typedef struct RefExjConfig
+{
+    int exjIndex;                           ///< 扩展轴索引
+    double exj2Ref[ROB_AXIS_NUM];           ///< 扩展轴相对于上一组的参考
+}RefExjConfig;
+typedef struct MechanicalUnitConfig
+{
+    char mechanicalUnitName[NAMELENTH];                  ///< 机械单元名称
+    int baselineId;                                      ///< 基准id, -1为世界坐标系,其他为机械单元的id 不存在id为0的基准
+    double root2Ref[ROB_AXIS_NUM];                       ///< 机械单元相对于基准的位姿
+    int refExjCount;                                     ///< 机械单元中扩展轴数量,最多为6个
+    RefExjConfig refExjConfig[REF_EXJ_CONFIG_MAX_NUM];   ///< 机械单元中扩展轴配置
+}MechanicalUnitConfig;
+
+enum CoPdoType
+{
+    CO_TX_PDO = 1,
+    CO_RX_PDO = 2
+};
+
+enum CoDataType
+{
+    EDS_DT_BOOL = 1,   //0x0001;
+    EDS_DT_S8 = 2,     //0x0002;
+    EDS_DT_S16 = 3,    //0x0003;
+    EDS_DT_S32 = 4,    //0x0004;
+    EDS_DT_U8 = 5,     //0x0005;
+    EDS_DT_U16 = 6,    //0x0006;
+    EDS_DT_U32 = 7,    //0x0007;
+    EDS_DT_FLOAT = 8,  //0x0008;
+    EDS_DT_STRING = 9, //0x0009;  一个字符占8位
+    EDS_DT_OCTET_STRING = 0xA,   //0x000A; 一个字符占8位
+    EDS_DT_UNICODE_STRING = 0xB, //0x000B; 一个字符占16位
+    EDS_DT_DOMAIN = 0xF,  //0x000F
+    EDS_DT_DOUBLE = 0x11, //0x0011
+    EDS_DT_INT64 = 0x15,  //0x0015
+    EDS_DT_UINT64 = 0x1B  //0x001B
+};
 
 #endif /// BASESTRUCT_H
