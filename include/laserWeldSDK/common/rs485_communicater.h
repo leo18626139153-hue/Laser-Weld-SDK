@@ -1,7 +1,7 @@
 #ifndef RS485_COMMUNICATER_H
 #define RS485_COMMUNICATER_H
 
-#include "craftscript.h"
+#include "CommuBase.h"  // SDK refactor: CommuBase moved to common/ directory
 #include "brandadapter.h"
 #include <map>
 #include <mutex>

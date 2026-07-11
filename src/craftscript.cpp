@@ -149,6 +149,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 // 工艺模板指令
                 bodyScriptText += "--CRAFT_SELECT--\n";
                 std::string scriptTmp;
+                // 获取工艺参数设置脚本
                 result = craftCommu->craft_script_write_craft_resource_script_get(laserMachineHandle, curCraftInfo, scriptTmp);
                 if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     return result;

@@ -47,7 +47,6 @@ message("=======================================")
 # ============================================================
 # 架构选择
 # ============================================================
-
 isEmpty(SDK_ARCH) {
     win32 {
         contains(QT_ARCH, i386) {
@@ -115,6 +114,7 @@ HEADERS += \
     include/laserWeldSDK/cl_basedefine.h \
     include/laserWeldSDK/cl_craftscript.h \
     include/laserWeldSDK/clmath.h \
+    include/laserWeldSDK/common/CommuBase.h \n    include/laserWeldSDK/common/CommuBase.h 
     include/laserWeldSDK/common/rs485_communicater.h \
     include/laserWeldSDK/craftscript.h \
     include/laserWeldSDK/internaldatadefine.h \

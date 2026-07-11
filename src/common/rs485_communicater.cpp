@@ -111,7 +111,10 @@ LaserSdkResult CommuRS485::addWireFeederRoleParamScript(std::unordered_map<unsig
 
 // 【修改理由】外部传入的 locVec 仍是地址列表，适配器规则需要基于 BrandRegisterRole 判断。
 // 【逻辑】先匹配当前品牌地址；若旧调用方仍传 MachineResource 中的历史地址，则用 fallback 维持兼容。
-bool CommuRS485::findWireFeederRoleByAddr(const BrandProtocolAdapter &adapter, const MachineResource &machineResource, unsigned int addr, BrandRegisterRole &role)
+bool CommuRS485::findWireFeederRoleByAddr(const BrandProtocolAdapter &adapter, 
+    const MachineResource &machineResource, 
+    unsigned int addr, 
+    BrandRegisterRole &role)
 {
     for (unsigned int i = 0; i < sizeof(WIRE_FEEDER_ROLES) / sizeof(WIRE_FEEDER_ROLES[0]); ++i)
     {

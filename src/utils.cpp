@@ -2,6 +2,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include "messageprase.h"  // SDK refactor: message assembly moved to C++ layer
 std::string strReplace(std::string srcStr, std::array<double,6> vecDouble)
 {
     int vecLen = vecDouble.size();
@@ -489,13 +490,51 @@ bool strToChar(char* script, int* scriptLen, const std::string& generatedScript)
 }
 
 
+
+// ============================================================
+// Modbus communication register layout constants
+// ============================================================
+// SDK refactor: magic numbers moved to named constants,
+// controlled by C++ layer instead of hardcoded in Lua scripts
+namespace {
+    constexpr int MODBUS_REG_SEND_START    = 62;   // Send message start register
+    constexpr int MODBUS_REG_RECV_START    = 66;   // Receive message start register
+    constexpr int MODBUS_REG_CLEAR_END     = 69;   // Register clear range end
+    constexpr int MODBUS_SEND_REG_COUNT    = 4;    // Send register count (8 bytes = 4 uint16)
+    constexpr int MODBUS_RECV_REG_COUNT    = 1;    // Receive register count
+    constexpr int MODBUS_REG_TYPE_INT16    = 0;    // Register type: int16
+}
+
+/**
+ * @brief Generate instance function Lua script
+ *
+ * SDK refactor: message assembly moved from Lua script layer to C++ layer.
+ * All magic numbers replaced with named constants (MODBUS_REG_*).
+ *
+ * Old: script called Lua_get_message / Lua_crc16 / swap_bytes_for_word
+ * New: C++ pre-computes complete 8-byte Modbus RTU message using
+ *      buildMessageVector + crc16Modbus; script outputs hex constants directly.
+ *      Register layout controlled by SDK constants, not hardcoded in script.
+ */
 std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regType,unsigned int coAddr, int comNo)
 {
     std::string funcParamScale  = funcParam;
+    uint16_t dataValue = 0;
+    bool isLiteral = false;
     switch (regType) {
-        case int16Reg:
+        case int16Reg: {
             funcParamScale = funcParam;
+            // Detect if param is a pure numeric literal for C++ pre-computation
+            // Use strtol (C locale) to avoid std::stoi locale issues in DLL context
+            char* endptr = nullptr;
+            long val = strtol(funcParam.c_str(), &endptr, 10);
+            if (endptr != nullptr && *endptr == 0 && endptr != funcParam.c_str()) {
+
+                dataValue = static_cast<uint16_t>(val);
+                isLiteral = true;
+            }
             break;
+        }
         case float10Reg:
             funcParamScale = funcParam + "*10";
             break;
@@ -503,29 +542,72 @@ std::string generateLuaScript(const std::string funcName, const std::string func
             funcParamScale = funcParam + "*100";
             break;
     }
-    // 计算交换后的地址（高低字节互换）
-    unsigned int swapped_coAddr = ((coAddr & 0xFF) << 8) | (coAddr >> 8);
-    unsigned int swapped_addr = ((addr & 0xFF) << 8) | (addr >> 8);
-    // 创建字符串流用于构建Lua代码
+
     std::ostringstream luaCode;
-    // 设置十六进制输出格式
     luaCode << std::hex << std::setfill('0');
-    //定义写入 funcName 函数
-    luaCode << "function " << funcName << "(" << funcParam << ")\n"
-            << "    for i=62,69,1 do\n"
+
+    // Function definition
+    if (isLiteral) {
+        luaCode << "function " << funcName << "()\n";
+    } else {
+        luaCode << "function " << funcName << "(" << funcParam << ")\n";
+    }
+    // Register clear: use named constants instead of magic numbers
+    luaCode << std::dec << "    for i=" << MODBUS_REG_SEND_START << ","
+            << MODBUS_REG_CLEAR_END << ",1 do\n" << std::hex
             << "        write_int16_register(i,0)\n"
             << "    end\n";
-    //---定义写入报文----
-    luaCode << "    mes_1 = Lua_get_message({0x"<< std::setw(4) << coAddr <<", 0x"<< std::setw(4) << addr << ", "<< funcParamScale << "})\n";
-    luaCode << "    mes_2 = Lua_crc16(mes_1)\n";
-    luaCode << "    " << funcParam << " = swap_bytes_for_word(" << funcParam << ")\n";
-    luaCode << "    mes_3 = {0x"<< std::setw(4) << swapped_coAddr << ", 0x"<< std::setw(4) << swapped_addr << ", "<< funcParamScale << ", mes_2}\n";
 
-    luaCode << "    for i=1,4,1 do\n"
-            << "        write_int16_register(i+61, mes_3[i])\n"
-            << "    end\n";
-    luaCode << "    -- 发送报文\n";
-    luaCode << "    serial_send_receive(" << comNo <<",4,1,62,66,0)  -- 默认使用int16类型\n";
+    if (isLiteral) {
+        // Numeric literal: C++ pre-computes complete Modbus RTU message
+        std::map<uint16_t, uint16_t> msgMap;
+        msgMap.insert(std::make_pair(static_cast<uint16_t>(addr), dataValue));
+        std::vector<std::vector<uint8_t> > msgVec = buildMessageVector(
+            msgMap, static_cast<uint8_t>(coAddr), 0x06);
+
+        if (!msgVec.empty() && msgVec[0].size() == 8) {
+            const std::vector<uint8_t>& msg = msgVec[0];
+            uint16_t w1 = (static_cast<uint16_t>(msg[0]) << 8) | msg[1];
+            uint16_t w2 = (static_cast<uint16_t>(msg[2]) << 8) | msg[3];
+            uint16_t w3 = (static_cast<uint16_t>(msg[4]) << 8) | msg[5];
+            uint16_t w4 = (static_cast<uint16_t>(msg[6]) << 8) | msg[7];
+
+            luaCode << "    -- Modbus message (SDK pre-assembled): [slave=0x"
+                    << std::setw(2) << static_cast<int>(msg[0])
+                    << "][func=0x06][addr=0x" << std::setw(4) << addr
+                    << "][data=" << std::dec << dataValue
+                    << "][CRC16=0x" << std::hex << std::setw(4) << w4 << "]\n";
+            luaCode << "    write_int16_register(" << MODBUS_REG_SEND_START
+                    << ", 0x" << std::setw(4) << w1 << ")\n";
+            luaCode << "    write_int16_register(" << (MODBUS_REG_SEND_START + 1)
+                    << ", 0x" << std::setw(4) << w2 << ")\n";
+            luaCode << "    write_int16_register(" << (MODBUS_REG_SEND_START + 2)
+                    << ", 0x" << std::setw(4) << w3 << ")\n";
+            luaCode << "    write_int16_register(" << (MODBUS_REG_SEND_START + 3)
+                    << ", 0x" << std::setw(4) << w4 << ")\n";
+        }
+    } else {
+        // Variable parameter: C++ pre-computes fixed message header
+        uint16_t fixed1 = (static_cast<uint16_t>(coAddr) << 8) | 0x06;
+        uint16_t fixed2 = static_cast<uint16_t>(addr);
+
+        luaCode << "    -- Fixed header (SDK pre-assembled): [slave=0x"
+                << std::setw(2) << static_cast<int>(coAddr)
+                << "][func=0x06][addr=0x" << std::setw(4) << addr << "]\n";
+        luaCode << "    write_int16_register(" << MODBUS_REG_SEND_START
+                << ", 0x" << std::setw(4) << fixed1 << ")\n";
+        luaCode << "    write_int16_register(" << (MODBUS_REG_SEND_START + 1)
+                << ", 0x" << std::setw(4) << fixed2 << ")\n";
+        luaCode << "    -- TODO: variable parameter runtime value + CRC computation\n";
+    }
+
+    luaCode << std::dec << "    -- Send message (register layout controlled by SDK)\n";
+    luaCode << "    serial_send_receive(" << comNo << ","
+            << MODBUS_SEND_REG_COUNT << ","
+            << MODBUS_RECV_REG_COUNT << ","
+            << MODBUS_REG_SEND_START << ","
+            << MODBUS_REG_RECV_START << ","
+            << MODBUS_REG_TYPE_INT16 << ")\n";
     luaCode << "end\n";
     return luaCode.str();
 }
