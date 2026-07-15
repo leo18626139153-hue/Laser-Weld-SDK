@@ -5,12 +5,11 @@
  * @file    CommuBase.h
  * @brief   通讯基类 — 抽象通讯接口，定义焊接工艺脚本生成的标准通讯协议
  *
- * 放在 include/laserWeldSDK/common/ 专门通讯目录下，
  * 作为所有通讯实现（RS485、EtherCAT、模拟量等）的统一抽象基类。
  *
  * 继承关系：
  *   CommuBase  (本文件)
- *     └── CommuRS485  (rs485_communicater.h)
+ *     └── CommuRS485  (rs485_commu.h)
  */
 
 #include "cl_basedefine.h"
@@ -46,7 +45,6 @@ public:
     // =================================================================
     // 纯虚接口 — 与具体通讯协议相关，子类必须实现
     // =================================================================
-
     /**
      * @brief 起弧/收弧功能开关脚本
      * @param[in]  laserMachineHandle  焊机资源句柄
@@ -171,8 +169,7 @@ public:
      * @param[out] script   生成的Lua脚本
      * @return LaserSdkResult
      */
-    LaserSdkResult craft_script_judge_break_point_script_get(
-        int instLoc, std::string& script);
+    LaserSdkResult craft_script_judge_break_point_script_get(int instLoc, std::string& script);
 
     /**
      * @brief 输出已加载的初始化函数定义和变量脚本，并清空内部缓存
@@ -182,19 +179,11 @@ public:
 };
 
 /**
- * @brief 分配指令ID（用于指令列表转换时生成不重复的ID）
- * @param[in,out] IDSet  已存在的ID集合，新生成的ID会加入此集合
- * @return 新生成的唯一ID
- */
-int distributionID(std::unordered_set<int>& IDSet);
-
-/**
  * @brief 获取焊机通讯类实例（工厂方法）
  * @param[in]  laserMachineHandle  焊机资源句柄
  * @param[out] craftCommuClass     通讯类实例指针（传出），由调用者负责生命周期
  * @return LaserSdkResult
  */
-LaserSdkResult craft_script_commu_class_get(
-    LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass);
+LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass);
 
 #endif // COMMUBASE_H

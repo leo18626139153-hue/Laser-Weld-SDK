@@ -1,7 +1,7 @@
 #include "cl_api.h"
 #include "utils.h"
 #include "craftscript.h"
-#include "rs485_communicater.h"
+#include "rs485_commu.h"
 #include "messageprase.h"
 #include "clmath.h"
 #include <functional>
@@ -1257,9 +1257,9 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
         laserPowerVec.push_back(machineResource.driverTempLoc);             ///<  驱动器温度值地址 0x023f 575
         laserPowerVec.push_back(machineResource.protectiveWindowTempLoc);   ///<  保护镜温度值地址 0x0240 576
         laserPowerVec.push_back(machineResource.collimatorTempLoc);         ///<  准直镜温度值地址 0x0240 576
-        laserHeadVec.push_back(machineResource.laserHeadDutyCycleLoc);
-        laserHeadVec.push_back(machineResource.laserHeadFrequencyHighLoc);
-        laserHeadVec.push_back(machineResource.laserHeadFrequencyLowLoc);
+        // laserHeadVec.push_back(machineResource.laserHeadDutyCycleLoc);
+        // laserHeadVec.push_back(machineResource.laserHeadFrequencyHighLoc);
+        // laserHeadVec.push_back(machineResource.laserHeadFrequencyLowLoc);
         //送丝机地址参数 - 自动送丝速度
         wireFeedVec.push_back(machineResource.manualWireFeedSpeedLoc);     ///<  手动送丝速度地址 0x0101 257
         wireFeedVec.push_back(machineResource.manualWireRetractSpeedLoc);  ///<  手动抽丝速度地址 0x0102 258
@@ -1267,11 +1267,10 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     else if(machineResource.laserHeadBrand == BCXLASERPOWER_SDK)
     {
         //需要设置的激光器地址参数 - 激光器功率 - 占空比 - 脉冲频率
-        laserPowerVec.push_back(machineResource.laserPowerLoc);
-        laserHeadVec.push_back(machineResource.laserHeadDutyCycleLoc);
-        laserHeadVec.push_back(machineResource.laserHeadFrequencyHighLoc);
-        laserHeadVec.push_back(machineResource.laserHeadFrequencyLowLoc);
-
+        // laserPowerVec.push_back(machineResource.laserPowerLoc);
+        // laserHeadVec.push_back(machineResource.laserHeadDutyCycleLoc);
+        // laserHeadVec.push_back(machineResource.laserHeadFrequencyHighLoc);
+        // laserHeadVec.push_back(machineResource.laserHeadFrequencyLowLoc);
         //送丝机地址参数 - 自动送丝速度
         wireFeedVec.push_back(machineResource.manualWireFeedSpeedLoc);     ///<  手动送丝速度地址
     }

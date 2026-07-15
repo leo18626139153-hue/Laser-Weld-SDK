@@ -333,7 +333,7 @@ enum MaterialLaserSdk
 //工艺参数
 struct CraftInfoLaserSdk
 {
-    WeldModeLaserSdk craftweldMode; ///< 焊接模式
+    WeldModeLaserSdk craftweldMode;     ///< 焊接模式
     WeldLineTypeLaserSdk craftWeldType; ///< 点焊类型
     WireBreakMode craftWireCutMode;     ///< 收尾抽丝 断丝模式
     int craftSpotWeldDuration;          ///< 点焊持续时间

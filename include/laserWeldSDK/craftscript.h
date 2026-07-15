@@ -9,7 +9,7 @@
  * 本文件保留工艺脚本引擎相关的声明。
  */
 
-#include "common/CommuBase.h"
+#include "common/base_commu.h"
 #include "internaldatadefine.h"
 
 /**
@@ -32,5 +32,12 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
     int instListStartLoc,
     int instListEndLoc,
     std::string &bodyScriptText);
+
+/**
+ * @brief 分配指令ID（用于指令列表转换时生成不重复的ID）
+ * @param[in,out] IDSet  已存在的ID集合，新生成的ID会加入此集合
+ * @return 新生成的唯一ID
+ */
+int distributionID(std::unordered_set<int>& IDSet);
 
 #endif // CRAFTSCRIPT_H

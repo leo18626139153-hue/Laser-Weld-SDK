@@ -2,90 +2,90 @@
 
 namespace {
 
-const unsigned int INVALID_REGISTER_ADDR = 0xFFFFFFFF;
+    const unsigned int INVALID_REGISTER_ADDR = 0xFFFFFFFF;
 
-// 修改理由: 统一构造品牌寄存器描述, 避免各品牌地址表重复填充结构体字段.
-// 逻辑: 把写地址, 读地址, 寄存器类型, 缩放比例和写入能力一次性返回给通讯层.
-BrandRegisterInfo makeRegister(unsigned int writeAddr, unsigned int readAddr, CommuRegType regType = int16Reg, double scale = 1.0, bool writable = true)
-{
-    BrandRegisterInfo info;
-    info.writeAddr = writeAddr;
-    info.readAddr = readAddr;
-    info.regType = regType;
-    info.scale = scale;
-    info.writable = writable;
-    return info;
-}
-
-// 修改理由: 送丝机相关写入规则必须集中在品牌层, 避免通讯类散落品牌判断.
-// 逻辑: 把所有可能访问送丝机或送丝信号的语义归类, 供适配器统一过滤.
-bool isWireFeederRole(BrandRegisterRole role)
-{
-    switch (role)
+    // 修改理由: 统一构造品牌寄存器描述, 避免各品牌地址表重复填充结构体字段.
+    // 逻辑: 把写地址, 读地址, 寄存器类型, 缩放比例和写入能力一次性返回给通讯层.
+    BrandRegisterInfo makeRegister(unsigned int writeAddr, unsigned int readAddr, CommuRegType regType = int16Reg, double scale = 1.0, bool writable = true)
     {
-    case BrandRegisterRole::WireFeederRunStatus:
-    case BrandRegisterRole::AutoWireFeedSpeed:
-    case BrandRegisterRole::ManualWireFeedSpeed:
-    case BrandRegisterRole::ManualWireRetractSpeed:
-    case BrandRegisterRole::WireRetractLength:
-    case BrandRegisterRole::WireFeedLength:
-    case BrandRegisterRole::WireFeedBackDelay:
-    case BrandRegisterRole::BreakWireFeedingMode:
-    case BrandRegisterRole::ManualWireFeedSwitch:
-    case BrandRegisterRole::ManualWireRetractSwitch:
-    case BrandRegisterRole::SaveWireFeederData:
-    case BrandRegisterRole::WireFeedSignal:
-        return true;
-    default:
-        return false;
+        BrandRegisterInfo info;
+        info.writeAddr = writeAddr;
+        info.readAddr = readAddr;
+        info.regType = regType;
+        info.scale = scale;
+        info.writable = writable;
+        return info;
     }
-}
 
-// 修改理由: 原超强工艺校验逻辑迁移到品牌适配层后, 仍需保持旧行为一致.
-// 逻辑:
-// 1. 先按图形类型确定扫描宽高上限.
-// 2. 再按图形公式计算扫描频率.
-// 3. 最后按品牌允许范围返回成功或参数错误.
-LaserSdkResult checkSupCraft(const CraftInfoLaserSdk& curCraftInfo)
-{
-    LaserSdkResult res = SUCCESS_LASER_SDK;
-    int maxLimit = (curCraftInfo.graphicsSwitching == SpotPatternLaserSdk::CROSS_LASERSDK) ? 1 : 0;
-    int speed = curCraftInfo.craftScanSpeed;
-    float rangeW = static_cast<float>(curCraftInfo.craftScanWidth);
-    if(rangeW < 0.1f || rangeW > (5.0f - 2.0f * maxLimit))
-        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
-    float rangeH = static_cast<float>(curCraftInfo.craftScanHeight);
-    if(rangeH < 0.1f || rangeH > (5.0f - 2.0f * maxLimit))
-        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    // 修改理由: 送丝机相关写入规则必须集中在品牌层, 避免通讯类散落品牌判断.
+    // 逻辑: 把所有可能访问送丝机或送丝信号的语义归类, 供适配器统一过滤.
+    bool isWireFeederRole(BrandRegisterRole role)
+    {
+        switch (role)
+        {
+        case BrandRegisterRole::WireFeederRunStatus:
+        case BrandRegisterRole::AutoWireFeedSpeed:
+        case BrandRegisterRole::ManualWireFeedSpeed:
+        case BrandRegisterRole::ManualWireRetractSpeed:
+        case BrandRegisterRole::WireRetractLength:
+        case BrandRegisterRole::WireFeedLength:
+        case BrandRegisterRole::WireFeedBackDelay:
+        case BrandRegisterRole::BreakWireFeedingMode:
+        case BrandRegisterRole::ManualWireFeedSwitch:
+        case BrandRegisterRole::ManualWireRetractSwitch:
+        case BrandRegisterRole::SaveWireFeederData:
+        case BrandRegisterRole::WireFeedSignal:
+            return true;
+        default:
+            return false;
+        }
+    }
 
-    float freq = 0.0;
-    switch (curCraftInfo.graphicsSwitching)
+    // 修改理由: 原超强工艺校验逻辑迁移到品牌适配层后, 仍需保持旧行为一致.
+    // 逻辑:
+    // 1. 先按图形类型确定扫描宽高上限.
+    // 2. 再按图形公式计算扫描频率.
+    // 3. 最后按品牌允许范围返回成功或参数错误.
+    LaserSdkResult checkSupCraft(const CraftInfoLaserSdk& curCraftInfo)
     {
-    case SpotPatternLaserSdk::CIR_LASERSDK:
-        freq = static_cast<float>(speed)/(static_cast<float>(PI)*rangeW) + 0.5f;
-        break;
-    case SpotPatternLaserSdk::LINE_LASERSDK:
-        freq = static_cast<float>(speed)/(rangeW * 2.0f) + 0.5f;
-        break;
-    case SpotPatternLaserSdk::STAR_LASERSDK:
-        freq = (static_cast<float>(speed)*2.0f)/(3.0f*(rangeW+rangeH))+0.5f;
-        break;
-    case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
-        freq = (static_cast<float>(speed)*2.0f)/(static_cast<float>(PI)*(rangeW+rangeH))+0.5f;
-        break;
-    case SpotPatternLaserSdk::CROSS_LASERSDK:
-        freq = static_cast<float>(speed)/(rangeW*2.0f+rangeH*2.0f) + 0.5f;
-        break;
-    case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-        freq= static_cast<float>(speed)/(3.0f*rangeW)+0.5f;
-        break;
+        LaserSdkResult res = SUCCESS_LASER_SDK;
+        int maxLimit = (curCraftInfo.graphicsSwitching == SpotPatternLaserSdk::CROSS_LASERSDK) ? 1 : 0;
+        int speed = curCraftInfo.craftScanSpeed;
+        float rangeW = static_cast<float>(curCraftInfo.craftScanWidth);
+        if(rangeW < 0.1f || rangeW > (5.0f - 2.0f * maxLimit))
+            return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+        float rangeH = static_cast<float>(curCraftInfo.craftScanHeight);
+        if(rangeH < 0.1f || rangeH > (5.0f - 2.0f * maxLimit))
+            return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+        float freq = 0.0;
+        switch (curCraftInfo.graphicsSwitching)
+        {
+        case SpotPatternLaserSdk::CIR_LASERSDK:
+            freq = static_cast<float>(speed)/(static_cast<float>(PI)*rangeW) + 0.5f;
+            break;
+        case SpotPatternLaserSdk::LINE_LASERSDK:
+            freq = static_cast<float>(speed)/(rangeW * 2.0f) + 0.5f;
+            break;
+        case SpotPatternLaserSdk::STAR_LASERSDK:
+            freq = (static_cast<float>(speed)*2.0f)/(3.0f*(rangeW+rangeH))+0.5f;
+            break;
+        case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
+            freq = (static_cast<float>(speed)*2.0f)/(static_cast<float>(PI)*(rangeW+rangeH))+0.5f;
+            break;
+        case SpotPatternLaserSdk::CROSS_LASERSDK:
+            freq = static_cast<float>(speed)/(rangeW*2.0f+rangeH*2.0f) + 0.5f;
+            break;
+        case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
+            freq= static_cast<float>(speed)/(3.0f*rangeW)+0.5f;
+            break;
+        }
+        if(freq < 10 || freq > (150 - 100 * maxLimit))
+        {
+            res = LaserSdkResult::PARAM_SCAN_FREQUENCY_ERROR_LASER_SDK;
+        }
+        return res;
     }
-    if(freq < 10 || freq > (150 - 100 * maxLimit))
-    {
-        res = LaserSdkResult::PARAM_SCAN_FREQUENCY_ERROR_LASER_SDK;
-    }
-    return res;
-}
 
 } // namespace
 
@@ -332,10 +332,4 @@ const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand)
     default:
         return supAdapter;
     }
-}
-
-LaserSdkResult GetCraftCheck(CraftInfoLaserSdk craftInfoCheck)
-{
-    //保留旧接口, 旧调用点未传品牌时继续使用超强默认校验.
-    return GetBrandProtocolAdapter(LaserHeadBrandSdk::CQLASERPOWER_SDK).checkCraft(craftInfoCheck);
 }

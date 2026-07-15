@@ -59,7 +59,6 @@ struct BrandProtocolProfile
 
 /**
  * @brief 品牌协议适配器基类
- *
  * 修改理由: 通讯类只负责 RS485/Modbus 脚本拼接, 品牌地址表和送丝机写入策略固定到品牌层.
  * 逻辑: 通讯层通过寄存器语义查询地址, 校验规则和送丝机写入策略, 不再直接判断具体品牌.
  */
@@ -156,20 +155,16 @@ public:
     std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
 };
 
+
+
+
+
+
 /**
  * @brief 获取品牌协议适配器
  * @param[in] brand 激光头品牌枚举
  * @return 品牌协议适配器引用, 未知品牌返回默认超强适配器
  */
 const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand);
-
-/**
- * @brief 超强伟业工艺参数检查旧接口
- * @param[in] craftInfoCheck 工艺参数
- * @return SDK 结果码
- *
- * 保留该接口用于兼容旧调用点, 未传入品牌时默认使用超强校验规则.
- */
-LaserSdkResult GetCraftCheck(CraftInfoLaserSdk craftInfoCheck);
 
 #endif // BRANDADAPTER_H

@@ -1,4 +1,4 @@
-#include "rs485_communicater.h"
+#include "rs485_commu.h"
 #include "cl_basedefine.h"
 #include "utils.h"
 #include "internaldatadefine.h"
@@ -469,7 +469,7 @@ void CommuRS485::initData()
     -- 2.CRC-16 (Modbus) 计算函数 无高低字节互转
     function modbus_crc16(data)
         local crc = 0xFFFF  		-- CRC寄存器初始化为0xFFFF
-        local polynomial = 0xA001   -- CRC-16多项式（0x8005反转）
+        local polynomial = 0xA001   -- CRC-16多项式
         -- 对每个字节进行处理
         for _, byte in ipairs(data) do
             crc = crc ~ byte  -- 将字节与CRC寄存器进行异或
@@ -1085,14 +1085,12 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     //降功率的距离
     double tempTime = static_cast<double>((disX * 1000)/ curCraftInfo.craftWeldingSpeed);
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
-
     // 提前送气时间
     write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";
     machineResource.laserPowerParams.gasStartupAdvanceTime = curCraftInfo.craftPreGasTime;
     // 气体关闭延时 --滞后送气时间
     write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n";
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
-
     //激光头扫描速度
     write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n";
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;

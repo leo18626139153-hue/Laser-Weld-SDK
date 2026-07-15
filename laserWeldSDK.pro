@@ -89,33 +89,30 @@ message("DESTDIR = $$DESTDIR")
 # ============================================================
 # 中间文件目录
 # ============================================================
-
-OBJECTS_DIR = $$BUILD_ROOT/obj/$$SDK_ARCH
-MOC_DIR     = $$BUILD_ROOT/moc/$$SDK_ARCH
-RCC_DIR     = $$BUILD_ROOT/rcc/$$SDK_ARCH
-UI_DIR      = $$BUILD_ROOT/ui/$$SDK_ARCH
+OBJECTS_DIR = $$BUILD_ROOT/obj/$$SDK_ARCH   #指定 C++ 源文件编译后生成的目标文件（.o 或 .obj）的存放路径。
+MOC_DIR     = $$BUILD_ROOT/moc/$$SDK_ARCH   #指定 Qt 的 MOC（元对象编译器） 生成的 moc_*.cpp 文件的存放路径。
+RCC_DIR     = $$BUILD_ROOT/rcc/$$SDK_ARCH   #指定 Qt 的 RCC（资源编译器） 生成的 qrc_*.cpp 文件的存放路径。
+UI_DIR      = $$BUILD_ROOT/ui/$$SDK_ARCH    #指定 Qt 的 UIC（UI 编译器） 生成的 ui_*.h 头文件的存放路径。
 
 # ============================================================
 # 源.文.件
 # ============================================================ 
-
 SOURCES += \
     src/brand/brandadapter.cpp \
     src/cl_api.cpp \
     src/clmath.cpp \
-    src/common/rs485_communicater.cpp \
+    src/common/rs485_commu.cpp \
     src/craftscript.cpp \
     src/messageprase.cpp \
     src/utils.cpp
-
+# 头.文.件
 HEADERS += \
     include/laserWeldSDK/brand/brandadapter.h \
     include/laserWeldSDK/cl_api.h \
     include/laserWeldSDK/cl_basedefine.h \
-    include/laserWeldSDK/cl_craftscript.h \
     include/laserWeldSDK/clmath.h \
-    include/laserWeldSDK/common/CommuBase.h \n    include/laserWeldSDK/common/CommuBase.h 
-    include/laserWeldSDK/common/rs485_communicater.h \
+    include/laserWeldSDK/common/base_commu.h \
+    include/laserWeldSDK/common/rs485_commu.h \
     include/laserWeldSDK/craftscript.h \
     include/laserWeldSDK/internaldatadefine.h \
     include/laserWeldSDK/messageprase.h \
@@ -129,7 +126,6 @@ HEADERS += \
 # ============================================================
 # 公共 include
 # ============================================================
-
 INCLUDEPATH += $$SRC_ROOT/include/laserWeldSDK
 INCLUDEPATH += $$SRC_ROOT/include/laserWeldSDK/brand
 INCLUDEPATH += $$SRC_ROOT/include/laserWeldSDK/common
@@ -138,10 +134,8 @@ INCLUDEPATH += $$CRSDK_ROOT/include
 # ============================================================
 # Windows / MSVC
 # ============================================================
-
 win32 {
     message("-- platform: Windows")
-
     equals(SDK_ARCH, x64) {
         message("-- link cr_sdk: windows x64")
         CRSDK_LIB_DIR = $$CRSDK_ROOT/windows/libs/x64
@@ -170,7 +164,6 @@ win32 {
 # ============================================================
 # Linux / ARM32 / AArch64 / x64
 # ============================================================
-
 unix:!macx {
     message("-- platform: Linux")
 
