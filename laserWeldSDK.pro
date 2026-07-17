@@ -101,6 +101,7 @@ SOURCES += \
     src/brand/brandadapter.cpp \
     src/cl_api.cpp \
     src/clmath.cpp \
+    src/common/base_commu.cpp \
     src/common/rs485_commu.cpp \
     src/craftscript.cpp \
     src/messageprase.cpp \

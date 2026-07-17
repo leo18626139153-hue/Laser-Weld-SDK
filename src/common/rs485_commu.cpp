@@ -111,10 +111,7 @@ LaserSdkResult CommuRS485::addWireFeederRoleParamScript(std::unordered_map<unsig
 
 // 【修改理由】外部传入的 locVec 仍是地址列表，适配器规则需要基于 BrandRegisterRole 判断。
 // 【逻辑】先匹配当前品牌地址；若旧调用方仍传 MachineResource 中的历史地址，则用 fallback 维持兼容。
-bool CommuRS485::findWireFeederRoleByAddr(const BrandProtocolAdapter &adapter, 
-    const MachineResource &machineResource, 
-    unsigned int addr, 
-    BrandRegisterRole &role)
+bool CommuRS485::findWireFeederRoleByAddr(const BrandProtocolAdapter &adapter, const MachineResource &machineResource, unsigned int addr, BrandRegisterRole &role)
 {
     for (unsigned int i = 0; i < sizeof(WIRE_FEEDER_ROLES) / sizeof(WIRE_FEEDER_ROLES[0]); ++i)
     {
@@ -469,7 +466,7 @@ void CommuRS485::initData()
     -- 2.CRC-16 (Modbus) 计算函数 无高低字节互转
     function modbus_crc16(data)
         local crc = 0xFFFF  		-- CRC寄存器初始化为0xFFFF
-        local polynomial = 0xA001   -- CRC-16多项式
+        local polynomial = 0xA001   -- CRC-16多项式（0x8005反转）
         -- 对每个字节进行处理
         for _, byte in ipairs(data) do
             crc = crc ~ byte  -- 将字节与CRC寄存器进行异或
@@ -1040,6 +1037,14 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
 }
 
 //工艺参数设置脚本获取
+// 【修改理由】重构拆分：本接口只负责计算工艺参数并更新 MachineResource，
+//            脚本写入逻辑移到品牌适配器的 buildConfigureMachineBodyScript。
+// 【逻辑】
+// 1. 检查句柄有效性和工艺参数合法性
+// 2. 计算开光/关光功率百分比和缓升缓降时间
+// 3. 将工艺参数逐项赋值到 machineResource 各子结构
+// 4. 调用品牌适配器生成品牌特有的脚本体并组装到 bodyScriptText
+// 5. 填丝焊时额外下发送丝机参数脚本
 LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk &craftInfo, std::string &bodyScriptText)
 {
     //获取句柄对应的焊机资源对象
@@ -1049,18 +1054,16 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
     const BrandProtocolAdapter &adapter = GetBrandProtocolAdapter(machineResource.laserHeadBrand);
-    const BrandProtocolProfile profile = adapter.profile();
-    const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
-    const std::string writeMultiFuncCode = scriptCodeToLuaHex(profile.writeMultiScriptCode);
     CraftInfoLaserSdk curCraftInfo = craftInfo;
     LaserSdkResult res = LaserSdkResult::SUCCESS_LASER_SDK;
     res = adapter.checkCraft(curCraftInfo);//参数判断
     if(res != LaserSdkResult::SUCCESS_LASER_SDK)
         return res;
-    ///激光参数赋值
-    std::string write_laser_params;
-    write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(machineResource.laserPowerParams.laserPower)+"\n";
-    int craftLeadInPowerPercent = (curCraftInfo.craftLeadInPower*100)/machineResource.laserPowerParams.laserPower;  ///开光功率百分比
+
+    // ====== 工艺参数计算与赋值（仅更新 machineResource，不写脚本） ======
+
+    ///开光功率百分比校验
+    int craftLeadInPowerPercent = (curCraftInfo.craftLeadInPower*100)/machineResource.laserPowerParams.laserPower;
     if(craftLeadInPowerPercent < 0 || craftLeadInPowerPercent > 100){
         std::cout << "craftLeadInPowerPercent out of range" << std::endl;
         writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadInPowerPercent out of range");
@@ -1068,6 +1071,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     }
     machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;/// 开光功率
     machineResource.laserPowerParams.laserRampUpTime = curCraftInfo.craftLeadInRampTime;
+
     //计算关光功率百分比
     int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;
     if(craftLeadOutPowerPercent < 0 || craftLeadOutPowerPercent > 100){
@@ -1075,6 +1079,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
+
     // 计算关光功率下降时间
     int  disX = curCraftInfo.craftLeadOutRampDistance - curCraftInfo.craftRetractionDistance ;  //关光渐进距离-提前回抽距离
     if(disX  < 0)
@@ -1082,141 +1087,55 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         writeLog("craft_script_configure_machine_param_set_script_get :: laserRampDownTime out of range");
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    //降功率的距离
+    //降功率的距离 → 时间
     double tempTime = static_cast<double>((disX * 1000)/ curCraftInfo.craftWeldingSpeed);
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
+
     // 提前送气时间
-    write_laser_params += "    laserRegisterMap[6][2] = "+ std::to_string(curCraftInfo.craftPreGasTime)+"\n";
     machineResource.laserPowerParams.gasStartupAdvanceTime = curCraftInfo.craftPreGasTime;
     // 气体关闭延时 --滞后送气时间
-    write_laser_params += "    laserRegisterMap[7][2] = "+ std::to_string(curCraftInfo.craftPostGasTime)+"\n";
     machineResource.laserPowerParams.gasShutoffDelayTime = curCraftInfo.craftPostGasTime;
+
     //激光头扫描速度
-    write_laser_params += "    laserHeadRegisterMap[1][2] = "+ std::to_string(curCraftInfo.craftScanSpeed)+"\n";
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;
     //激光头扫描宽度
-    write_laser_params += "    laserHeadRegisterMap[2][2] = "+ double2str(curCraftInfo.craftScanWidth, 1)+"*10 \n";
     machineResource.laserHeadParams.laserHeadScanWidth = curCraftInfo.craftScanWidth;
     //焊接功率、峰值功率
     if(curCraftInfo.craftLaserPower > machineResource.laserPowerParams.laserPower){
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    write_laser_params += "    laserHeadRegisterMap[3][2] = "+ std::to_string(curCraftInfo.craftLeadInPower)+"\n";  //  峰值功率从开光功率开始升
     machineResource.laserHeadParams.laserHeadPeakPower = curCraftInfo.craftLaserPower;
-    //占空比
-    write_laser_params += "    laserHeadRegisterMap[4][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadDutyCycle)+"\n";
-    //脉冲频率高位
-    write_laser_params += "    laserHeadRegisterMap[5][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadHighPulseFrequency)+"\n";
-    //脉冲频率低位
-    write_laser_params += "    laserHeadRegisterMap[6][2] = "+ std::to_string(machineResource.laserHeadParams.laserHeadLowPulseFrequency )+"\n";
 
     //激光头扫描高度
-    write_laser_params += "    laserHeadRegisterMap[7][2] = "+ double2str(curCraftInfo.craftScanHeight, 1)+"*10 \n";
     machineResource.laserHeadParams.laserHeadScanHeight = curCraftInfo.craftScanHeight;
     //激光头旋转角度
-    write_laser_params += "    laserHeadRegisterMap[8][2] = "+ std::to_string(curCraftInfo.craftRotationAngle)+"\n";
     machineResource.laserHeadParams.laserHeadSpinAngle = curCraftInfo.craftRotationAngle;
-    // YXYX轴偏移量
-    write_laser_params += "    laserRegisterMap[9][2] = "+ double2str(curCraftInfo.craftYAxisZoom, 2)+"*100 \n";        //激光头Y轴缩放
+    // YX轴缩放/偏移量
     machineResource.laserPowerParams.laserHeadYEnlarge = curCraftInfo.craftYAxisZoom;
-    write_laser_params += "    laserRegisterMap[10][2] = "+ double2str(curCraftInfo.craftYAxisOffset, 2)+"*100 \n";     //激光头Y轴偏移
     machineResource.laserPowerParams.laserHeadYOffset = curCraftInfo.craftYAxisOffset;
-    write_laser_params += "    laserRegisterMap[11][2] = "+ double2str(curCraftInfo.craftXAxisZoom, 2)+"*100 \n";       //激光头X轴缩放
     machineResource.laserPowerParams.laserHeadXEnlarge = curCraftInfo.craftXAxisZoom;
-    write_laser_params += "    laserRegisterMap[12][2] = "+ double2str(curCraftInfo.craftXAxisOffset, 2)+"*100 \n";     //激光头X轴偏移
     machineResource.laserPowerParams.laserHeadXOffset = curCraftInfo.craftXAxisOffset;
+
     // 点焊工艺
-    //点焊类型
-    write_laser_params += "    spotWeld[1][2] = "+ std::to_string(static_cast<int>(curCraftInfo.craftWeldType))+"\n";
     machineResource.laserPowerParams.spotWeldType = curCraftInfo.craftWeldType;
-    //点焊时长
-    write_laser_params += "    spotWeld[2][2] = "+ std::to_string(curCraftInfo.craftSpotWeldDuration)+"\n";
     machineResource.laserPowerParams.spotWeldDurationTime = curCraftInfo.craftSpotWeldDuration;
-    //点焊间隔
-    write_laser_params += "    spotWeld[3][2] = "+ std::to_string(curCraftInfo.craftSpotWeldInterval)+"\n";
     machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;
-    ///<写入激光焊接参数、点焊参数
-    std::string write_weld_params =
-            "    comNo = 3\n"
-            "    slave_addr = " + writeMultiFuncCode + "\n"
-            "    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数\n"
-            "    write_multi_value_port(laserHeadRegisterMap)  --写入激光头\n"
-            "    write_multi_value_port(spotWeld)              --写入点焊参数\n";
 
     ///< 写入焊接模式
-    write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
-    ///< 写入激光头参数
-    /// // 写入图案
+    ///< 写入激光头图案
     machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
-    switch (curCraftInfo.graphicsSwitching) {
-        case SpotPatternLaserSdk::CIR_LASERSDK:
-        case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
-        case SpotPatternLaserSdk::LINE_LASERSDK:
-        case SpotPatternLaserSdk::STAR_LASERSDK:
-            write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
-        break;
-        case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-            write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
-        break;
-        case SpotPatternLaserSdk::CROSS_LASERSDK:
-            write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
-        break;
-    }
+
+    // ====== 脚本生成：委托品牌适配器 ======
     bodyScriptText += strWriteInt32RegReplace(821, 0);      //存放超时地址的寄存器
-    if (adapter.brand() == LaserHeadBrandSdk::CQLASERPOWER_SDK)
-    {
-        // 修改理由：write_multi_value_port 依赖超强批量地址表，宝辰鑫不能复用该批量写报文。
-        // 逻辑：超强保留批量写；其他品牌统一走激光器、激光头单寄存器写入接口。
-        bodyScriptText += write_laser_params + "    wait(290) \n";
-        bodyScriptText += write_weld_params;
-    }
-    else
-    {
-        std::vector<unsigned int> laserPowerVec;
-        laserPowerVec.push_back(machineResource.laserPowerLoc);
-        laserPowerVec.push_back(machineResource.laserOnPowerLoc);
-        laserPowerVec.push_back(machineResource.laserOnRampTimeLoc);
-        laserPowerVec.push_back(machineResource.laserOffPowerLoc);
-        laserPowerVec.push_back(machineResource.laserOffRampTimeLoc);
-        laserPowerVec.push_back(machineResource.gasONDelayLoc);
-        laserPowerVec.push_back(machineResource.gasOffDelayLoc);
-        laserPowerVec.push_back(machineResource.laserHeadYScaleLoc);
-        laserPowerVec.push_back(machineResource.laserHeadYOffsetLoc);
-        laserPowerVec.push_back(machineResource.laserHeadXScaleLoc);
-        laserPowerVec.push_back(machineResource.laserHeadXOffsetLoc);
-        laserPowerVec.push_back(machineResource.spotWeldTypeLoc);
-        laserPowerVec.push_back(machineResource.spotWeldDurationLoc);
-        laserPowerVec.push_back(machineResource.spotWeldIntervalLoc);
+    std::string str;
+    adapter.buildConfigureMachineBodyScript(machineResource, curCraftInfo, str);
+    bodyScriptText += str;
+    //bodyScriptText += "    wait(290) \n";
 
-        std::vector<unsigned int> laserHeadVec;
-        laserHeadVec.push_back(machineResource.laserHeadPatternIdLoc);
-        laserHeadVec.push_back(machineResource.laserHeadScanSpeedLoc);
-        laserHeadVec.push_back(machineResource.laserHeadScanWidthLoc);
-        laserHeadVec.push_back(machineResource.laserHeadPeakPowerLoc);
-        laserHeadVec.push_back(machineResource.laserHeadDutyCycleLoc);
-        laserHeadVec.push_back(machineResource.laserHeadFrequencyLowLoc);
-        laserHeadVec.push_back(machineResource.laserHeadFrequencyHighLoc);
-        laserHeadVec.push_back(machineResource.laserHeadScanHeightLoc);
-        laserHeadVec.push_back(machineResource.laserHeadRotationAngleLoc);
-
-        res = craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, bodyScriptText);
-        if (res != LaserSdkResult::SUCCESS_LASER_SDK)
-        {
-            return res;
-        }
-        res = craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, bodyScriptText);
-        if (res != LaserSdkResult::SUCCESS_LASER_SDK)
-        {
-            return res;
-        }
-        bodyScriptText += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
-        bodyScriptText += "    wait(290) \n";
-    }
     //  如果是填丝焊👇👇👇则下发如下参数；自融焊则不下发焊接参数
     if(machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK)
     {
-
         //  送丝机参数
         int distance = curCraftInfo.craftRetractionDistance;    //回抽焊丝的过程距离 mm
         machineResource.wireFeederParams.lengthBack = distance;
@@ -1253,8 +1172,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         }
         craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, bodyScriptText);
     }
-
-
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
@@ -1429,7 +1346,7 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
             "    write_multi_value_port(spotWeld)              --写入点焊参数\n";
 
     ///< 写入焊接模式
-    write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
+    write_laser_params += adapter.writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
 
     ///< 写入激光头参数
@@ -1442,13 +1359,13 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
             case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
             case SpotPatternLaserSdk::LINE_LASERSDK:
             case SpotPatternLaserSdk::STAR_LASERSDK:
-                write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
+                write_laser_params += adapter.writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(curCraftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
             break;
             case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-                write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
+                write_laser_params += adapter.writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(4), "3", "SendCommuRegAddr", "1");
             break;
             case SpotPatternLaserSdk::CROSS_LASERSDK:
-                write_laser_params += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
+                write_laser_params += adapter.writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.laserHeadPatternIdLoc), std::to_string(5), "3", "SendCommuRegAddr", "1");
             break;
         }
     }
@@ -1499,7 +1416,7 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
         {
             return res;
         }
-        script += writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
+        script += adapter.writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
         script += "    wait(290) \n";
     }
     //  送丝机参数

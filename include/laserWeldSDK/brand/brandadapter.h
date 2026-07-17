@@ -3,7 +3,10 @@
 
 #include "internaldatadefine.h"
 #include "utils.h"
+#include "laserModbusRtuBuilder.h"
 #include <vector>
+
+using ParamMap = LaserModbusRtuBuilder::ParamMap;
 
 /**
  * @brief 品牌寄存器语义枚举
@@ -59,6 +62,7 @@ struct BrandProtocolProfile
 
 /**
  * @brief 品牌协议适配器基类
+ *
  * 修改理由: 通讯类只负责 RS485/Modbus 脚本拼接, 品牌地址表和送丝机写入策略固定到品牌层.
  * 逻辑: 通讯层通过寄存器语义查询地址, 校验规则和送丝机写入策略, 不再直接判断具体品牌.
  */
@@ -121,6 +125,42 @@ public:
      * @return 送丝机寄存器语义列表
      */
     virtual std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const = 0;
+
+    /**
+     * @brief 生成单寄存器写入的Lua脚本调用行
+     * @param[in] functionCode      功能码(如"0x0906")
+     * @param[in] portAddress       寄存器地址
+     * @param[in] paramValue        参数值
+     * @param[in] portNum           通讯端口号
+     * @param[in] firstRegisterNum  起始寄存器标识
+     * @param[in] receiptNeed       是否等待回执("0"或"1")
+     * @return write_value_port(...) Lua脚本行
+     */
+    virtual std::string writeLuaScript(const std::string& functionCode,
+                                       const std::string& portAddress,
+                                       const std::string& paramValue,
+                                       const std::string& portNum,
+                                       const std::string& firstRegisterNum,
+                                       const std::string& receiptNeed) const = 0;
+
+    /**
+     * @brief 生成工艺参数配置的Lua脚本体（品牌特有部分）
+     * @param[in] machineResource 已计算好工艺参数的焊机资源
+     * @param[in] craftInfo       工艺参数
+     * @param[out] scriptBody     生成的Lua脚本体
+     * @return 品牌特有的Lua脚本体字符串
+     */
+    virtual bool buildConfigureMachineBodyScript(
+        const MachineResource& machineResource,
+        const CraftInfoLaserSdk& craftInfo,
+        std::string& scriptBody) const = 0;
+
+    /**
+     * @brief 开始新的配置会话
+     * 协议需要在新会话开始时清空上次成功参数, 避免跨会话残留影响.
+     * 品牌协议适配器可在新会话开始时清理内部状态, 通讯层无需感知品牌内部状态.
+     */
+    virtual void BeginNewSession() = 0;
 };
 
 /**
@@ -128,6 +168,9 @@ public:
  */
 class SupProtocolAdapter : public BrandProtocolAdapter
 {
+private:
+    // 上次已经收到从站成功响应的参数。
+    ParamMap m_lastAppliedParameters;
 public:
     LaserHeadBrandSdk brand() const override;
     BrandProtocolProfile profile() const override;
@@ -137,6 +180,20 @@ public:
     bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
     int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
     std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
+    std::string writeLuaScript(
+        const std::string& functionCode, 
+        const std::string& portAddress,
+        const std::string& paramValue,
+        const std::string& portNum,
+        const std::string& firstRegisterNum,
+        const std::string& receiptNeed) const override;
+
+    bool buildConfigureMachineBodyScript(
+        const MachineResource& machineResource, 
+        const CraftInfoLaserSdk& craftInfo, 
+        std::string& scriptBody) const override;
+
+    void BeginNewSession() override;    
 };
 
 /**
@@ -144,6 +201,12 @@ public:
  */
 class BcxOmniProtocolAdapter : public BrandProtocolAdapter
 {
+//private:
+//    // 上次已经收到从站成功响应的参数。
+//    ParamMap m_lastAppliedParameters;
+//    // 当前连接是否尚未完成首次同步。
+//    bool m_firstSynchronization;
+    
 public:
     LaserHeadBrandSdk brand() const override;
     BrandProtocolProfile profile() const override;
@@ -153,12 +216,20 @@ public:
     bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
     int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
     std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
+        std::string writeLuaScript(const std::string& functionCode, 
+        const std::string& portAddress,
+        const std::string& paramValue,
+        const std::string& portNum,
+        const std::string& firstRegisterNum,
+        const std::string& receiptNeed) const override;
+    bool buildConfigureMachineBodyScript(
+        const MachineResource& machineResource,
+        const CraftInfoLaserSdk& craftInfo, 
+        std::string& scriptBody) const override;
+
+    // 新的配置会话开始时清空上次成功参数, 避免跨会话残留影响.
+    void BeginNewSession() override;
 };
-
-
-
-
-
 
 /**
  * @brief 获取品牌协议适配器
