@@ -492,7 +492,10 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         bodyScriptText += "----change present craft----\n";
                         if(isWeld)
                         {
-                            LaserSdkResult result = curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, bodyScriptText);
+                            LaserSdkResult result = curCommuFunction->
+                                    craft_script_configure_machine_param_set_script_get(laserMachineHandle,
+                                                                                        curCraftInfo,
+                                                                                        bodyScriptText);
                             if(result != SUCCESS_LASER_SDK)
                             {
                                 return result;
@@ -1321,7 +1324,7 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
             throw HANDLE_ERROR_LASER_SDK;
         }
         MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-
+        std::cout << "machineResource " << machineResource.laserHeadBrand << std::endl;
         CommuBase* curCommuFunction = NULL;
         if (machineResource.commuType == RS485_2_LASER_SDK)
         {

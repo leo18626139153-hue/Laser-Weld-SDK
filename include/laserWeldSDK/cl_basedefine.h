@@ -133,26 +133,24 @@ enum SwitchTypeLaserSdk
 //激光器
 typedef struct CgxiLaserPowerLaserSdk
 {
-    WeldModeLaserSdk weldMode;  ///< 焊接模式   (0 点焊 - 1 连续)
-
     int driverTemp;
     int protectiveWindowTemp;
     int collimatorTemp;
-
-    int laserPower;             ///< 激光器功率 0-5000W
+    int laserPower;             ///< 激光器功率 0-5000W || 额定功率
     int laserPowerOpen;         ///< 开光功率   百分比   外控
     int laserPowerClose;        ///< 关光功率   百分比   外控
-    int laserRampUpTime;        ///< 开光渐进时间 0~1000ms    外控
-    double laserRampDownTime;   ///< 关光渐进时间  { 关光渐进距离 0~300mm, 根据机器人移动速度换算}
+    int laserRampUpTime;        ///< 开光渐进时间 0~1000ms    外控    
     int wireFeedAdvanceTime;    ///< 送丝延时补偿 ：提前送丝。 例：设1000则按扳机后，先送丝1S之后再出光。
     int gasShutoffDelayTime;       ///< 关气渐进 滞后送气时间	0~3000ms
     int gasStartupAdvanceTime;     ///< 开气渐进 提前送气时间	0~3000ms
     int spotWeldDurationTime;      ///<点焊持续时间 0~60000ms	整型
     int spotWeldIntervalTime;      ///<点焊间隔时间 0~60000ms	整型
+    double laserRampDownTime;   ///< 关光渐进时间  { 关光渐进距离 0~300mm, 根据机器人移动速度换算}
     double laserHeadXOffset;    ///< X偏移 -3~+3mm	浮点型
     double laserHeadYOffset;    ///< Y偏移 -3~+3mm	浮点型
     double laserHeadXEnlarge;   ///< X放大 0.01~4	浮点型
     double laserHeadYEnlarge;   ///< Y放大 0.01~4	浮点型
+    WeldModeLaserSdk weldMode;  ///< 焊接模式   (0 点焊 - 1 连续)
     WeldLineTypeLaserSdk spotWeldType;       ///<  点焊类型 (0:间断焊 1:鱼鳞焊)
 } CgxiLaserPowerLaserSdk;
 
@@ -164,15 +162,14 @@ enum SpotPatternLaserSdk
     STAR_LASERSDK = 3,      ///< 正方形（参数：边长mm）
     CROSS_LASERSDK = 4,     ///< 十字形（参数：边长mm）
     TRIANGLE_LASERSDK = 5   ///< 等边三角形（参数：边长mm）
-
 };
 
 ///< 激光头工艺参数
 typedef struct CgxiLaserHeadLaserSdk
 {
-    SpotPatternLaserSdk laserSpotPattern;   ///< 光斑图案
+    int laserSpotPattern;   ///< 光斑图案
     int laserHeadSpinAngle;         ///< 旋转角度 0~360° 整型
-    int laserHeadPeakPower;         ///< 峰值功率
+    int laserHeadPeakPower;         ///< 峰值功率 激光功率
     int laserHeadDutyCycle;         ///< 占空比
     int laserHeadLowPulseFrequency;      ///< 脉冲频率 低位
     int laserHeadHighPulseFrequency;     ///< 脉冲频率 高位 //如果脉冲频率高低位地址相同则默认采用低位来做脉冲频率参数
@@ -345,6 +342,12 @@ struct CraftInfoLaserSdk
     int craftScanSpeed;         ///< 扫描速度
     int craftRotationAngle;     ///< 旋转角度
 
+    int laserHeadPeakPower;         ///< 峰值功率   ||   激光功率
+
+    int laserHeadDutyCycle;             ///< 占空比
+    int laserHeadLowPulseFrequency;     ///< 脉冲频率 低位
+    int laserHeadHighPulseFrequency;    ///< 脉冲频率 高位 //如果脉冲频率高低位地址相同则默认采用低位来做脉冲频率参数
+
     double craftYAxisZoom;     ///< Y轴放大
     double craftXAxisZoom;     ///< X轴放大
     double craftYAxisOffset;   ///< Y轴偏移
@@ -354,7 +357,7 @@ struct CraftInfoLaserSdk
     int craftPostGasTime;       ///< 滞后送气时间   ms
     int craftLeadInPower;       ///< 开光功率
     int craftLeadInRampTime;    ///< 开光渐进时间   ms
-    int craftLaserPower;        ///< 激光器焊接功率
+    int craftLaserPower;        ///< 激光器焊接功率\额定功率
     double craftWeldingSpeed;   ///< 焊接速度 mm/s
     int craftLeadOutPower;      ///< 关光功率   
     int craftLeadOutRampDistance;   ///< 关光渐进距离 mm

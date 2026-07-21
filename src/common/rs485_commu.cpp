@@ -916,7 +916,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserHeadParams.laserHeadSpinAngle, machineResource.laserHeadRotationAngleLoc, 3, 1);
     // 9. 写入图形（特殊处理）图形
     int spotPatternValue = static_cast<int>(laserHeadParams.laserSpotPattern);
-    switch (laserHeadParams.laserSpotPattern)
+    switch (static_cast<SpotPatternLaserSdk>(laserHeadParams.laserSpotPattern))
     {
     case SpotPatternLaserSdk::CIR_LASERSDK:
     case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
@@ -1120,12 +1120,34 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserPowerParams.spotWeldType = curCraftInfo.craftWeldType;
     machineResource.laserPowerParams.spotWeldDurationTime = curCraftInfo.craftSpotWeldDuration;
     machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;
-
     ///< 写入焊接模式
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
     ///< 写入激光头图案
     machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
+    //  送丝机参数
+    int distance = curCraftInfo.craftRetractionDistance;
+    //回抽焊丝的过程距离 mm
+    machineResource.wireFeederParams.lengthBack = distance;
+    //  计算补丝延迟//计算补丝延迟,s换算成ms
+    int wireDelayTime = static_cast<int>((distance / curCraftInfo.craftWeldingSpeed)*1000);
+    if ( wireDelayTime > 2000)
+    {
+        writeLog("补丝延迟时间过大");
+        //return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
+    //  回抽长度判断
+    if(curCraftInfo.craftRetractionLength < 0 || curCraftInfo.craftRetractionLength > 20)
+    {
+        curCraftInfo.craftRetractionLength = 20;
+    }
 
+    machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;    ///< 补丝延时    0~2000 ms
+    machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftRetractionLength;     ///< 收尾回抽     回抽长度
+    machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;    ///< 回送长度
+    machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;      ///< 自动送丝速度 15~600cm/min 0x0100 R/W
+    machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝sudu
+    machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝sudu
+    machineResource.wireFeederParams.craftWireCutMode = curCraftInfo.craftWireCutMode;              ///<断丝模式
     // ====== 脚本生成：委托品牌适配器 ======
     bodyScriptText += strWriteInt32RegReplace(821, 0);      //存放超时地址的寄存器
     std::string str;
@@ -1136,28 +1158,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     //  如果是填丝焊👇👇👇则下发如下参数；自融焊则不下发焊接参数
     if(machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK)
     {
-        //  送丝机参数
-        int distance = curCraftInfo.craftRetractionDistance;    //回抽焊丝的过程距离 mm
-        machineResource.wireFeederParams.lengthBack = distance;
-        //  计算补丝延迟
-        int wireDelayTime = static_cast<int>((distance / curCraftInfo.craftWeldingSpeed)*1000); //计算补丝延迟,s换算成ms
-        if ( wireDelayTime > 2000)
-        {
-            writeLog("补丝延迟时间过大");
-            //return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
-        }
-        //  回抽长度判断
-        if(curCraftInfo.craftRetractionLength < 0 || curCraftInfo.craftRetractionLength > 20)
-        {
-            curCraftInfo.craftRetractionLength = 20;
-        }
-        machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;    ///< 补丝延时    0~2000 ms
-        machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftRetractionLength;     ///< 收尾回抽     回抽长度
-        machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;    ///< 回送长度
-        machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;      ///< 自动送丝速度 15~600cm/min 0x0100 R/W
-        machineResource.wireFeederParams.wireFeederStartMotorSpeed = curCraftInfo.craftLeadInWireFeed;  ///< 开光送丝sudu
-        machineResource.wireFeederParams.wireFeederStopMotorSpeed = curCraftInfo.craftLeadOutWireFeed;  ///< 关光送丝sudu
-        machineResource.wireFeederParams.craftWireCutMode = curCraftInfo.craftWireCutMode;              ///<断丝模式
 
         // 【修改理由】工艺参数写入时送丝机下发集合由品牌规则决定，通讯类不再硬编码超强地址顺序。
         // 【逻辑】适配器在自熔焊下只返回暂停送丝机角色，在填丝焊下返回需要写入的送丝参数角色。
@@ -1216,11 +1216,11 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_program_run_script_get(LaserMac
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
-        script += " slow_arc_start()\n";
+        script += " --slow_arc_start()\n";
     }
     else if (startSwitch == SWITCH_OFF_LASER_SDK)
     {
-        script += " slow_arc_stop()\n";
+        script += " --slow_arc_stop()\n";
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }

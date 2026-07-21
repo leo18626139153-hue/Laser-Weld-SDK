@@ -101,20 +101,20 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                 bodyScriptText += "--CRAFT_SELECT--\n";
                 std::string scriptTmp;
                 // 获取工艺参数设置脚本
-                result = craftCommu->craft_script_write_craft_resource_script_get(laserMachineHandle, curCraftInfo, scriptTmp);
+                result = craftCommu->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, scriptTmp);
                 if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     return result;
-                if(isWeld)
+                if(isWeld && machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
                 {
                     std::ostringstream oss;
                     oss <<  "set_configurable_digital_out(1, false)\n";
                     oss <<  scriptTmp ;
-                    oss <<  "set_configurable_digital_out(1, true)\n"
-                         << "wait(" << machineResource.laserPowerParams.gasStartupAdvanceTime << ")\n";
+                    oss <<  "set_configurable_digital_out(1, true)\n";
+                    oss << "wait(" << machineResource.laserPowerParams.gasStartupAdvanceTime << ")\n";
                     bodyScriptText += oss.str();
                 }
                 else {
-                    //bodyScriptText += scriptTmp;
+                    bodyScriptText += scriptTmp;
                 }
 
                 break;
