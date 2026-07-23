@@ -1090,7 +1090,6 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     //降功率的距离 → 时间
     double tempTime = static_cast<double>((disX * 1000)/ curCraftInfo.craftWeldingSpeed);
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
-
     // 提前送气时间
     machineResource.laserPowerParams.gasStartupAdvanceTime = curCraftInfo.craftPreGasTime;
     // 气体关闭延时 --滞后送气时间
@@ -1100,11 +1099,20 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;
     //激光头扫描宽度
     machineResource.laserHeadParams.laserHeadScanWidth = curCraftInfo.craftScanWidth;
-    //焊接功率、峰值功率
+    //焊接的实时功率、峰值功率
     if(curCraftInfo.craftLaserPower > machineResource.laserPowerParams.laserPower){
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    machineResource.laserHeadParams.laserHeadPeakPower = curCraftInfo.craftLaserPower;
+    machineResource.laserHeadParams.laserHeadPeakPower = curCraftInfo.laserHeadPeakPower;
+    //激光器的额定功率
+    machineResource.laserPowerParams.laserPower = curCraftInfo.craftLaserPower;
+    //激光头占空比
+    machineResource.laserHeadParams.laserHeadDutyCycle = curCraftInfo.laserHeadDutyCycle;
+    //激光的脉冲频率
+    //激光头脉冲频率低地址
+    machineResource.laserHeadParams.laserHeadLowPulseFrequency = curCraftInfo.laserHeadLowPulseFrequency;
+    //激光头脉冲频率高地址
+    machineResource.laserHeadParams.laserHeadHighPulseFrequency = curCraftInfo.laserHeadHighPulseFrequency;
 
     //激光头扫描高度
     machineResource.laserHeadParams.laserHeadScanHeight = curCraftInfo.craftScanHeight;
@@ -1153,10 +1161,9 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     std::string str;
     adapter.buildConfigureMachineBodyScript(machineResource, curCraftInfo, str);
     bodyScriptText += str;
-    //bodyScriptText += "    wait(290) \n";
 
     //  如果是填丝焊👇👇👇则下发如下参数；自融焊则不下发焊接参数
-    if(machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK)
+    if(machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK && machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
     {
 
         // 【修改理由】工艺参数写入时送丝机下发集合由品牌规则决定，通讯类不再硬编码超强地址顺序。
