@@ -422,7 +422,8 @@ bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
     currentParameters[LaserParam::RampDownTime] = static_cast<uint16_t>(pw.laserRampDownTime);
     currentParameters[LaserParam::GasOnAdvanceTime] = static_cast<uint16_t>(pw.gasStartupAdvanceTime);
     currentParameters[LaserParam::GasOffDelayTime] = static_cast<uint16_t>(pw.gasShutoffDelayTime);
-    currentParameters[LaserParam::StepEquivalent] = static_cast<uint16_t>(0);   //步进暂不支持
+    currentParameters[LaserParam::StepEquivalent] =
+            static_cast<uint16_t>(craftInfo.craftStepEquivalent);
     currentParameters[LaserParam::RunningSpeed] = static_cast<uint16_t>(wf.wireFeederMotorSpeed);    //送丝速度
     currentParameters[LaserParam::WireCompensationDelay] = static_cast<uint16_t>(wf.wireFeederWaitTime);  //设定抽丝后延时补丝的时间
     currentParameters[LaserParam::WireFeedRetractSpeed] = static_cast<uint16_t>(wf.wireFeederMotorSpeed);    //设定抽丝后延时补丝的时间

@@ -340,6 +340,7 @@ struct CraftInfoLaserSdk
     double craftScanWidth;      ///< 扫描宽度
     double craftScanHeight;     ///< 扫描高度
     int craftScanSpeed;         ///< 扫描速度
+    int craftStepEquivalent;    ///< 步进当量，单位P/mm
     int craftRotationAngle;     ///< 旋转角度
 
     int laserHeadPeakPower;         ///< 峰值功率   ||   激光功率
