@@ -513,9 +513,10 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         }
                         bodyScriptText += "--safePointMoveJ--\n";
                         bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(emptyPointTransitionRadius)});
+                        bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         if (!isWeld)
                         {
-                            bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+
                             curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                         }
                     }
@@ -527,9 +528,10 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                         }
                         bodyScriptText += "--linePoint--\n";
                         bodyScriptText += strReplace("movel(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[instID].pose, 6), std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc), std::to_string(emptyPointTransitionRadius)});
+                        bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         if (!isWeld)
                         {
-                            bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+
                             curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                         }
                     }
@@ -548,9 +550,10 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                                     doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6),
                                     doubleArray2Str(tempPointsMap[nextCirclePointID].joint, 6),
                                     std::to_string(emptyRunTCPSpeed), std::to_string(emptyRunTCPAcc),std::to_string(emptyPointTransitionRadius), std::to_string(0));
+                        bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
                         if (!isWeld)
                         {
-                            bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc + 1);
+
                             curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc + 1, bodyScriptText);
                         }
 
@@ -569,9 +572,10 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
                                                      std::to_string(emptyRunJointSpeed),
                                                      std::to_string(emptyRunJointAcc), std::to_string(0)
                                                                              });
+                        bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
                         if (!isWeld)
                         {
-                            bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, currentInstLoc);
+
                             curCommuFunction->craft_script_judge_signal_setp_run_script_get(currentInstLoc, bodyScriptText);
                         }
                     }

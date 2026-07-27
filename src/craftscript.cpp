@@ -221,10 +221,11 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
                 }
                 bodyScriptText += strMoveLReplace(doubleArray2Str(tempPointsMap[typeID].pose, 6), std::to_string(speed), std::to_string(acc), std::to_string(transRadius));
-                //如果当前点为焊接点，663置为1
+                //定点位置
+                bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
                 if(!isWeld)
                 {
-                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
+
                     craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
                 }
                 if((isWeld && isWelding) || (isWeld && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK))
@@ -279,9 +280,9 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                             std::to_string(speed), std::to_string(acc), std::to_string(transRadius), std::to_string(0));
                 //跳过下一个圆弧定点并将最后一个定点的列表位置复制为下一个圆弧定点的位置
                 instLoc++;
+                bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
                 if(!isWeld)
                 {
-                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
                     craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
                 }
                 if((isWeld && isWelding) || (isWeld && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK))
@@ -301,9 +302,9 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                     craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
                 }
                 bodyScriptText += strMoveJReplace(doubleArray2Str(tempPointsMap[typeID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(transRadius));
+                bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
                 if(!isWeld)
                 {
-                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
                     craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
                 }
                 //真焊接且焊接中，则写入焊接状态
