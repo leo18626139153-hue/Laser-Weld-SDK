@@ -120,7 +120,6 @@ struct IntervalWeldSegment
     int isline;
 };
 // //////////////////////// HaoYun ////////////////////////
-
 //指令列表转换过程中的环境数据
 struct InstListTransEnvironmentData
 {
