@@ -278,6 +278,14 @@ bool SupProtocolAdapter::buildConfigureMachineBodyScript(
 void SupProtocolAdapter::BeginNewSession()
 {
     m_lastAppliedParameters.clear();
+}
+
+bool SupProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType weldingType) const
+{
+    // 【修改理由】超强品牌在 buildConfigureMachineBodyScript 中仅生成激光器批量写脚本，
+    //   送丝机参数需要通讯层通过 write_value_port 逐寄存器追加。
+    // 【逻辑】填丝焊返回 true 触发通讯层生成送丝机配置脚本，自熔焊无需送丝机参数。
+    return weldingType == WeldingProcessType::WIRE_WELDING_LASERSDK;
 } 
 //----------------------------------------------------------------
 // 宝辰鑫 X-Weld Omni Controller 1 品牌适配器
@@ -462,6 +470,15 @@ void BcxOmniProtocolAdapter::BeginNewSession()
 //     */
 //    m_lastAppliedParameters.clear();
 //    m_firstSynchronization = true;
+}
+
+bool BcxOmniProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType weldingType) const
+{
+    // 【修改理由】宝辰鑫品牌在 buildConfigureMachineBodyScript 中已通过 write_int16_register
+    //   将所有送丝机参数一并写入，通讯层不应再重复生成送丝机配置脚本。
+    // 【逻辑】始终返回 false，避免通讯层调用 craft_wire_feeder_param_set_script_get 重复写入。
+    (void)weldingType;
+    return false;
 } 
 
 namespace {

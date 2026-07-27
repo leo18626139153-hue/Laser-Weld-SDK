@@ -156,6 +156,21 @@ public:
         std::string& scriptBody) const = 0;
 
     /**
+     * @brief 判断是否需要通讯层额外生成送丝机配置脚本
+     * @param[in] weldingType 焊接类型
+     * @return true 表示通讯层需要调用 craft_wire_feeder_param_set_script_get 追加送丝机脚本;
+     *         false 表示品牌适配器的 buildConfigureMachineBodyScript 已自行处理送丝机参数
+     *
+     * 【修改理由】不同品牌对送丝机参数的处理方式不同：
+     *   - SUP(超强) 品牌在 buildConfigureMachineBodyScript 中仅生成激光器批量写脚本，
+     *     送丝机参数需要通讯层通过 write_value_port 逐寄存器追加；
+     *   - BCX(宝辰鑫) 品牌在 buildConfigureMachineBodyScript 中已通过 write_int16_register
+     *     将送丝机参数一并写入，通讯层不应再重复生成。
+     * 通过此虚方法将决策权归还品牌层，消除通讯类中的硬编码品牌判断。
+     */
+    virtual bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const = 0;
+
+    /**
      * @brief 开始新的配置会话
      * 协议需要在新会话开始时清空上次成功参数, 避免跨会话残留影响.
      * 品牌协议适配器可在新会话开始时清理内部状态, 通讯层无需感知品牌内部状态.
@@ -193,6 +208,8 @@ public:
         const CraftInfoLaserSdk& craftInfo, 
         std::string& scriptBody) const override;
 
+    bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const override;
+
     void BeginNewSession() override;    
 };
 
@@ -226,6 +243,8 @@ public:
         const MachineResource& machineResource,
         const CraftInfoLaserSdk& craftInfo, 
         std::string& scriptBody) const override;
+
+    bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const override;
 
     // 新的配置会话开始时清空上次成功参数, 避免跨会话残留影响.
     void BeginNewSession() override;
