@@ -430,7 +430,7 @@ bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
     currentParameters[LaserParam::WireRetractDistance] = static_cast<uint16_t>(wf.wireFeederBackLength);
     currentParameters[LaserParam::WireFeedDistance] = static_cast<uint16_t>(wf.wireFeederFeedLength);
     currentParameters[LaserParam::SingleStepDistance] = static_cast<uint16_t>(0);   //步进暂不支持
-    currentParameters[LaserParam::SwingAmplitude] = static_cast<uint16_t>(hd.laserHeadScanWidth);
+    currentParameters[LaserParam::SwingAmplitude] = static_cast<uint16_t>(hd.laserHeadScanWidth * 100);
     currentParameters[LaserParam::SwingShape] = static_cast<uint16_t>(hd.laserSpotPattern);
     currentParameters[LaserParam::SwingFrequency] = static_cast<uint16_t>(hd.laserHeadScanSpeed);//摆动频率
     currentParameters[LaserParam::ScaleFactorX] = static_cast<uint16_t>(pw.laserHeadXEnlarge * 100);
