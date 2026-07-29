@@ -1062,20 +1062,36 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
 
     // ====== 工艺参数计算与赋值（仅更新 machineResource，不写脚本） ======
 
-    ///开光功率百分比校验
-    int craftLeadInPowerPercent = (curCraftInfo.craftLeadInPower*100)/machineResource.laserPowerParams.laserPower;
-    if(craftLeadInPowerPercent < 0 || craftLeadInPowerPercent > 100){
-        std::cout << "craftLeadInPowerPercent out of range" << std::endl;
-        writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadInPowerPercent out of range");
+    /*
+     * Lead-in and lead-out power belong to the current craft and must be
+     * validated against this craft's welding power. machineResource contains
+     * the previous applied result and cannot be used as the validation base.
+     * Direct comparison also avoids division by zero and integer overflow.
+     */
+    const int craftLaserPower = curCraftInfo.craftLaserPower;
+    if (craftLaserPower < 0)
+    {
+        writeLog("craft_script_configure_machine_param_set_script_get :: craftLaserPower out of range, craftLaserPower="
+                 + std::to_string(craftLaserPower));
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;/// 开光功率
+    if (curCraftInfo.craftLeadInPower < 0
+            || curCraftInfo.craftLeadInPower > craftLaserPower)
+    {
+        writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadInPower out of range, craftLeadInPower="
+                 + std::to_string(curCraftInfo.craftLeadInPower)
+                 + ", craftLaserPower=" + std::to_string(craftLaserPower));
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
+    machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;
     machineResource.laserPowerParams.laserRampUpTime = curCraftInfo.craftLeadInRampTime;
 
-    //计算关光功率百分比
-    int craftLeadOutPowerPercent = (curCraftInfo.craftLeadOutPower*100)/machineResource.laserPowerParams.laserPower;
-    if(craftLeadOutPowerPercent < 0 || craftLeadOutPowerPercent > 100){
-        writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadOutPowerPercent out of range");
+    if (curCraftInfo.craftLeadOutPower < 0
+            || curCraftInfo.craftLeadOutPower > craftLaserPower)
+    {
+        writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadOutPower out of range, craftLeadOutPower="
+                 + std::to_string(curCraftInfo.craftLeadOutPower)
+                 + ", craftLaserPower=" + std::to_string(craftLaserPower));
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
@@ -1099,13 +1115,22 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserHeadParams.laserHeadScanSpeed = curCraftInfo.craftScanSpeed;
     //激光头扫描宽度
     machineResource.laserHeadParams.laserHeadScanWidth = curCraftInfo.craftScanWidth;
-    //焊接的实时功率、峰值功率
-    if(curCraftInfo.craftLaserPower > machineResource.laserPowerParams.laserPower){
+    /*
+     * laserHeadPeakPower is mapped from device configuration and represents
+     * the rated power limit. craftLaserPower is the actual welding power.
+     * Keep compatibility when an old caller does not provide a rated limit.
+     */
+    const int ratedLaserPower = curCraftInfo.laserHeadPeakPower;
+    if (ratedLaserPower > 0 && craftLaserPower > ratedLaserPower)
+    {
+        writeLog("craft_script_configure_machine_param_set_script_get :: craftLaserPower exceeds ratedLaserPower, craftLaserPower="
+                 + std::to_string(craftLaserPower)
+                 + ", ratedLaserPower=" + std::to_string(ratedLaserPower));
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    machineResource.laserHeadParams.laserHeadPeakPower = curCraftInfo.laserHeadPeakPower;
-    //激光器的额定功率
-    machineResource.laserPowerParams.laserPower = curCraftInfo.craftLaserPower;
+    machineResource.laserHeadParams.laserHeadPeakPower = ratedLaserPower;
+    // Store the current welding power for script generation only.
+    machineResource.laserPowerParams.laserPower = craftLaserPower;
     //激光头占空比
     machineResource.laserHeadParams.laserHeadDutyCycle = curCraftInfo.laserHeadDutyCycle;
     //激光的脉冲频率
