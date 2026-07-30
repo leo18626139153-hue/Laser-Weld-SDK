@@ -127,13 +127,14 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserW
                             "write_boolean_register(611,true)\n";
                     isWelding = true; //设置焊接状态
                     std::string tmpScript ;
-                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK);
+                    //起弧函数
+                    result = craftCommu->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
                         return result;
                     }
 
-                    result = craftCommu->craft_script_slow_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
+                    result = craftCommu->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
                     if(result != LaserSdkResult::SUCCESS_LASER_SDK)
                     {
                         return result;

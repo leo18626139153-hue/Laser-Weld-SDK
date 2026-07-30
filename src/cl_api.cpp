@@ -152,7 +152,7 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
         //起弧执行程序
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SWITCH_ON_LASER_SDK, scriptGet));
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
         //脚本赋值
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
@@ -252,7 +252,7 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SWITCH_OFF_LASER_SDK, scriptGet));
         //收弧执行程序
         //scriptGet = funcScript + scriptGet;      //脚本赋值
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
             return MEMORY_ERROR_LASER_SDK;
@@ -680,7 +680,7 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         )";
     }
     std::string script;
-    script += curCommuFunction->loadLuaFunctionScriptOut();//调用函数定义
+    script += curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);//调用函数定义
     script += breakPointListScript; //断电列表
     script += signalSetpPointLocListScript; //单步运行列表序列
     script += strWriteInt32RegReplace(INT32_REG_WELD_MODE_660, isWeld ? 2 : 1); //执行模式：0.空状态 1.轨迹模拟 2.焊接
@@ -1031,7 +1031,7 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         std::string arcStartProgram2 = "end\n"
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
-        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);  //功能函数
         scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
@@ -1151,7 +1151,7 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         std::string arcStartProgram2 = "end\n"
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
-        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut();  //功能函数
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);  //功能函数
         scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
@@ -1291,7 +1291,7 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
     }
     catch (const LaserSdkResult& errorResult)
     {
@@ -1344,7 +1344,7 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
         }
         std::string scriptGet;
         checkLaserSdkResult(curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, craftInfo, scriptGet));
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut() + scriptGet;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
             throw MEMORY_ERROR_LASER_SDK;

@@ -286,7 +286,381 @@ bool SupProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType weldi
     //   送丝机参数需要通讯层通过 write_value_port 逐寄存器追加。
     // 【逻辑】填丝焊返回 true 触发通讯层生成送丝机配置脚本，自熔焊无需送丝机参数。
     return weldingType == WeldingProcessType::WIRE_WELDING_LASERSDK;
-} 
+}
+
+std::string SupProtocolAdapter::buildInitLuaFunc() const
+{
+    // 修改理由: laserRegisterMap / wireRegisterMap / spotWeld / laserHeadRegisterMap
+    //   数据表属于超强品牌地址规则, 不应硬编码在通讯层 initData() 中.
+    // 逻辑: 返回超强品牌的 Lua 数据表定义, 通讯层拼接通用工具函数后输出完整初始化脚本.
+    std::ostringstream script;
+//    // ---- 激光器寄存器数据表 ----
+//    script << "laserRegisterMap = {\n"
+//           << "    {0x0001, 0, 0x0001},\n"
+//           << "    {0x0002, 0, 0x0002},\n"
+//           << "    {0x0003, 0, 0x0003},\n"
+//           << "    {0x0004, 0, 0x0004},\n"
+//           << "    {0x0005, 0, 0x0005},\n"
+//           << "    {0x0006, 0, 0x0006},\n"
+//           << "    {0x0007, 0, 0x0007},\n"
+//           << "    {0x0008, 0, 0x0008},\n"
+//           << "    {0x0009, 0, 0x0009},\n"
+//           << "    {0x000A, 0, 0x000A},\n"
+//           << "    {0x000B, 0, 0x000B},\n"
+//           << "    {0x000C, 0, 0x000C},\n"
+//           << "}\n\n";
+
+//    // ---- 送丝机寄存器数据表 ----
+//    script << "wireRegisterMap = {\n"
+//           << "    {0x0100, 0, 0x0100},\n"
+//           << "    {0x0101, 0, 0x0101},\n"
+//           << "    {0x0102, 0, 0x0102},\n"
+//           << "    {0x0103, 0, 0x0103},\n"
+//           << "    {0x0104, 0, 0x0104},\n"
+//           << "    {0x0105, 0, 0x0105},\n"
+//           << "    {0x0106, 0, 0x0106},\n"
+//           << "    {0x0107, 0, 0x0107},\n"
+//           << "    {0x0108, 0, 0x0108},\n"
+//           << "    {0x0109, 0, 0x0109},\n"
+//           << "    {0x010A, 0, 0x010A},\n"
+//           << "    {0x010B, 0, 0x010B},\n"
+//           << "    {0x010C, 0, 0x010C},\n"
+//           << "    {0x010D, 0, 0x010D},\n"
+//           << "    {0x010E, 0, 0x010E},\n"
+//           << "    {0x010F, 0, 0x010F},\n"
+//           << "    {0x0110, 0, 0x0110},\n"
+//           << "    {0x0111, 0, 0x0111},\n"
+//           << "    {0x0112, 0, 0x0112},\n"
+//           << "    {0x0113, 0, 0x0113},\n"
+//           << "    {0x0114, 0, 0x0114},\n"
+//           << "    {0x0115, 0, 0x0115},\n"
+//           << "}\n\n";
+
+//    // ---- 点焊参数数据表 ----
+//    script << "spotWeld = {\n"
+//           << "    {0x0020, 0, 0x0020},\n"
+//           << "    {0x0021, 0, 0x0021},\n"
+//           << "    {0x0022, 0, 0x0022},\n"
+//           << "}\n\n";
+
+//    // ---- 激光头寄存器数据表 ----
+//    script << "laserHeadRegisterMap = {\n"
+//           << "    {0x0030, 0, 0x0030},\n"
+//           << "    {0x0031, 0, 0x0031},\n"
+//           << "    {0x0032, 0, 0x0032},\n"
+//           << "    {0x0033, 0, 0x0033},\n"
+//           << "    {0x0034, 0, 0x0034},\n"
+//           << "    {0x0035, 0, 0x0035},\n"
+//           << "    {0x0036, 0, 0x0036},\n"
+//           << "    {0x0037, 0, 0x0037},\n"
+//           << "}\n";
+
+
+    //组装最终要下发执行的脚本
+    std::string commandListStartData =
+    R"(--激光器工艺
+    local laserRegisterMap = {
+        [1] = {0x0230, 2000},  -- 激光功率
+        [2] = {0x0231, 100},  -- 开光功率
+        [3] = {0x0232, 0},    -- 开光功率上升时间
+        [4] = {0x0233, 100},  -- 关光功率
+        [5] = {0x0234, 0},   -- 关光功率下降时间
+        [6] = {0x0235, 2000},     -- 气体打开延时 --提前送气时间
+        [7] = {0x0236, 1000},     -- 气体关闭延时 --滞后送气时间
+        [8] = {0x0237, 0},    -- 送丝延时 默认0
+        [9] = {0x0238, 1},    -- 激光头Y轴缩放
+        [10] = {0x0239, 0},   -- 激光头Y轴偏移
+        [11] = {0x023A, 1 },  -- 激光头X轴缩放
+        [12] = {0x023B, 0 },  -- 激光头X轴偏移
+    }
+    --送丝机参数
+    local wireRegisterMap = {
+        [1] = {0x0103, 0},      --自动送丝延时
+        [2] = {0x0104, 100},    --回抽长度
+        [3] = {0x0105, 100},    --补丝长度
+        [4] = {0x0106, 0},    --补丝延时
+
+        [100] = {0x0100, 123},  --自动送丝速度
+        [115] = {)" + std::to_string(GetBrandProtocolAdapter(LaserHeadBrandSdk::CQLASERPOWER_SDK).registerInfo(BrandRegisterRole::WireFeederRunStatus).writeAddr) + R"(, 0},    --送丝机运行状态
+    }
+    --点焊工艺
+    local spotWeld = {
+        [1] = {0x0242, 0}, --点焊类型
+        [2] = {0x0243, 0}, --点焊持续时间  0 ~ 60000 ms
+        [3] = {0x0244, 0} --点焊间隔时间   0 ~ 60000 ms
+    }
+    -- 激光头控制参数
+    local laserHeadRegisterMap = {
+        [1] = { 0x0000, 2000},  -- 激光头扫描速度
+        [2] = { 0x0001, 25 },    -- 激光头扫描宽度
+        [3] = { 0x0002, 3000 },    -- 峰值功率，焊接功率
+        [4] = { 0x0003, 100},   -- 占空比
+        [5] = { 0x0004, 0 },
+        [6] = { 0x0005, 20000 },    --脉冲频率/工艺无控制
+        [7] = { 0x0006, 25 },    -- 激光头扫描高度
+        [8] = { 0x0007, 0 },    -- 激光头旋转角度
+    }
+    )";
+    std::string startData = R"(
+    local SendDataType = 0 --bool位寄存器 通过bool寄存器发送字节数据
+    local RecvDataType = 1 --16位寄存器 接收到的数据放到16位寄存器中
+    local SendCommuRegAddr = 0		--发送指令从bool通讯变量的 0 地址开始存储
+    local SendCommuReg_n = 16		--发送指令从bool通讯变量的 0 地址开始存储
+    local RecvCommuRegAddr = 30		--接收的数据从16位通讯变量的 30 地址开始存储
+    local RecvCommuReg_n = 60		--接收30个字节
+    local flag = 0  --标识位
+    )";
+
+    std::string swap_bytes = R"(
+    -- 1.高低字节交换函数
+    function swap_bytes(data)
+        -- 获取低字节 (通过与操作获取低8位)
+        local low_byte = data & 0xFF
+        -- 获取高字节 (右移8位)
+        local high_byte = data >> 8
+        -- 交换并组合
+        return (low_byte << 8) | high_byte
+    end
+    )";
+
+    std::string modbus_crc16 = R"(
+    -- 2.CRC-16 (Modbus) 计算函数 无高低字节互转
+    function modbus_crc16(data)
+        local crc = 0xFFFF  		-- CRC寄存器初始化为0xFFFF
+        local polynomial = 0xA001   -- CRC-16多项式（0x8005反转）
+        -- 对每个字节进行处理
+        for _, byte in ipairs(data) do
+            crc = crc ~ byte  -- 将字节与CRC寄存器进行异或
+            -- 对CRC寄存器进行16次循环移位
+            for i = 1, 8 do
+                if (crc & 0x0001) ~= 0 then
+                    crc = (crc >> 1) ~ polynomial
+                else
+                    crc = crc >> 1
+                end
+            end
+        end
+        return crc
+    end
+    )";
+    std::string lua_split = R"(
+    --3.高低字节拆分 如0x1234 输出{0x12, 0x34}
+    function Lua_split(dataSplit)
+        local value = dataSplit < 0 and (65536 + dataSplit) or dataSplit
+        local low_byte = value & 0xFF
+        local high_byte = value >> 8
+        return {high_byte, low_byte}
+    end
+    )";
+    std::string register_clear = R"(
+    --4.定义寄存器清空函数(起始地址，清空位数)
+    function register_clear(firstAddr, cleanNums)
+        for i=0,cleanNums-1,1 do
+            write_int16_register(i + firstAddr, 0)
+        end
+    end
+    function bool_register_clear(firstAddr, cleanNums)
+        for i=0,cleanNums-1,1 do
+            write_bool_register(i + firstAddr, 0)
+        end
+    end
+    )";
+    // 【修改理由】删除了 Lua_data_get 函数：该函数在任何生成的Lua脚本中均未被调用，属于僵尸代码
+    // 【逻辑】保留其他功能函数，不影响 write_value_port / write_multi_value_port 的执行
+    std::string concatenate_crc = R"(
+    -- 6.将十进制数转换为十六进制，并以两位字符表示
+    function to_hex_string(number)
+        return string.format("%02X", number)
+    end
+    -- 7.遍历表中单字节数据拼接对应的十六进制字符串，输入 {0x09, 0x10, {0x1234}, {0x56}}，输出 0910123456
+    function concatenate_crc(crc_mes)
+        local result = ""
+        for _, value in ipairs(crc_mes) do
+            if type(value) == "number" then
+                local hex_value = to_hex_string(value)
+                result = result .. hex_value
+            elseif type(value) == "table" then
+                local high, low = split_to_bytes(value[1])
+                local high_hex = to_hex_string(high)
+                local low_hex = to_hex_string(low)
+                result = result .. high_hex .. low_hex
+            end
+        end
+        return result
+    end
+    )" ;
+    std::string parse_little_endian_bytes = R"(
+    -- 每2个字符为一组(1字节)转换为整数
+    local function parse_little_endian_bytes(hex_str)
+        local bytes = {}
+        for i = 1, #hex_str, 2 do
+            local byte = hex_str:sub(i, i + 1)
+            if #byte == 2 then
+                local value = tonumber(byte, 16)
+                table.insert(bytes, value)
+            end
+        end
+        return bytes
+    end
+    )";
+
+    std::string writeHex2Commu_reg = R"(
+    --将数据写入通讯变量
+    local function WriteHex2Commu_reg(hex)
+        local byte_values = parse_little_endian_bytes(hex)
+        local cnt = 0;
+        for i, byte in ipairs(byte_values) do
+            write_char_register(SendCommuRegAddr+i-1,byte)
+            cnt = i
+        end
+        return cnt
+    end
+    )";
+
+    std::string task_write_port = R"(
+    --单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器, 接受回执)
+    function write_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr, receiptNeed)
+        --------将通讯变量清零--------
+        bool_register_clear(SendCommuRegAddr, 8)
+        register_clear(RecvCommuRegAddr, RecvCommuReg_n)
+        ----------高低字节拆分计算校验码---------
+        local data1=Lua_split(function_code)
+        local data2=Lua_split(port_address)
+        local data3=Lua_split(parameter_value)
+        local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}
+        local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转
+        --构造报文，高低字节反转发送
+        mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}
+        local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串
+        print(tmp_string)
+        local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数
+        if receiptNeed == 0 then
+            serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr, 0)
+            wait(50)
+            return
+        else
+            receiptNeed = 1
+            serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr, 1)
+        end
+        local tryTimes = 3
+        local timeout = 1000
+        while(read_int16_register(RecvCommuRegAddr) == 0) do
+            wait(20)
+            timeout = timeout - 20
+            if read_int16_register(RecvCommuRegAddr) ~= 0 then
+                print("recieve successful")
+                break
+            end
+            if timeout <= 0 then
+                tryTimes = tryTimes - 1
+                timeout = 300
+            end
+            if tryTimes <= 0 then
+                print(string.format("超时首地址 : 0x%04X", port_address))
+                write_integer_register(821, port_address)
+                return 0
+            elseif(tryTimes > 0 )
+            then
+                serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr,RecvDataType,RecvCommuRegAddr,receiptNeed)
+            end
+        end
+
+    end
+    function write_multi_value_port(addr_value_map)
+        -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
+        bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
+        register_clear(RecvCommuRegAddr, RecvCommuReg_n)
+        local crc_mes = {}
+        -- 1 功能码由品牌层传入, 例如超强 0x0910, 宝辰鑫 0x5A09
+        local split_function_code = Lua_split(slave_addr)
+        -- 2 寄存器首地址
+        local split_data_2 = Lua_split(addr_value_map[1][1])
+        -- 3 寄存器数量
+        local split_data_3 = Lua_split(#addr_value_map)
+        -- 4 字节数量
+        crc_mes = {split_function_code[1], split_function_code[2], split_data_2[1], split_data_2[2], split_data_3[1], split_data_3[2], #addr_value_map * 2}
+        -- 5. 将对应的变量进行高低字节拆分 放入mes中
+        for k, address  in ipairs(addr_value_map) do
+            local split_data_x = Lua_split(address[2])
+            table.insert(crc_mes, split_data_x[1])
+            table.insert(crc_mes, split_data_x[2])
+        end
+        --6. 计算校验码
+        local split_data_crc = Lua_split(swap_bytes(modbus_crc16(crc_mes)))
+        table.insert(crc_mes, split_data_crc[1])
+        table.insert(crc_mes, split_data_crc[2])
+        --7. 写入报文
+        local mes_string = concatenate_crc(crc_mes)
+        local CommuReg_n = WriteHex2Commu_reg(mes_string)
+        print("发送报文："..mes_string)
+        --8. 发送报文
+        local timeout = 500
+        local tryTimes = 3
+        --端口--写寄存器个数--寄存器类型--写起始地址--读取存放寄存器类型--读起始地址--是否需要回执
+        serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType, RecvCommuRegAddr, 1)
+        while true do
+            wait(20)
+            timeout = timeout - 20
+            if read_int16_register(RecvCommuRegAddr) ~= 0 then
+                print("recieve success")
+                break
+            end
+            if timeout <= 0 then
+                tryTimes = tryTimes - 1
+                timeout = 310
+            end
+            if tryTimes <= 0 then
+                print(string.format("发送超时|起始地址-0x%04X", addr_value_map[1][1]))
+                write_integer_register(821, addr_value_map[1][1])
+                return 0
+            elseif(tryTimes > 0 )
+            then
+                serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType, RecvCommuRegAddr, 1)
+            end
+        end
+    end
+    )";
+
+    std::string read_value_port =
+        "--单参数写入 (功能码(2 Byte), 寄存器地址(2 Bytes), 寄存器值(2 Bytes), 端口号， 起始寄存器), 接受回执\n"
+        "function read_value_port(function_code, port_address, parameter_value, comNo, SendCommuRegAddr,SendCommuReg_n)\n"
+        "	--------将通讯变量清零--------\n"
+        "	bool_register_clear(SendCommuRegAddr, SendCommuReg_n)\n"
+        "	register_clear(RecvCommuRegAddr, RecvCommuReg_n)\n"
+        "	----------高低字节拆分计算校验码---------    \n"
+        "	local data1=Lua_split(function_code)     \n"
+        "	local data2=Lua_split(port_address)      \n"
+        "    local data3=Lua_split(parameter_value)  \n"
+        "	local mes_1={data1[1], data1[2], data2[1], data2[2], data3[1], data3[2]}\n"
+        "	local mes_2=Lua_split(modbus_crc16(mes_1))    --计算CRC16校验码无反转    \n"
+        "    print(string.format(\"CRC校验值: 0x%02X\", mes_2[1], mes_2[2])) \n"
+        "    --构造报文，高低字节反转发送\n"
+        "	mes_3 = {data1[1], data1[2],  data2[1], data2[2], data3[1], data3[2], mes_2[2], mes_2[1]}	\n"
+        "    local tmp_string = concatenate_crc(mes_3)  --将数据拼接成字符串\n"
+        "	print(\"发送的报文:\",tmp_string)\n"
+        "    local CommuReg_n =  WriteHex2Commu_reg(tmp_string)  --将数据写入通讯变量，返回字节数\n"
+        "    local timeout = 1   --超时时间\n"
+        "    --端口--写字节数--写类型--写起始地址--读取字节数--读类型--读起始地址--超时时间\n"
+        "	serial_send_receive(comNo, CommuReg_n, 0, SendCommuRegAddr, RecvDataType,RecvCommuRegAddr)\n"
+        "    --等待接收结果\n"
+        "    local timeout = 500    \n"
+        "	print(\"等待接收结果...\",read_int16_register(RecvCommuRegAddr))  \n"
+        "    while(read_int16_register(RecvCommuRegAddr) == 0 and timeout > 0) do   \n"
+        "		print(\"等待接收结果...\")    \n"
+        "        wait(10)\n"
+        "        timeout = timeout - 10\n"
+        "    end\n"
+        "    print(\"接收结果完成\")\n"
+        "end\n";
+
+    // 【修改理由】移除了 lua_data_get（零引用僵尸函数）和 alarm_bits_list（状态监控已注释）
+    // 【逻辑】其余函数按依赖顺序拼接：基础工具 → 数据表 → 变量 → CRC → 拆分 → 清空 → 串口读写
+    script.str() += commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear
+     + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port;
+
+    return script.str();
+}
+
 //----------------------------------------------------------------
 // 宝辰鑫 X-Weld Omni Controller 1 品牌适配器
 
@@ -480,7 +854,20 @@ bool BcxOmniProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType w
     // 【逻辑】始终返回 false，避免通讯层调用 craft_wire_feeder_param_set_script_get 重复写入。
     (void)weldingType;
     return false;
-} 
+}
+
+std::string BcxOmniProtocolAdapter::buildInitLuaFunc() const
+{
+    // 修改理由: 宝辰鑫 X-Weld Omni Controller 1 使用 0x1000 写地址段和 0x2000 读地址段,
+    //   数据表定义属于品牌地址规则, 不应硬编码在通讯层 initData() 中.
+    // 逻辑: 返回宝辰鑫品牌的 Lua 数据表定义, 通讯层拼接通用工具函数后输出完整初始化脚本.
+    std::ostringstream script;
+
+    // ---- 激光器/激光头寄存器数据表 (写地址 0x1000 段) ----
+    script << "--BcxOmniProtocolAdapter::buildInitLuaFunc--\n";
+
+    return script.str();
+}
 
 namespace {
 

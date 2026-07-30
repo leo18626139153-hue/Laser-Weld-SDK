@@ -6,6 +6,7 @@
 #include <random>
 #include <memory>
 #include <unordered_map>
+#include "brandadapter.h"
 
 
 //判断单步
@@ -38,7 +39,7 @@ LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc,
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-std::string CommuBase::loadLuaFunctionScriptOut()
+std::string CommuBase::loadLuaFunctionScriptOut(LaserHeadBrandSdk brand)
 {
     std::string tmpLuaScript;   //接口函数
     for (auto it = startLuaScripts.begin(); it != startLuaScripts.end(); )
@@ -52,5 +53,8 @@ std::string CommuBase::loadLuaFunctionScriptOut()
         tmpLuaScript = it->second + tmpLuaScript + "\n";
         it = startDataScripts.erase(it); //加载后删除
     }
-    return tmpLuaStartDataScript + loadLuaFunctionScript + tmpLuaScript ;
+    //获取品牌脚本中的函数定义
+    std::string luaFunctionScript = GetBrandProtocolAdapter(brand).buildInitLuaFunc();
+
+    return tmpLuaStartDataScript + luaFunctionScript + tmpLuaScript ;
 }
