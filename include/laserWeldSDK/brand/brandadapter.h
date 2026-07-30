@@ -176,6 +176,16 @@ public:
      * 品牌协议适配器可在新会话开始时清理内部状态, 通讯层无需感知品牌内部状态.
      */
     virtual void BeginNewSession() = 0;
+
+    /**
+     * @brief 生成品牌特有的Lua初始化数据表脚本
+     *
+     * 【修改理由】initData() 中的 laserRegisterMap / wireRegisterMap / spotWeld /
+     *   laserHeadRegisterMap 数据表属于超强品牌地址规则, 不应硬编码在通讯层.
+     * 【逻辑】通讯层调用此方法获取品牌特有的Lua数据表定义, 通用Modbus工具函数仍由通讯层维护.
+     * @return 品牌特有的Lua数据表定义脚本字符串
+     */
+    virtual std::string buildInitLuaFunc() const = 0;
 };
 
 /**
@@ -210,7 +220,9 @@ public:
 
     bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const override;
 
-    void BeginNewSession() override;    
+    void BeginNewSession() override;
+
+    std::string buildInitLuaFunc() const override;
 };
 
 /**
@@ -248,6 +260,8 @@ public:
 
     // 新的配置会话开始时清空上次成功参数, 避免跨会话残留影响.
     void BeginNewSession() override;
+
+    std::string buildInitLuaFunc() const override;
 };
 
 /**

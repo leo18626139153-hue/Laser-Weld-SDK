@@ -35,8 +35,8 @@ protected:
     std::map<std::string, std::string> startLuaScripts;
     // 【逻辑】startDataScripts 存储初始化数据/变量脚本
     std::map<std::string, std::string> startDataScripts;
-    // 【逻辑】loadLuaFunctionScript 汇总所有功能函数脚本，由 loadLuaFunctionScriptOut() 输出
-    std::string loadLuaFunctionScript;
+    // 【逻辑】loadLuaFunctionScript 汇总所有功能函数脚本，由 loadLuaFunctionScriptOut(machineResource.laserHeadBrand) 输出
+    //  std::string loadLuaFunctionScript;
 
 public:
     CommuBase() {}
@@ -175,7 +175,7 @@ public:
      * @brief 输出已加载的初始化函数定义和变量脚本，并清空内部缓存
      * @return 初始化脚本内容（函数定义 + 变量初始化）
      */
-    std::string loadLuaFunctionScriptOut();
+    std::string loadLuaFunctionScriptOut(LaserHeadBrandSdk brand);
 };
 
 /**
