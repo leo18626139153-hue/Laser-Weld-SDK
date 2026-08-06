@@ -95,18 +95,13 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
+    // 【逻辑】委托 craft_script_commu_class_get 按 commuType 获取对应实例
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
 
     std::vector<unsigned int> laserPowerVec;
@@ -177,18 +172,12 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
 
     std::vector<unsigned int> laserPowerVec;
@@ -275,18 +264,12 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
     try
     {
@@ -343,17 +326,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
         return HANDLE_ERROR_LASER_SDK;
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    // 2. 当前使用的焊接通讯方式，默认485
+    // 2. 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (!curCommuFunction)
-            return COMMU_ERROR_LASER_SDK;
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
     // 3. 解 指令列表数据
     InstListData instListData;//指令列表数据
@@ -715,18 +693,12 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
 
     std::string endArcProtectionScript = R"(
@@ -911,19 +883,12 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        //配置串口信息
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
 
     //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
@@ -1070,19 +1035,12 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        //配置串口信息
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
 
     // 需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
@@ -1240,18 +1198,12 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
 
     std::vector<unsigned int> laserPowerVec;
@@ -1329,21 +1281,21 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
         }
         MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
         std::cout << "machineResource " << machineResource.laserHeadBrand << std::endl;
+        // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
         CommuBase* curCommuFunction = NULL;
-        if (machineResource.commuType == RS485_2_LASER_SDK)
+        LaserSdkResult commuRes = craft_script_commu_class_get(
+                    laserMachineHandle,
+                    curCommuFunction);
+        if (commuRes != SUCCESS_LASER_SDK)
         {
-            curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-            if (curCommuFunction == NULL)
-            {
-                throw COMMU_ERROR_LASER_SDK;
-            }
-        }
-        else
-        {
-            throw COMMU_ERROR_LASER_SDK;
+            throw commuRes;
         }
         std::string scriptGet;
-        checkLaserSdkResult(curCommuFunction->craft_script_configure_machine_param_set_script_get(laserMachineHandle, craftInfo, scriptGet));
+        checkLaserSdkResult(
+                    curCommuFunction->craft_script_configure_machine_param_set_script_get(
+                        laserMachineHandle,
+                        craftInfo,
+                        scriptGet));
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
         if(!strToChar(scripts, scriptLen, scriptGet))
         {
@@ -1450,18 +1402,12 @@ LaserSdkResult cl_parse_modbus_to_int16_register(const LaserMachineHandle laserM
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
     try
     {
@@ -1528,18 +1474,12 @@ LaserSdkResult cl_parse_modbus_to_int32_register(const LaserMachineHandle laserM
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
-    if (machineResource.commuType == RS485_2_LASER_SDK)
+    LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
+    if (commuRes != SUCCESS_LASER_SDK)
     {
-        curCommuFunction = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (curCommuFunction == NULL)
-        {
-            return COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return COMMU_ERROR_LASER_SDK;
+        return commuRes;
     }
     try
     {

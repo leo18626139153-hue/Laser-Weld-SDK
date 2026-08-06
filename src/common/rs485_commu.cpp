@@ -409,6 +409,12 @@ std::string CommuRS485::get_laser_param_set_script(std::map<unsigned int, int> l
     return script;
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_script_arc_function_switch_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有Lua函数名(arc_start/arc_stop)、脚本内容和缓存写入行为保持不变
+ */
 // 485- 起弧/收弧功能脚本
 LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch)
 {
@@ -494,6 +500,12 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
 
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_script_arc_program_run_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有参数校验范围(0~3000ms)、脚本拼接顺序和错误码保持不变
+ */
 //485 起收弧运行指令
 LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk startSwitch, std::string &script)
 {
@@ -527,6 +539,12 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_laser_param_set_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有18个参数的写入顺序、缩放规则和locVec遍历逻辑保持不变
+ */
 //激光器
 LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string &script)
 {
@@ -591,6 +609,12 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_laser_head_param_set_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有图形枚举映射(TRIANGLE→4, CROSS→5)和locVec遍历逻辑保持不变
+ */
 //激光头图案
 LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string &script)
 {
@@ -652,6 +676,12 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_wire_feeder_param_set_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有自熔焊送丝机报文截断行为和品牌适配器过滤逻辑保持不变
+ */
 //送丝机参数
 LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHandle laserMachineHandle, const std::vector<unsigned int> locVec, std::string &script)
 {
@@ -735,6 +765,12 @@ LaserSdkResult CommuRS485::craft_wire_feeder_param_set_script_get(LaserMachineHa
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_script_configure_machine_param_set_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有工艺参数计算、MachineResource更新时机和品牌适配器委托逻辑保持不变
+ */
 //工艺参数设置脚本获取
 // 【修改理由】重构拆分：本接口只负责计算工艺参数并更新 MachineResource，
 //            脚本写入逻辑移到品牌适配器的 buildConfigureMachineBodyScript。
@@ -907,6 +943,12 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_script_slow_arc_function_switch_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有缓升缓降函数脚本缓存key(arcStartScript/arcStopScript)和异常处理保持不变
+ */
 //缓升缓降 起弧/收弧功能脚本
 LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch)
 {
@@ -969,6 +1011,12 @@ void CommuRS485::init_multiple_registers_value(std::string multipleRegistersValu
     //   非空参数路径保留，用于外部调用者注入自定义初始化数据
 }
 
+/**
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_function CommuRS485::craft_script_write_craft_resource_script_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 原有批量写/单写品牌分支、数据表赋值顺序和送丝机参数下发逻辑保持不变
+ */
 LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk& craftInfo, std::string &script)
 {
     //  1.获取句柄对应的焊机资源对象

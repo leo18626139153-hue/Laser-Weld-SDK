@@ -1,4 +1,5 @@
 #include "base_commu.h"
+#include "rs485_commu.h"
 #include "clmath.h"
 #include "utils.h"
 #include <sstream>
@@ -57,4 +58,39 @@ std::string CommuBase::loadLuaFunctionScriptOut(LaserHeadBrandSdk brand)
     std::string luaFunctionScript = GetBrandProtocolAdapter(brand).buildInitLuaFunc();
 
     return tmpLuaStartDataScript + luaFunctionScript + tmpLuaScript ;
+}
+
+/**
+ * @brief 按通讯类型获取通讯脚本生成器实例
+ *
+ * 修改理由：cl_api.cpp 中 8 处重复判断 commuType 并手动 static_cast 获取 CommuRS485 单例，
+ *   职责分散且不利于未来扩展 TCP/IP 等通讯方式。
+ * 逻辑：RS485 类型返回现有 CommuRS485 单例（不转移所有权），
+ *   未支持的通讯类型返回 COMMU_ERROR_LASER_SDK。
+ *   未来新增 TCP/IP 只需在此处增加分支，不需要修改上层调用方。
+ *
+ * @legacy_source src/craftscript.cpp
+ * @legacy_function craft_script_commu_class_get
+ * @legacy_baseline 6fefa14
+ * @legacy_lines 22-46
+ * @compatibility 原有RS485单例获取行为和错误码保持不变
+ */
+LaserSdkResult CommFactory::GetCommu(CommuTypeLaserSdk commuType, CommuBase*& commu)
+{
+    commu = nullptr;
+    if (commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
+    {
+        commu = static_cast<CommuRS485*>(CommuRS485::GetInstance());
+        if (commu == nullptr)
+        {
+            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+        }
+    }
+    else
+    {
+        // 未支持的通讯类型（如 TCP/IP），本次不实现，返回通讯错误码
+        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
+    }
+
+    return LaserSdkResult::SUCCESS_LASER_SDK;
 }

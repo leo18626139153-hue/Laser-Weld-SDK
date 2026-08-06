@@ -18,7 +18,20 @@ std::uniform_int_distribution<int> distribution;
 //焊机资源的全局管理表，key 是句柄，value 是焊机资源对象。
 std::unordered_map<int, MachineResource> machineResourcesMap;
 
-//返回相应的工艺通讯
+/**
+ * @brief 获取焊机通讯类实例（兼容外观）
+ *
+ * 修改理由：cl_api.cpp 中多处重复判断 commuType 并手动获取 CommuRS485 单例，
+ *   本函数作为兼容外观保留原有签名，内部委托 CommFactory::GetCommu() 统一选择通讯脚本生成器。
+ * 逻辑：先验证句柄有效性，再从 machineResource 取出 commuType 委托工厂获取实例。
+ *   函数签名、返回值和调用方式与基线版本完全一致。
+ *
+ * @legacy_source src/craftscript.cpp
+ * @legacy_function craft_script_commu_class_get
+ * @legacy_baseline 6fefa14
+ * @legacy_lines 22-46
+ * @compatibility 函数签名、返回值和调用方式保持不变
+ */
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass)
 {
     //句柄
@@ -28,21 +41,8 @@ LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandl
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
-    craftCommuClass = nullptr;
-    if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)
-    {
-        craftCommuClass = static_cast<CommuRS485*>(CommuRS485::GetInstance());
-        if (craftCommuClass == nullptr)
-        {
-            return LaserSdkResult::COMMU_ERROR_LASER_SDK;
-        }
-    }
-    else
-    {
-        return LaserSdkResult::COMMU_ERROR_LASER_SDK;
-    }
-
-    return LaserSdkResult::SUCCESS_LASER_SDK;
+    // 委托 CommFactory 按通讯类型获取对应脚本生成器实例
+    return CommFactory::GetCommu(machineResource.commuType, craftCommuClass);
 }
 
 

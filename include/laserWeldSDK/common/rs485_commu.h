@@ -11,6 +11,16 @@
 
 /**
  * @brief RS485 通讯脚本生成类
+ *
+ * 修改理由：作为 CommuBase 的唯一具体实现类，负责按 RS485/Modbus RTU 协议
+ *   生成由机器人控制器执行的 Lua 通讯脚本。
+ * 逻辑：通过品牌协议适配器获取地址、功能码和缩放规则，按固定顺序拼接
+ *   write_value_port / write_multi_value_port 等 Lua 函数调用。
+ *   单例模式，不转移所有权，调用方不得释放。
+ *
+ * @legacy_source src/common/rs485_commu.cpp
+ * @legacy_baseline 6fefa14
+ * @compatibility 所有公开虚函数签名和脚本输出格式保持不变
  */
 class CommuRS485 : public CommuBase
 {

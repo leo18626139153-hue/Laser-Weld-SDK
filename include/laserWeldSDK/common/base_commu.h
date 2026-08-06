@@ -179,10 +179,41 @@ public:
 };
 
 /**
+ * @brief 通讯脚本生成器工厂
+ *
+ * 修改理由：cl_api.cpp 中多处重复判断 commuType 并手动获取 CommuRS485 单例，
+ *   职责分散且不利于未来扩展 TCP/IP 等通讯方式。
+ * 逻辑：统一通过 CommFactory::GetCommu() 按通讯类型获取对应脚本生成器实例，
+ *   RS485 返回现有 CommuRS485 单例，未支持类型返回 COMMU_ERROR_LASER_SDK。
+ *   调用方不得释放返回的对象指针。
+ */
+class CommFactory
+{
+public:
+    /**
+     * @brief 按通讯类型获取通讯脚本生成器实例
+     * @param[in]  commuType  通讯类型枚举
+     * @param[out] commu      通讯类实例指针（传出），不转移所有权，调用方不得释放
+     * @return LaserSdkResult 成功返回 SUCCESS_LASER_SDK，未支持类型返回 COMMU_ERROR_LASER_SDK
+     *
+     * @legacy_source src/craftscript.cpp
+     * @legacy_function craft_script_commu_class_get
+     * @legacy_marker "if (machineResource.commuType == CommuTypeLaserSdk::RS485_2_LASER_SDK)"
+     * @compatibility 原有RS485单例获取行为和错误码保持不变
+     */
+    static LaserSdkResult GetCommu(CommuTypeLaserSdk commuType, CommuBase*& commu);
+};
+
+/**
  * @brief 获取焊机通讯类实例（工厂方法）
  * @param[in]  laserMachineHandle  焊机资源句柄
  * @param[out] craftCommuClass     通讯类实例指针（传出），由调用者负责生命周期
  * @return LaserSdkResult
+ *
+ * @legacy_source src/craftscript.cpp
+ * @legacy_function craft_script_commu_class_get
+ * @legacy_baseline 6fefa14
+ * @compatibility 函数签名、返回值和调用方式保持不变，内部委托 CommFactory
  */
 LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandle, CommuBase *&craftCommuClass);
 

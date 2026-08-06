@@ -65,6 +65,10 @@ struct BrandProtocolProfile
  *
  * 修改理由: 通讯类只负责 RS485/Modbus 脚本拼接, 品牌地址表和送丝机写入策略固定到品牌层.
  * 逻辑: 通讯层通过寄存器语义查询地址, 校验规则和送丝机写入策略, 不再直接判断具体品牌.
+ *
+ * @legacy_source src/brand/brandadapter.cpp
+ * @legacy_baseline 6fefa14
+ * @compatibility 所有虚函数签名和品牌地址映射保持不变，新增品牌只需新增适配器子类
  */
 class BrandProtocolAdapter
 {
@@ -265,9 +269,14 @@ public:
 };
 
 /**
- * @brief 获取品牌协议适配器
+ * @brief 获取品牌协议适配器（品牌工厂函数）
  * @param[in] brand 激光头品牌枚举
  * @return 品牌协议适配器引用, 未知品牌返回默认超强适配器
+ *
+ * @legacy_source src/brand/brandadapter.cpp
+ * @legacy_function GetBrandProtocolAdapter
+ * @legacy_baseline 6fefa14
+ * @compatibility 未知品牌回退到超强适配器的默认行为保持不变
  */
 const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand);
 
