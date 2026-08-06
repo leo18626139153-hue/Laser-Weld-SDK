@@ -46,303 +46,497 @@ LaserSdkResult craft_script_commu_class_get(LaserMachineHandle laserMachineHandl
 }
 
 
-LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, InstListData &instListData, std::unordered_map<int, PointDataLaserSdk> tempPointsMap, InstListTransEnvironmentData &instListTransEnvironmentData, int instListStartLoc, int instListEndLoc, std::string &bodyScriptText)
+namespace
 {
-    //句柄
-    if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
+bool getInstruction(const InstListData& instListData, int instLoc, InstTypeLaserSdk& instType, int& typeID)
+{
+    std::unordered_map<int, std::pair<InstTypeLaserSdk, int> >::const_iterator it =
+            instListData.listLocToTypeID.find(instLoc);
+    if (it == instListData.listLocToTypeID.end())
     {
-        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+        return false;
     }
-    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    instType = it->second.first;
+    typeID = it->second.second;
+    return true;
+}
 
-    CgxiRobotLaserSdk &robotParams = machineResource.robotParams;
-    double emptyRunTCPSpeed = robotParams.emptyRunTCPSpeed;            //空走TCP速度
-    double emptyRunTCPAcc = robotParams.emptyRunTCPAcc;              //空走TCP加速度
-    double weldTCPAcc = robotParams.weldTCPAcc;                         //焊接TCP加速度
-    double emptyRunJointSpeed = robotParams.emptyRunJointSpeed;          //空走关节速度
-    double emptyRunJointAcc = robotParams.emptyRunJointAcc;            //空走关节加速度
-    double radiusEmpty = robotParams.emptyPointTransitionRadius;  //空走点位过渡半径
-
-    double radiusWelding = robotParams.weldPointTransitionRadius;   //焊接点位过渡半径
-    if (radiusWelding < 0.0 || radiusWelding > 10.0)
+const PointDataLaserSdk* getPointByInstruction(const InstListData& instListData, int instLoc)
+{
+    InstTypeLaserSdk instType;
+    int typeID = -1;
+    if (!getInstruction(instListData, instLoc, instType, typeID))
     {
-        radiusWelding = 0.0;
+        return NULL;
+    }
+    std::unordered_map<int, PointDataLaserSdk>::const_iterator pointIt = instListData.pointsMap.find(typeID);
+    return pointIt == instListData.pointsMap.end() ? NULL : &pointIt->second;
+}
+
+const CraftInfoLaserSdk* getCraft(const InstListData& instListData, int craftID)
+{
+    std::unordered_map<int, CraftInfoLaserSdk>::const_iterator craftIt = instListData.craftsMap.find(craftID);
+    return craftIt == instListData.craftsMap.end() ? NULL : &craftIt->second;
+}
+
+bool isInstructionType(const InstListData& instListData, int instLoc, InstTypeLaserSdk expectedType)
+{
+    InstTypeLaserSdk instType;
+    int typeID = -1;
+    return getInstruction(instListData, instLoc, instType, typeID) && instType == expectedType;
+}
+
+bool shouldConsumeRampDownMarker(const InstListData& instListData, int movementEndLoc)
+{
+    return isInstructionType(instListData, movementEndLoc + 1, SLOW_DOWN_LASER_WELD_SDK)
+            && isInstructionType(instListData, movementEndLoc + 2, ARC_END_INST_LASER_WELD_SDK);
+}
+
+LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
+                                     CommuBase& craftCommu,
+                                     const ScriptGenerationPolicy& policy,
+                                     std::string& bodyScriptText)
+{
+    if (!policy.emitRampDownControl)
+    {
+        return LaserSdkResult::SUCCESS_LASER_SDK;
     }
 
-    CommuBase* craftCommu = nullptr;
-    LaserSdkResult result = craft_script_commu_class_get(laserMachineHandle, craftCommu);
+    bodyScriptText += " --SLOW_DOWN--\n";
+    LaserSdkResult result = craftCommu.craft_script_slow_arc_function_switch_script_get(
+                laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK);
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+    {
+        return result;
+    }
+    std::string rampDownScript;
+    result = craftCommu.craft_script_slow_arc_program_run_script_get(
+                laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, rampDownScript);
+    if (result == LaserSdkResult::SUCCESS_LASER_SDK)
+    {
+        bodyScriptText += rampDownScript;
+    }
+    return result;
+}
+
+LaserSdkResult appendStraightRampDownTrajectory(LaserMachineHandle laserMachineHandle,
+                                                const MachineResource& machineResource,
+                                                CommuBase& craftCommu,
+                                                const ScriptGenerationPolicy& policy,
+                                                const PointDataLaserSdk& startPoint,
+                                                const PointDataLaserSdk& endPoint,
+                                                double rampDownDistance,
+                                                double speed,
+                                                double acc,
+                                                std::string& bodyScriptText)
+{
+    double rampDownPoint[6] = {0};
+    double rampDownJoint[6] = {0};
+    LaserSdkResult result = getStraightLineSlowUpPoint(machineResource.robotHandle,
+                                                        const_cast<double*>(startPoint.pose),
+                                                        const_cast<double*>(endPoint.pose),
+                                                        rampDownDistance,
+                                                        const_cast<double*>(endPoint.joint),
+                                                        rampDownPoint,
+                                                        rampDownJoint);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK)
     {
         return result;
     }
 
-    std::unordered_map<int, std::pair<InstTypeLaserSdk, int>>& listLocToTypeID = instListData.listLocToTypeID; ///< 指令列表 指令类型 到 类型ID 的映射
-    std::unordered_map<int, CraftInfoLaserSdk>& craftsMap = instListData.craftsMap;     ///< 工艺信息
-
-    int CraftID = instListTransEnvironmentData.craftID;
-    CraftInfoLaserSdk& curCraftInfo = craftsMap[CraftID];        ///< 当前工艺信息
-
-    bool isWeld = instListTransEnvironmentData.isWeld;           ///< 真的焊接（1）还是模拟
-    int& prePointLoc = instListTransEnvironmentData.prePointLoc; ///< 前一个点的位置
-    bool& isWelding = instListTransEnvironmentData.isWelding;    ///< 是否焊接中
-    double weldSpeed = curCraftInfo.craftWeldingSpeed;           ///< 当前焊接速度
-    for (int instLoc = instListStartLoc; instLoc <= instListEndLoc; instLoc++)
+    // 降功率点是内部合成点，不写到达寄存器；两段边界半径必须为0，保证机器人经过触发点。
+    bodyScriptText += strMoveLReplace(doubleArray2Str(rampDownPoint, 6),
+                                      std::to_string(speed), std::to_string(acc), "0");
+    result = appendRampDownControl(laserMachineHandle, craftCommu, policy, bodyScriptText);
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
     {
-        if (listLocToTypeID.count(instLoc) != 0)
-        {
-            InstTypeLaserSdk instType = listLocToTypeID[instLoc].first; ///< 指令类型
-            int typeID = listLocToTypeID[instLoc].second;
-            // 根据指令类型生成相应的脚本
-            switch (instType)
-            {
-            case InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK:
-            {
-                // 工艺模板指令
-                bodyScriptText += "--CRAFT_SELECT--\n";
-                std::string scriptTmp;
-                // 获取工艺参数设置脚本
-                result = craftCommu->craft_script_configure_machine_param_set_script_get(laserMachineHandle, curCraftInfo, scriptTmp);
-                if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    return result;
-                if(isWeld && machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
-                {
-                    std::ostringstream oss;
-                    oss <<  "set_configurable_digital_out(1, false)\n";
-                    oss <<  scriptTmp ;
-                    oss <<  "set_configurable_digital_out(1, true)\n";
-                    oss << "wait(" << machineResource.laserPowerParams.gasStartupAdvanceTime << ")\n";
-                    bodyScriptText += oss.str();
-                }
-                else {
-                    bodyScriptText += scriptTmp;
-                }
-
-                break;
-            }
-            case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
-            {
-                if(isWeld)
-                {
-                    bodyScriptText += "--ARC_START_LIST--\n"
-                            "write_boolean_register(611,true)\n";
-                    isWelding = true; //设置焊接状态
-                    std::string tmpScript ;
-                    //起弧函数
-                    result = craftCommu->craft_script_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK);
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-
-                    result = craftCommu->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, tmpScript);
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-                    bodyScriptText += tmpScript;
-                }
-                break;
-            }
-            case InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK:
-            {
-                if (isWeld)
-                {
-                    bodyScriptText += " --ARC_STOP_LIST--\n"
-                            "wait(1) \n"
-                            "write_boolean_register(611,false)\n";
-                    isWelding = false; //设置焊接状态
-                    std::string tmpScript ;
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-                    result = craftCommu->craft_script_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, tmpScript);
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-                    bodyScriptText += tmpScript;
-                }
-
-                break;
-            }
-            case InstTypeLaserSdk::SLOW_DOWN_LASER_WELD_SDK:
-            {
-                if(isWeld)
-                {
-                    // 生成缓降脚本
-                    bodyScriptText += " --SLOW_DOWN--\n";
-                    std::string tmpScript ;
-                    result = craftCommu->craft_script_slow_arc_function_switch_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK);
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-
-                    result = craftCommu->craft_script_slow_arc_program_run_script_get(laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, tmpScript);
-
-                    if(result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-                    bodyScriptText += tmpScript;
-                }
-                break;
-            }
-            case InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK:
-            {
-                // 直线定点指令
-                bodyScriptText += " --MOVE_LINE_LIST--\n";
-                double transRadius = radiusEmpty;
-                double speed = emptyRunTCPSpeed;
-                double acc = emptyRunTCPAcc;
-                //焊接设置对应的焊接速度与加速度
-                if(isWeld && isWelding)
-                {
-                    speed = weldSpeed;
-                    acc = weldTCPAcc;
-                }
-                //正在焊接且下一个点不是焊接点，则计算交融半径
-                if(isWelding && listLocToTypeID[instLoc+1].first != InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
-                {
-                    // 根据速度与加速度计算交融半径
-                    result = CalBlendingRadius(speed, acc, &transRadius);
-                    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-                }
-                else if(isWelding && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
-                {
-                    transRadius = 0;
-                }
-                //非焊接 需要进行断点判断
-                if (!isWeld)
-                {
-                    craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
-                }
-                bodyScriptText += strMoveLReplace(doubleArray2Str(tempPointsMap[typeID].pose, 6), std::to_string(speed), std::to_string(acc), std::to_string(transRadius));
-                //定点位置
-                bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
-                if(!isWeld)
-                {
-
-                    craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
-                }
-                if((isWeld && isWelding) || (isWeld && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK))
-                {
-                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, instLoc);
-                }
-                prePointLoc = instLoc;
-                break;
-            }
-            case InstTypeLaserSdk::CIRCLE_POINT_INST_LASER_WELD_SDK:
-            {
-                // 生成圆形定点指令
-                bodyScriptText += " --MOVE_CIR--\n";
-                double transRadius = radiusEmpty;
-                double speed = emptyRunTCPSpeed;
-                double acc = emptyRunTCPAcc;
-
-                if(isWeld && isWelding)
-                {
-                    transRadius = radiusWelding;
-                    speed = weldSpeed;
-                    acc = weldTCPAcc;
-                }
-                if(isWelding && listLocToTypeID[instLoc+1].first != InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
-                {
-                    // 根据速度与加速度计算交融半径
-                    result = CalBlendingRadius(speed, acc, &transRadius);
-                    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
-                    {
-                        return result;
-                    }
-                }
-                else if(isWelding && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK)
-                {
-                    transRadius = 0;
-                }
-
-                if (!isWeld)
-                {
-                    craftCommu->craft_script_judge_break_point_script_get(instLoc+1, bodyScriptText);
-                }
-
-
-                bodyScriptText += "--circlePoint--\n";
-                int nextCirclePointID = listLocToTypeID[instLoc+1].second;
-                //int typeID = listLocToTypeID[instLoc].second;
-                bodyScriptText += strMoveCReplace(
-                            doubleArray2Str(tempPointsMap[typeID].pose, 6),
-                            doubleArray2Str(tempPointsMap[typeID].joint, 6),
-                            doubleArray2Str(tempPointsMap[nextCirclePointID].pose, 6),
-                            doubleArray2Str(tempPointsMap[nextCirclePointID].joint, 6),
-                            std::to_string(speed), std::to_string(acc), std::to_string(transRadius), std::to_string(0));
-                //跳过下一个圆弧定点并将最后一个定点的列表位置复制为下一个圆弧定点的位置
-                instLoc++;
-                bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
-                if(!isWeld)
-                {
-                    craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
-                }
-                if((isWeld && isWelding) || (isWeld && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK))
-                {
-                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, instLoc);
-                }
-
-                prePointLoc = instLoc;
-                break;
-            }
-            case InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK:
-            {    // 关节运动指令
-                bodyScriptText += "--MOVE_JOINT--\n";
-                double transRadius = radiusEmpty;
-                if (!isWeld)
-                {
-                    craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
-                }
-                bodyScriptText += strMoveJReplace(doubleArray2Str(tempPointsMap[typeID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(transRadius));
-                bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
-                if(!isWeld)
-                {
-                    craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
-                }
-                //真焊接且焊接中，则写入焊接状态
-                if((isWeld && isWelding) || (isWeld && listLocToTypeID[instLoc+1].first == InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK))
-                {
-                    bodyScriptText += strWriteInt32RegReplace(WeldControlAddressLaserSdk::INT32_REG_WELD_STATE_799, instLoc);
-                }
-                prePointLoc = instLoc;
-
-                break;
-            }
-            case InstTypeLaserSdk::SAFE_POINT_MOVEL_INST_LASER_WELD_SDK:    // 安全点指令 MoveL 预留
-            case InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK:
-                // 移动安全点指令 MoveJ
-                bodyScriptText += "--safePointMoveJ--\n";
-                bodyScriptText += strMoveJReplace(doubleArray2Str(tempPointsMap[typeID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0));
-                craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
-                //bodyScriptText += strReplace("movej(%1,%2,%3,%4)\n", {doubleArray2Str(tempPointsMap[typeID].joint, 6), std::to_string(emptyRunJointSpeed), std::to_string(emptyRunJointAcc), std::to_string(0)});
-                break;
-
-            }
-        }
+        return result;
     }
-
+    bodyScriptText += strMoveLReplace(doubleArray2Str(endPoint.pose, 6),
+                                      std::to_string(speed), std::to_string(acc), "0");
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-
-int distributionID(std::unordered_set<int> &IDSet)
+LaserSdkResult appendCircleRampDownTrajectory(LaserMachineHandle laserMachineHandle,
+                                              const MachineResource& machineResource,
+                                              CommuBase& craftCommu,
+                                              const ScriptGenerationPolicy& policy,
+                                              const PointDataLaserSdk& startPoint,
+                                              const PointDataLaserSdk& transitionPoint,
+                                              const PointDataLaserSdk& endPoint,
+                                              double rampDownDistance,
+                                              double speed,
+                                              double acc,
+                                              std::string& bodyScriptText)
 {
-    // 生成唯一ID
-    int instID = distribution(engine);
-    while(IDSet.count(instID) != 0)
+    double stopMappingPoint[3] = {0};
+    double firstTransitionPoint[6] = {0};
+    double firstTransitionJoint[6] = {0};
+    double rampDownPoint[6] = {0};
+    double secondTransitionPoint[6] = {0};
+    double originalEndPoint[6] = {0};
+    double rampDownJoint[6] = {0};
+    double secondTransitionJoint[6] = {0};
+    double originalEndJoint[6] = {0};
+
+    LaserSdkResult result = getCirclrSlowDownPoints(machineResource.robotHandle,
+                                                     const_cast<double*>(startPoint.pose),
+                                                     const_cast<double*>(transitionPoint.pose),
+                                                     const_cast<double*>(endPoint.pose),
+                                                     const_cast<double*>(endPoint.pose),
+                                                     rampDownDistance,
+                                                     const_cast<double*>(endPoint.joint),
+                                                     stopMappingPoint,
+                                                     firstTransitionPoint,
+                                                     firstTransitionJoint,
+                                                     rampDownPoint,
+                                                     secondTransitionPoint,
+                                                     originalEndPoint,
+                                                     rampDownJoint,
+                                                     secondTransitionJoint,
+                                                     originalEndJoint);
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
     {
-        instID = distribution(engine);
+        return result;
     }
-    IDSet.insert(instID);
-    return instID;
+
+    bodyScriptText += strMoveCReplace(doubleArray2Str(firstTransitionPoint, 6),
+                                      doubleArray2Str(firstTransitionJoint, 6),
+                                      doubleArray2Str(rampDownPoint, 6),
+                                      doubleArray2Str(rampDownJoint, 6),
+                                      std::to_string(speed), std::to_string(acc), "0", "0");
+    result = appendRampDownControl(laserMachineHandle, craftCommu, policy, bodyScriptText);
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+    {
+        return result;
+    }
+    bodyScriptText += strMoveCReplace(doubleArray2Str(secondTransitionPoint, 6),
+                                      doubleArray2Str(secondTransitionJoint, 6),
+                                      doubleArray2Str(originalEndPoint, 6),
+                                      doubleArray2Str(originalEndJoint, 6),
+                                      std::to_string(speed), std::to_string(acc), "0", "0");
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+}
+
+LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
+                                   const InstListData& instListData,
+                                   InstListTransEnvironmentData& environment,
+                                   std::string& bodyScriptText)
+{
+    std::unordered_map<int, MachineResource>::iterator machineIt = machineResourcesMap.find(laserMachineHandle);
+    if (machineIt == machineResourcesMap.end())
+    {
+        return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
+    }
+    MachineResource& machineResource = machineIt->second;
+    const CgxiRobotLaserSdk& robotParams = machineResource.robotParams;
+
+    CommuBase* craftCommu = NULL;
+    LaserSdkResult result = craft_script_commu_class_get(laserMachineHandle, craftCommu);
+    if (result != LaserSdkResult::SUCCESS_LASER_SDK || craftCommu == NULL)
+    {
+        return result == LaserSdkResult::SUCCESS_LASER_SDK
+                ? LaserSdkResult::COMMU_ERROR_LASER_SDK : result;
+    }
+
+    const int instructionCount = static_cast<int>(instListData.listLocToTypeID.size());
+    for (int instLoc = 0; instLoc < instructionCount; ++instLoc)
+    {
+        InstTypeLaserSdk instType;
+        int typeID = -1;
+        if (!getInstruction(instListData, instLoc, instType, typeID))
+        {
+            return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+        }
+
+        const CraftInfoLaserSdk* currentCraft = getCraft(instListData, environment.craftID);
+        switch (instType)
+        {
+        case InstTypeLaserSdk::CRAFT_SELECT_INST_LASER_WELD_SDK:
+        {
+            currentCraft = getCraft(instListData, typeID);
+            if (currentCraft == NULL)
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            environment.craftID = typeID;
+            bodyScriptText += "--CRAFT_SELECT--\n";
+            if (environment.policy.emitDeviceParameters)
+            {
+                std::string parameterScript;
+                result = craftCommu->craft_script_configure_machine_param_set_script_get(
+                            laserMachineHandle, *currentCraft, parameterScript);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+                if (machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
+                {
+                    std::ostringstream oss;
+                    oss << "set_configurable_digital_out(1, false)\n"
+                        << parameterScript
+                        << "set_configurable_digital_out(1, true)\n"
+                        << "wait(" << machineResource.laserPowerParams.gasStartupAdvanceTime << ")\n";
+                    bodyScriptText += oss.str();
+                }
+                else
+                {
+                    bodyScriptText += parameterScript;
+                }
+            }
+            break;
+        }
+        case InstTypeLaserSdk::ARC_START_INST_LASER_WELD_SDK:
+        {
+            if (environment.isWelding || currentCraft == NULL)
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            environment.isWelding = true;
+            if (environment.policy.emitArcControl)
+            {
+                bodyScriptText += "--ARC_START_LIST--\nwrite_boolean_register(611,true)\n";
+                result = craftCommu->craft_script_arc_function_switch_script_get(
+                            laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+                std::string arcScript;
+                result = craftCommu->craft_script_arc_program_run_script_get(
+                            laserMachineHandle, SwitchTypeLaserSdk::SWITCH_ON_LASER_SDK, arcScript);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+                bodyScriptText += arcScript;
+            }
+            break;
+        }
+        case InstTypeLaserSdk::ARC_END_INST_LASER_WELD_SDK:
+        {
+            if (!environment.isWelding)
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            if (environment.policy.emitArcControl)
+            {
+                bodyScriptText += " --ARC_STOP_LIST--\nwait(1) \nwrite_boolean_register(611,false)\n";
+                std::string arcScript;
+                result = craftCommu->craft_script_arc_program_run_script_get(
+                            laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, arcScript);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+                bodyScriptText += arcScript;
+            }
+            environment.isWelding = false;
+            break;
+        }
+        case InstTypeLaserSdk::SLOW_DOWN_LASER_WELD_SDK:
+            // 缓降标记必须由它前面的直线或完整圆弧消费，单独到达这里说明指令序列非法。
+            return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+
+        case InstTypeLaserSdk::LINE_POINT_INST_LASER_WELD_SDK:
+        {
+            const PointDataLaserSdk* endPoint = getPointByInstruction(instListData, instLoc);
+            if (endPoint == NULL)
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            const bool useWeldMotion = environment.isWelding && environment.policy.useWeldMotionParameters;
+            if (environment.isWelding && currentCraft == NULL)
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            const double speed = useWeldMotion ? currentCraft->craftWeldingSpeed : robotParams.emptyRunTCPSpeed;
+            const double acc = useWeldMotion ? robotParams.weldTCPAcc : robotParams.emptyRunTCPAcc;
+            double transitionRadius = robotParams.emptyPointTransitionRadius;
+            const bool consumeRampDown = shouldConsumeRampDownMarker(instListData, instLoc);
+            if (consumeRampDown && (!environment.isWelding || currentCraft == NULL))
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            if (environment.isWelding && !consumeRampDown
+                    && !isInstructionType(instListData, instLoc + 1, ARC_END_INST_LASER_WELD_SDK))
+            {
+                result = CalBlendingRadius(speed, acc, &transitionRadius);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+            }
+            else if (environment.isWelding)
+            {
+                transitionRadius = 0.0;
+            }
+
+            if (!environment.policy.emitArcControl)
+            {
+                craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
+            }
+            bodyScriptText += " --MOVE_LINE_LIST--\n";
+            if (consumeRampDown && currentCraft->craftLeadOutRampDistance > 0)
+            {
+                const PointDataLaserSdk* startPoint = getPointByInstruction(instListData, environment.prePointLoc);
+                if (!environment.isWelding || startPoint == NULL)
+                {
+                    return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+                }
+                result = appendStraightRampDownTrajectory(laserMachineHandle, machineResource, *craftCommu,
+                                                          environment.policy, *startPoint, *endPoint,
+                                                          currentCraft->craftLeadOutRampDistance,
+                                                          speed, acc, bodyScriptText);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+            }
+            else
+            {
+                bodyScriptText += strMoveLReplace(doubleArray2Str(endPoint->pose, 6),
+                                                  std::to_string(speed), std::to_string(acc),
+                                                  std::to_string(transitionRadius));
+            }
+            bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
+            if (!environment.policy.emitArcControl)
+            {
+                craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
+            }
+            if (environment.policy.emitArcControl && (environment.isWelding
+                    || isInstructionType(instListData, instLoc + 1, ARC_START_INST_LASER_WELD_SDK)))
+            {
+                bodyScriptText += strWriteInt32RegReplace(INT32_REG_WELD_STATE_799, instLoc);
+            }
+            environment.prePointLoc = instLoc;
+            if (consumeRampDown)
+            {
+                ++instLoc; // SLOW_DOWN已被当前运动消费，下一次循环直接处理ARC_END。
+            }
+            break;
+        }
+        case InstTypeLaserSdk::CIRCLE_POINT_INST_LASER_WELD_SDK:
+        {
+            if (!isInstructionType(instListData, instLoc + 1, CIRCLE_POINT_INST_LASER_WELD_SDK))
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            const int circleEndLoc = instLoc + 1;
+            const PointDataLaserSdk* transitionPoint = getPointByInstruction(instListData, instLoc);
+            const PointDataLaserSdk* endPoint = getPointByInstruction(instListData, circleEndLoc);
+            if (transitionPoint == NULL || endPoint == NULL)
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            const bool useWeldMotion = environment.isWelding && environment.policy.useWeldMotionParameters;
+            if (environment.isWelding && currentCraft == NULL)
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            const double speed = useWeldMotion ? currentCraft->craftWeldingSpeed : robotParams.emptyRunTCPSpeed;
+            const double acc = useWeldMotion ? robotParams.weldTCPAcc : robotParams.emptyRunTCPAcc;
+            double transitionRadius = robotParams.emptyPointTransitionRadius;
+            const bool consumeRampDown = shouldConsumeRampDownMarker(instListData, circleEndLoc);
+            if (consumeRampDown && (!environment.isWelding || currentCraft == NULL))
+            {
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            if (environment.isWelding && !consumeRampDown
+                    && !isInstructionType(instListData, circleEndLoc + 1, ARC_END_INST_LASER_WELD_SDK))
+            {
+                result = CalBlendingRadius(speed, acc, &transitionRadius);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+            }
+            else if (environment.isWelding)
+            {
+                transitionRadius = 0.0;
+            }
+
+            if (!environment.policy.emitArcControl)
+            {
+                craftCommu->craft_script_judge_break_point_script_get(circleEndLoc, bodyScriptText);
+            }
+            bodyScriptText += " --MOVE_CIR--\n";
+            if (consumeRampDown && currentCraft->craftLeadOutRampDistance > 0)
+            {
+                const PointDataLaserSdk* startPoint = getPointByInstruction(instListData, environment.prePointLoc);
+                if (!environment.isWelding || startPoint == NULL)
+                {
+                    return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+                }
+                result = appendCircleRampDownTrajectory(laserMachineHandle, machineResource, *craftCommu,
+                                                        environment.policy, *startPoint, *transitionPoint, *endPoint,
+                                                        currentCraft->craftLeadOutRampDistance,
+                                                        speed, acc, bodyScriptText);
+                if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                {
+                    return result;
+                }
+            }
+            else
+            {
+                bodyScriptText += strMoveCReplace(doubleArray2Str(transitionPoint->pose, 6),
+                                                  doubleArray2Str(transitionPoint->joint, 6),
+                                                  doubleArray2Str(endPoint->pose, 6),
+                                                  doubleArray2Str(endPoint->joint, 6),
+                                                  std::to_string(speed), std::to_string(acc),
+                                                  std::to_string(transitionRadius), "0");
+            }
+            bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, circleEndLoc);
+            if (!environment.policy.emitArcControl)
+            {
+                craftCommu->craft_script_judge_signal_setp_run_script_get(circleEndLoc, bodyScriptText);
+            }
+            if (environment.policy.emitArcControl && (environment.isWelding
+                    || isInstructionType(instListData, circleEndLoc + 1, ARC_START_INST_LASER_WELD_SDK)))
+            {
+                bodyScriptText += strWriteInt32RegReplace(INT32_REG_WELD_STATE_799, circleEndLoc);
+            }
+            environment.prePointLoc = circleEndLoc;
+            instLoc = consumeRampDown ? circleEndLoc + 1 : circleEndLoc;
+            break;
+        }
+        case InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK:
+        case InstTypeLaserSdk::SAFE_POINT_MOVEL_INST_LASER_WELD_SDK:
+        case InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK:
+        {
+            const PointDataLaserSdk* point = getPointByInstruction(instListData, instLoc);
+            if (point == NULL || shouldConsumeRampDownMarker(instListData, instLoc))
+            {
+                // MoveJ和安全点不支持按笛卡尔距离拆分收弧轨迹。
+                return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+            }
+            if (!environment.policy.emitArcControl)
+            {
+                craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
+            }
+            bodyScriptText += instType == JOINT_POINT_INST_LASER_WELD_SDK
+                    ? "--MOVE_JOINT--\n" : "--safePointMoveJ--\n";
+            bodyScriptText += strMoveJReplace(doubleArray2Str(point->joint, 6),
+                                              std::to_string(robotParams.emptyRunJointSpeed),
+                                              std::to_string(robotParams.emptyRunJointAcc), "0");
+            bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
+            if (!environment.policy.emitArcControl)
+            {
+                craftCommu->craft_script_judge_signal_setp_run_script_get(instLoc, bodyScriptText);
+            }
+            environment.prePointLoc = instLoc;
+            break;
+        }
+        default:
+            return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+        }
+    }
+
+    if (environment.isWelding)
+    {
+        return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
+    }
+    return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 

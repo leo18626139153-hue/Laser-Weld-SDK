@@ -13,31 +13,16 @@
 #include "internaldatadefine.h"
 
 /**
- * @brief GetBasicCraftScript    基本工艺指令列表的转换
- * @param laserMachineHandle     焊机资源句柄
- * @param weldStartData          焊接指令列表数据
- * @param instListData           指令列表环境数据
- * @param tempPointsMap          临时点位映射
- * @param instListTransEnvironmentData   指令列表转换环境数据
- * @param instListStartLoc       焊接指令列表起始位置
- * @param instListEndLoc         焊接指令列表结束位置
- * @param bodyScriptText         脚本内容 传出参数
- * @return LaserSdkResult        处理结果
+ * @brief 将经过校验的完整指令列表转换为Lua脚本。
+ * @param[in] laserMachineHandle 焊机资源句柄。
+ * @param[in] instListData       已校验的指令及关联数据。
+ * @param[in,out] environment    顺序解释过程中的工艺、轨迹和生成策略状态。
+ * @param[out] bodyScriptText    生成的脚本正文；失败时调用方不得使用。
+ * @return LaserSdkResult        处理结果。
  */
 LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
-    LaserWeldStartData weldStartData,
-    InstListData& instListData,
-    std::unordered_map<int, PointDataLaserSdk> tempPointsMap,
-    InstListTransEnvironmentData &instListTransEnvironmentData,
-    int instListStartLoc,
-    int instListEndLoc,
+    const InstListData& instListData,
+    InstListTransEnvironmentData& environment,
     std::string &bodyScriptText);
-
-/**
- * @brief 分配指令ID（用于指令列表转换时生成不重复的ID）
- * @param[in,out] IDSet  已存在的ID集合，新生成的ID会加入此集合
- * @return 新生成的唯一ID
- */
-int distributionID(std::unordered_set<int>& IDSet);
 
 #endif // CRAFTSCRIPT_H

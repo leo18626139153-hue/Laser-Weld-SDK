@@ -172,6 +172,13 @@ public:
     LaserSdkResult craft_script_judge_break_point_script_get(int instLoc, std::string& script);
 
     /**
+     * @brief 清空尚未输出的初始化脚本片段。
+     *
+     * 每次顶层脚本生成前后调用，避免失败调用残留内容污染下一次生成。
+     */
+    void resetPendingScriptFragments();
+
+    /**
      * @brief 输出已加载的初始化函数定义和变量脚本，并清空内部缓存
      * @return 初始化脚本内容（函数定义 + 变量初始化）
      */

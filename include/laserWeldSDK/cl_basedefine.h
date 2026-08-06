@@ -414,9 +414,9 @@ enum InstTypeLaserSdk
     LINE_POINT_INST_LASER_WELD_SDK = 3,        // 直线定点指令
     CIRCLE_POINT_INST_LASER_WELD_SDK = 4,      // 圆弧定点指令
     JOINT_POINT_INST_LASER_WELD_SDK = 5,       // 关节运动指令
-    SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  // 安全点指令 MoveL
-    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  // 安全点指令 MoveJ
-    SLOW_DOWN_LASER_WELD_SDK = 8              // 缓降指令
+    SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  ///< 兼容旧数据，执行语义统一为安全点MoveJ，禁止新数据继续使用
+    SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  ///< 安全点MoveJ指令
+    SLOW_DOWN_LASER_WELD_SDK = 8               ///< 收弧缓降标记，作用于紧邻它之前的直线或完整圆弧
 };
 
 /// 焊接控制寄存器位///
@@ -466,41 +466,5 @@ enum WeldControlAddressLaserSdk
     INT_REG_READ_PARAMETER_69 = 69,
     INT_REG_RESULT_77 = 77
 };
-
-//计算回退点 - 圆弧
-struct RollbackCircleData
-{
-    double startPoint[6];           ///<起点 基于基坐标系下固定路点的位姿
-    double transPoint[6];           ///<过度点 基于基坐标系下固定路点的位姿
-    double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
-    double stopPoint[6];            ///<停止点
-    double distance;            ///<延迟距离
-    double refJoint[6];         ///<参考关节角度
-
-    double stopMappingPoint[6];     ///<停止点的映射点 - 出参
-
-    double newTransPoint[6];           ///<新过度点 基于基坐标系下固定路点的位姿
-    double newTransJointPoint[6];           ///<新过度点 基于基坐标系下固定路点的位姿
-
-    double startPointOut[6];        ///<起点 基于基坐标系下固定路点的位姿 - 出参
-    double transPointOut[6];        ///<过度点 基于基坐标系下固定路点的位姿 - 出参
-    double endPointOut[6];          ///<终点 基于基坐标系下固定路点的位姿 - 出参
-    double startPointJointOut[6];        ///<起点 基于基坐标系下固定路点的关节角度 - 出参
-    double transPointJointOut[6];        ///<过度点 基于基坐标系下固定路点的关节角度 - 出参
-    double endPointJointOut[6];          ///<终点 基于基坐标系下固定路点的关节角度 - 出参
-};
-
-//计算回退点
-struct RollbackStraightLineData
-{
-    double startPoint[6];           ///<起点 基于基坐标系下固定路点的位姿
-    double endPoint[6];             ///<终点 基于基坐标系下固定路点的位姿
-    double distance;                ///<延迟距离
-    double refJoint[6];             ///<参考关节角度
-
-    double pointOut[6];             ///<降功率点 - 出参
-    double pointJointOut[6];        ///<降功率点关节 - 出参
-};
-
 
 #endif // CL_BASEDEFINE_H

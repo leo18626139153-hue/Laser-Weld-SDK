@@ -261,7 +261,8 @@ LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double 
     double vz = p2[2] - p1[2];
 
     double distance = sqrt(vx*vx + vy*vy + vz*vz);
-    if (distance < 1e-6 || distance < backDistance) {
+    // 回退距离等于整段长度时会把合成点压到起点，无法形成两段有效轨迹。
+    if (backDistance <= 0.0 || distance < 1e-6 || distance <= backDistance) {
         return LaserSdkResult::BACK_DISTANCE_LIMIT_LASER_SDK;
     }
 
@@ -309,8 +310,8 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
     double angle2 = calculateAngle(vec2, vec3);
     double totalAngle = angle1 + angle2;
     double distance = radius * totalAngle;
-    if(distance < backDistance){
-        return LaserSdkResult::ARC_CALCULATE_FAILED_LASER_SDK;
+    if(backDistance <= 0.0 || distance <= backDistance){
+        return LaserSdkResult::BACK_DISTANCE_LIMIT_LASER_SDK;
     }
 
     getMapPoint(centerPoint, axisVec, radius, stopP, stopMapP);

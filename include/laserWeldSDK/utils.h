@@ -58,7 +58,7 @@ std::string strReplace(std::string srcStr, std::string format, float replacefloa
 std::string strReplace(std::string srcStr, std::vector<std::string> vecStr);
 
 //各类数据结构转为字符串
-std::string doubleArray2Str(double* array, int size);
+std::string doubleArray2Str(const double* array, int size);
 std::string Double2String(double value, int precision = 2, bool scientific = false);
 std::string point2str(std::vector<double> point);
 std::string point2str(std::array<double, 6> point);

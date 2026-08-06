@@ -21,6 +21,11 @@
 
 #define LASERWELDSDK_VERSION "v1.2.3-4"
 
+/**
+ * @warning SDK当前不支持同一进程内并发调用。调用方必须串行化所有接口，
+ * 包括使用不同LaserMachineHandle的调用；并发调用属于未定义行为。
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -107,6 +112,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMach
  * @param[in] isWeld                是否进行焊接 false-轨迹模拟 true-开始焊接
  * @param[out] scripts              指令列表LUA脚本 传出参数
  * @param[out] scriptLen            脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
+ * @warning SDK当前不支持并发调用，包括不同焊机句柄之间的并发；调用方必须串行化。
  * @return LaserSdkResult        处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char* scripts, int* scriptLen);
@@ -169,23 +175,6 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const
 /*
 *************机器人控制*************
 */
-
-/**
- * @brief     获取直线轨迹——根据终点和降功率点获取新的起点和终点
- * @param[in] laserMachineHandle                激光器句柄
- * @param[in,out] rollbackStraightLineData      直线回退参数
- * @return LaserSdkResult                       处理结果
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_straight_line_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackStraightLineData* rollbackStraightLineData);
-
-
-/**
- * @brief 获取圆弧轨迹——根据终点和降功率点距离获取新的起点和过渡点、终点
- * @param laserMachineHandle            激光器句柄
- * @param rollbackCircleData            圆弧回退参数
- * @return LaserSdkResult               处理结果
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_circle_back_point_cal(const LaserMachineHandle laserMachineHandle, RollbackCircleData* rollbackCircleData);
 
 /**
  * @brief 计算抬枪后的姿态

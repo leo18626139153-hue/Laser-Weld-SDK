@@ -391,7 +391,7 @@ std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc, int writeValue)
     return scriptText;
 }
 
-std::string doubleArray2Str(double* array, int size)
+std::string doubleArray2Str(const double* array, int size)
 {
     std::string pointStr = "{";
     for(int i = 0; i < size; i++)
@@ -467,25 +467,23 @@ bool strToChar(char* script, int* scriptLen, const std::string& generatedScript)
         return false;
     }
 
-    // 计算所需缓冲区大小（包括空终止符）
     size_t requiredSize = generatedScript.size() + 1;
     if (static_cast<size_t>(*scriptLen) < requiredSize)
     {
-        *scriptLen = static_cast<int>(requiredSize); // 通知调用者所需大小
+        *scriptLen = static_cast<int>(requiredSize);
         return false;
     }
-    //输入空字符串的情况
+
     if (generatedScript.empty())
     {
-        script[0] = '\0'; // 明确设置空字符串
-        *scriptLen = 1;   // 缓冲区使用大小为1
+        script[0] = '\0';
+        *scriptLen = 1;
         return true;
     }
 
-    // 复制字符串内容
     memcpy(script, generatedScript.c_str(), generatedScript.size());
-    script[generatedScript.size()] = '\0'; // 添加空终止符
-    *scriptLen = static_cast<int>(requiredSize); // 设置实际使用的长度
+    script[generatedScript.size()] = '\0';
+    *scriptLen = static_cast<int>(requiredSize);
     return true;
 }
 

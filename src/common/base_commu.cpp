@@ -40,6 +40,12 @@ LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc,
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
+void CommuBase::resetPendingScriptFragments()
+{
+    startLuaScripts.clear();
+    startDataScripts.clear();
+}
+
 std::string CommuBase::loadLuaFunctionScriptOut(LaserHeadBrandSdk brand)
 {
     std::string tmpLuaScript;   //接口函数
