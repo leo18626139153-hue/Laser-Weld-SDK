@@ -86,10 +86,17 @@ bool isInstructionType(const InstListData& instListData, int instLoc, InstTypeLa
     return getInstruction(instListData, instLoc, instType, typeID) && instType == expectedType;
 }
 
-bool shouldConsumeRampDownMarker(const InstListData& instListData, int movementEndLoc)
+bool hasLegacyRampDownMarker(const InstListData& instListData, int movementEndLoc)
 {
     return isInstructionType(instListData, movementEndLoc + 1, SLOW_DOWN_LASER_WELD_SDK)
             && isInstructionType(instListData, movementEndLoc + 2, ARC_END_INST_LASER_WELD_SDK);
+}
+
+bool shouldSplitRampDownTrajectory(const InstListData& instListData, int movementEndLoc)
+{
+    // 新指令序列不再要求显式SLOW_DOWN：收弧前最后一条直线或完整圆弧自动拆分。
+    return isInstructionType(instListData, movementEndLoc + 1, ARC_END_INST_LASER_WELD_SDK)
+            || hasLegacyRampDownMarker(instListData, movementEndLoc);
 }
 
 LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
@@ -120,7 +127,6 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
 }
 
 LaserSdkResult appendStraightRampDownTrajectory(LaserMachineHandle laserMachineHandle,
-                                                const MachineResource& machineResource,
                                                 CommuBase& craftCommu,
                                                 const ScriptGenerationPolicy& policy,
                                                 const PointDataLaserSdk& startPoint,
@@ -131,14 +137,10 @@ LaserSdkResult appendStraightRampDownTrajectory(LaserMachineHandle laserMachineH
                                                 std::string& bodyScriptText)
 {
     double rampDownPoint[6] = {0};
-    double rampDownJoint[6] = {0};
-    LaserSdkResult result = getStraightLineSlowUpPoint(machineResource.robotHandle,
-                                                        const_cast<double*>(startPoint.pose),
-                                                        const_cast<double*>(endPoint.pose),
+    LaserSdkResult result = getStraightLineSlowUpPoint(startPoint.pose,
+                                                        endPoint.pose,
                                                         rampDownDistance,
-                                                        const_cast<double*>(endPoint.joint),
-                                                        rampDownPoint,
-                                                        rampDownJoint);
+                                                        rampDownPoint);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK)
     {
         return result;
@@ -354,12 +356,13 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
             const double speed = useWeldMotion ? currentCraft->craftWeldingSpeed : robotParams.emptyRunTCPSpeed;
             const double acc = useWeldMotion ? robotParams.weldTCPAcc : robotParams.emptyRunTCPAcc;
             double transitionRadius = robotParams.emptyPointTransitionRadius;
-            const bool consumeRampDown = shouldConsumeRampDownMarker(instListData, instLoc);
-            if (consumeRampDown && (!environment.isWelding || currentCraft == NULL))
+            const bool hasLegacyMarker = hasLegacyRampDownMarker(instListData, instLoc);
+            const bool splitRampDown = shouldSplitRampDownTrajectory(instListData, instLoc);
+            if (splitRampDown && (!environment.isWelding || currentCraft == NULL))
             {
                 return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
             }
-            if (environment.isWelding && !consumeRampDown
+            if (environment.isWelding && !splitRampDown
                     && !isInstructionType(instListData, instLoc + 1, ARC_END_INST_LASER_WELD_SDK))
             {
                 result = CalBlendingRadius(speed, acc, &transitionRadius);
@@ -378,14 +381,14 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 craftCommu->craft_script_judge_break_point_script_get(instLoc, bodyScriptText);
             }
             bodyScriptText += " --MOVE_LINE_LIST--\n";
-            if (consumeRampDown && currentCraft->craftLeadOutRampDistance > 0)
+            if (splitRampDown && currentCraft->craftLeadOutRampDistance > 0)
             {
                 const PointDataLaserSdk* startPoint = getPointByInstruction(instListData, environment.prePointLoc);
                 if (!environment.isWelding || startPoint == NULL)
                 {
                     return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
                 }
-                result = appendStraightRampDownTrajectory(laserMachineHandle, machineResource, *craftCommu,
+                result = appendStraightRampDownTrajectory(laserMachineHandle, *craftCommu,
                                                           environment.policy, *startPoint, *endPoint,
                                                           currentCraft->craftLeadOutRampDistance,
                                                           speed, acc, bodyScriptText);
@@ -411,9 +414,9 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 bodyScriptText += strWriteInt32RegReplace(INT32_REG_WELD_STATE_799, instLoc);
             }
             environment.prePointLoc = instLoc;
-            if (consumeRampDown)
+            if (hasLegacyMarker)
             {
-                ++instLoc; // SLOW_DOWN已被当前运动消费，下一次循环直接处理ARC_END。
+                ++instLoc; // 仅跳过旧数据中的SLOW_DOWN；直接相邻的ARC_END必须留给下一轮处理。
             }
             break;
         }
@@ -438,12 +441,13 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
             const double speed = useWeldMotion ? currentCraft->craftWeldingSpeed : robotParams.emptyRunTCPSpeed;
             const double acc = useWeldMotion ? robotParams.weldTCPAcc : robotParams.emptyRunTCPAcc;
             double transitionRadius = robotParams.emptyPointTransitionRadius;
-            const bool consumeRampDown = shouldConsumeRampDownMarker(instListData, circleEndLoc);
-            if (consumeRampDown && (!environment.isWelding || currentCraft == NULL))
+            const bool hasLegacyMarker = hasLegacyRampDownMarker(instListData, circleEndLoc);
+            const bool splitRampDown = shouldSplitRampDownTrajectory(instListData, circleEndLoc);
+            if (splitRampDown && (!environment.isWelding || currentCraft == NULL))
             {
                 return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
             }
-            if (environment.isWelding && !consumeRampDown
+            if (environment.isWelding && !splitRampDown
                     && !isInstructionType(instListData, circleEndLoc + 1, ARC_END_INST_LASER_WELD_SDK))
             {
                 result = CalBlendingRadius(speed, acc, &transitionRadius);
@@ -462,7 +466,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 craftCommu->craft_script_judge_break_point_script_get(circleEndLoc, bodyScriptText);
             }
             bodyScriptText += " --MOVE_CIR--\n";
-            if (consumeRampDown && currentCraft->craftLeadOutRampDistance > 0)
+            if (splitRampDown && currentCraft->craftLeadOutRampDistance > 0)
             {
                 const PointDataLaserSdk* startPoint = getPointByInstruction(instListData, environment.prePointLoc);
                 if (!environment.isWelding || startPoint == NULL)
@@ -498,7 +502,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 bodyScriptText += strWriteInt32RegReplace(INT32_REG_WELD_STATE_799, circleEndLoc);
             }
             environment.prePointLoc = circleEndLoc;
-            instLoc = consumeRampDown ? circleEndLoc + 1 : circleEndLoc;
+            instLoc = hasLegacyMarker ? circleEndLoc + 1 : circleEndLoc;
             break;
         }
         case InstTypeLaserSdk::JOINT_POINT_INST_LASER_WELD_SDK:
@@ -506,7 +510,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
         case InstTypeLaserSdk::SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK:
         {
             const PointDataLaserSdk* point = getPointByInstruction(instListData, instLoc);
-            if (point == NULL || shouldConsumeRampDownMarker(instListData, instLoc))
+            if (point == NULL || hasLegacyRampDownMarker(instListData, instLoc))
             {
                 // MoveJ和安全点不支持按笛卡尔距离拆分收弧轨迹。
                 return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;

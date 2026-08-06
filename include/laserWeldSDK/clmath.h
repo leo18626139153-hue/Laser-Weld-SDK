@@ -64,17 +64,14 @@ void copy_pose_HY(const double* oldpose, double* pose);
 void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pose);
 
 /**
- * @brief getNewTeachPoints    整体圆形轨迹——根据停止点和回退距离获取新的起点和过渡点、终点
- * @param robothandle          机械臂句柄
+ * @brief getStraightLineSlowUpPoint 根据直线终点和回退距离计算降功率点
  * @param p1                   示教起点
  * @param p2                   示教终点
  * @param backDistance         回退距离
- * @param refJoint               逆解参考关节角度
- * @param pointTrans             降功率点
- * @param pointJointTrans        降功率点关节角度
- * @return WeldSdkResult       处理结果
+ * @param pointTrans            降功率点
+ * @return LaserSdkResult       处理结果
  */
-LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double p2[6], double backDistance, double refJoint[6], double pointTrans[6], double pointJointTrans[6]);
+LaserSdkResult getStraightLineSlowUpPoint(const double p1[6], const double p2[6], double backDistance, double pointTrans[6]);
 
 /**
  * @brief getNewTeachPoints    整体圆形轨迹——根据停止点和回退距离获取新的起点和过渡点、终点

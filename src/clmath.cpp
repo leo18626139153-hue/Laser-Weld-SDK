@@ -253,7 +253,7 @@ void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pos
     }
 }
 
-LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double p2[6], double backDistance, double refJoint[6], double pointTrans[6], double pointJointTrans[6])
+LaserSdkResult getStraightLineSlowUpPoint(const double p1[6], const double p2[6], double backDistance, double pointTrans[6])
 {
     // 向量 AB = B - A
     double vx = p2[0] - p1[0];
@@ -281,12 +281,7 @@ LaserSdkResult getStraightLineSlowUpPoint(int robothandle, double p1[6], double 
     pointTrans[3] = p2[3];
     pointTrans[4] = p2[4];
     pointTrans[5] = p2[5];
-    // std::cout << "point trans axis: " << px << ", " << py << ", " << pz << std::endl;
-    LaserSdkResult res;
-    res = kineInverse_tcpPose(robothandle, pointTrans, refJoint, pointJointTrans);
-    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
-        return res;
-    }
+    // MoveL仅使用笛卡尔位姿，生成脚本时不应为了未使用的关节值依赖在线机器人逆解。
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 

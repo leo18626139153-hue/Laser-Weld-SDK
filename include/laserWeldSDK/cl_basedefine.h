@@ -417,7 +417,7 @@ enum InstTypeLaserSdk
     JOINT_POINT_INST_LASER_WELD_SDK = 5,       // 关节运动指令
     SAFE_POINT_MOVEL_INST_LASER_WELD_SDK = 6,  ///< 兼容旧数据，执行语义统一为安全点MoveJ，禁止新数据继续使用
     SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK = 7,  ///< 安全点MoveJ指令
-    SLOW_DOWN_LASER_WELD_SDK = 8               ///< 收弧缓降标记，作用于紧邻它之前的直线或完整圆弧
+    SLOW_DOWN_LASER_WELD_SDK = 8               ///< 兼容旧数据；新数据中紧邻收弧的直线或完整圆弧会自动缓降拆分
 };
 
 /// 焊接控制寄存器位///
