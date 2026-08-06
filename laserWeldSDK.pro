@@ -18,7 +18,7 @@ TEMPLATE = lib
 DEFINES += LASERWELDSDK_LIBRARY
 DEFINES += QT_DEPRECATED_WARNINGS
 
-CONFIG += c++17
+CONFIG += c++14
 CONFIG += utf8_source
 
 # ============================================================
