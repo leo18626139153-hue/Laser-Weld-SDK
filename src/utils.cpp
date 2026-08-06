@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <sstream>
 #include <iomanip>
+#include <climits>
 
 #include "messageprase.h"  // SDK refactor: message assembly moved to C++ layer
 std::string strReplace(std::string srcStr, std::array<double,6> vecDouble)
@@ -459,32 +460,40 @@ std::string strSetStandardDigitalReplace(int srcStr, bool vecStr)
     return strReplace(strReplace("set_standard_digital_out(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
 
-bool strToChar(char* script, int* scriptLen, const std::string& generatedScript)
+LaserSdkResult strToChar(char* script, int* scriptLen, const std::string& generatedScript)
 {
-    if (script == nullptr || scriptLen == nullptr)
+    if (scriptLen == nullptr)
     {
-        std::cerr << "Error: Null pointer passed to strToChar." << std::endl;
-        return false;
+        return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
     }
 
-    size_t requiredSize = generatedScript.size() + 1;
-    if (static_cast<size_t>(*scriptLen) < requiredSize)
+    if (generatedScript.size() > static_cast<size_t>(INT_MAX - 1))
     {
-        *scriptLen = static_cast<int>(requiredSize);
-        return false;
+        *scriptLen = 0;
+        return LaserSdkResult::MEMORY_ERROR_LASER_SDK;
     }
 
-    if (generatedScript.empty())
+    const int requiredSize = static_cast<int>(generatedScript.size()) + 1;
+    if (script == nullptr)
     {
-        script[0] = '\0';
-        *scriptLen = 1;
-        return true;
+        *scriptLen = requiredSize;
+        return LaserSdkResult::SUCCESS_LASER_SDK;
     }
 
-    memcpy(script, generatedScript.c_str(), generatedScript.size());
-    script[generatedScript.size()] = '\0';
-    *scriptLen = static_cast<int>(requiredSize);
-    return true;
+    // 修改理由：负数转换为size_t后会成为极大正数，可能绕过容量检查并导致越界写。
+    if (*scriptLen < 0)
+    {
+        return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
+    }
+    if (*scriptLen < requiredSize)
+    {
+        *scriptLen = requiredSize;
+        return LaserSdkResult::BUFFER_TOO_SMALL_LASER_SDK;
+    }
+
+    std::memcpy(script, generatedScript.c_str(), static_cast<size_t>(requiredSize));
+    *scriptLen = requiredSize;
+    return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 

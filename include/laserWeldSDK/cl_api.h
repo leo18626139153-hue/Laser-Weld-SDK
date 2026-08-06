@@ -110,8 +110,9 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMach
  * @param[in] laserMachineHandle    焊机资源句柄
  * @param[in] weldStartData         指令列表数据结构体
  * @param[in] isWeld                是否进行焊接 false-轨迹模拟 true-开始焊接
- * @param[out] scripts              指令列表LUA脚本 传出参数
- * @param[out] scriptLen            脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
+ * @param[out] scripts              指令列表LUA脚本。传入nullptr时仅查询所需长度，不生成外部副作用。
+ * @param[in,out] scriptLen         不可为nullptr。scripts非空时传入缓冲区容量；传出脚本所需字节数，包含结尾'\0'。
+ *                                  缓冲区不足时返回BUFFER_TOO_SMALL_LASER_SDK且不写入scripts。
  * @warning SDK当前不支持并发调用，包括不同焊机句柄之间的并发；调用方必须串行化。
  * @return LaserSdkResult        处理结果
  */

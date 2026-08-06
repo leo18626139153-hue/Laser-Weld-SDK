@@ -26,13 +26,13 @@
 std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regTypr, unsigned int coAddr = 0x0906,int comNo = 3);
 
 /**
- *字符串转字符
- * @param script 输出字符
- * @param scriptLen 输出字符长度
- * @param generatedScript 输入字符串
- * @return 当内存不够时返回false
-*/
-bool strToChar(char* script, int* scriptLen, const std::string& generatedScript);
+ * @brief 将字符串安全写入调用方缓冲区，或查询所需缓冲区长度。
+ * @param[out] script 输出缓冲区；为nullptr时仅查询长度。
+ * @param[in,out] scriptLen 输入缓冲区容量，输出所需字节数，包含结尾'\0'。
+ * @param[in] generatedScript 待输出字符串。
+ * @return SUCCESS_LASER_SDK表示写入或长度查询成功；缓冲区不足返回BUFFER_TOO_SMALL_LASER_SDK。
+ */
+LaserSdkResult strToChar(char* script, int* scriptLen, const std::string& generatedScript);
 
 /**
  * 通过throw抛出问题LaserSdkResult

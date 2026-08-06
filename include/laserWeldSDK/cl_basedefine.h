@@ -54,6 +54,7 @@ enum LaserSdkResult
     MUTLILAYER_CHANNEL_ADVANCE_ANGLE_TYPE_ERROR = 29,  // 多层多道前进角类型错误
     PARAM_TYPE_ERROR_LASER_SDK = 30,                   ///< 无效参数
     PARAM_SCAN_FREQUENCY_ERROR_LASER_SDK = 31,         ///< 扫描速度、扫描宽度、扫描高度计算得到的扫描频率超限
+    BUFFER_TOO_SMALL_LASER_SDK = 32,                   ///< 输出缓冲区不足，长度参数已更新为所需字节数
 
 
     CALCULATION_RESULT_ILLOGICAL_SDK = 98,             // 计算过程中出现未考虑到的场景（计算失败，结算结果不可用）

@@ -150,9 +150,10 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SWITCH_ON_LASER_SDK, scriptGet));
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
         //脚本赋值
-        if(!strToChar(scripts, scriptLen, scriptGet))
+        LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
+        if(bufferResult != SUCCESS_LASER_SDK)
         {
-            return MEMORY_ERROR_LASER_SDK;
+            return bufferResult;
         }
     }
     catch (const LaserSdkResult& errorResult)
@@ -243,9 +244,10 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         //收弧执行程序
         //scriptGet = funcScript + scriptGet;      //脚本赋值
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
-        if(!strToChar(scripts, scriptLen, scriptGet))
+        LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
+        if(bufferResult != SUCCESS_LASER_SDK)
         {
-            return MEMORY_ERROR_LASER_SDK;
+            return bufferResult;
         }
     }
     catch (const LaserSdkResult& errorResult)
@@ -500,11 +502,8 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     script += strWriteInt32RegReplace(INT32_REG_WELD_MODE_660, isWeld ? 2 : 1);
     script += bodyScriptText;
 
-    if(!strToChar(scripts, scriptLen, script))
-    {
-        return MEMORY_ERROR_LASER_SDK;
-    }
-    return SUCCESS_LASER_SDK;
+    // scripts为nullptr是合法长度查询；strToChar保证容量不足时不写缓冲区。
+    return strToChar(scripts, scriptLen, script);
 }
 LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
 {
@@ -752,9 +751,10 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
-        if(!strToChar(scripts, scriptLen, scriptGet))
+        LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
+        if(bufferResult != SUCCESS_LASER_SDK)
         {
-            return MEMORY_ERROR_LASER_SDK;
+            return bufferResult;
         }
         //将脚本存入示教器日志中
         else
@@ -865,9 +865,10 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
-        if(!strToChar(scripts, scriptLen, scriptGet))
+        LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
+        if(bufferResult != SUCCESS_LASER_SDK)
         {
-            return MEMORY_ERROR_LASER_SDK;
+            return bufferResult;
         }
         //将脚本存入示教器日志中
         else
@@ -1003,9 +1004,10 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     }
 
     //脚本赋值
-    if(!strToChar(scripts, scriptLen, scriptGet))
+    LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
+    if(bufferResult != SUCCESS_LASER_SDK)
     {
-        return MEMORY_ERROR_LASER_SDK;
+        return bufferResult;
     }
     else
     {
@@ -1049,9 +1051,10 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
                         craftInfo,
                         scriptGet));
         scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
-        if(!strToChar(scripts, scriptLen, scriptGet))
+        LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
+        if(bufferResult != SUCCESS_LASER_SDK)
         {
-            throw MEMORY_ERROR_LASER_SDK;
+            throw bufferResult;
         }
         //将脚本存入示教器日志中
         else
@@ -1278,9 +1281,10 @@ LaserSdkResult cl_get_instance_function_script(const char* funcName, const char*
         std::string cppFuncParam = funcParam ? funcParam : "";
         CommuRegType cppRegType = static_cast<CommuRegType>(regType);
         std::string scriptGet = generateLuaScript(cppFuncName, cppFuncParam, addr, cppRegType, coAddr, comNo);
-        if(!strToChar(scripts, scriptLen, scriptGet))
+        LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
+        if(bufferResult != SUCCESS_LASER_SDK)
         {
-            throw MEMORY_ERROR_LASER_SDK;
+            throw bufferResult;
         }
         //将脚本存入示教器日志中
         else
