@@ -1,8 +1,38 @@
 #include "brandadapter.h"
+#include <cmath>
 
 namespace {
 
 const unsigned int INVALID_REGISTER_ADDR = 0xFFFFFFFF;
+const double BCX_CENTER_OFFSET_MIN_MM = -15.0;
+const double BCX_CENTER_OFFSET_MAX_MM = 15.0;
+const double BCX_CENTER_OFFSET_SCALE = 100.0;
+
+/**
+ * @brief 将宝辰鑫中心偏移转换为寄存器有符号整数。
+ * @param offsetMm 中心偏移，单位mm。
+ * @return 放大100倍并四舍五入后的寄存器值。
+ */
+int16_t scaleBcxCenterOffset(double offsetMm)
+{
+    return static_cast<int16_t>(std::lround(offsetMm * BCX_CENTER_OFFSET_SCALE));
+}
+
+/**
+ * @brief 获取宝辰鑫脚本使用的寄存器参数值。
+ * @param parameter 参数类型。
+ * @param registerValue 寄存器原始16位数据。
+ * @return 中心偏移按有符号数返回，其它参数保持无符号取值。
+ */
+int bcxScriptRegisterValue(LaserParam parameter, uint16_t registerValue)
+{
+    if (parameter == LaserParam::CenterOffsetX
+            || parameter == LaserParam::CenterOffsetY)
+    {
+        return static_cast<int16_t>(registerValue);
+    }
+    return static_cast<int>(registerValue);
+}
 
 // 修改理由: 统一构造品牌寄存器描述, 避免各品牌地址表重复填充结构体字段.
 // 逻辑: 把写地址, 读地址, 寄存器类型, 缩放比例和写入能力一次性返回给通讯层.
@@ -69,7 +99,7 @@ BrandProtocolProfile SupProtocolAdapter::profile() const
 LaserSdkResult SupProtocolAdapter::checkCraft(const CraftInfoLaserSdk& craftInfo) const
 {
     LaserSdkResult res = SUCCESS_LASER_SDK;
-    
+
     int maxLimit = (craftInfo.graphicsSwitching == SpotPatternLaserSdk::CROSS_LASERSDK) ? 1 : 0;
     int speed = craftInfo.craftScanSpeed;
     float rangeW = static_cast<float>(craftInfo.craftScanWidth);
@@ -688,8 +718,16 @@ BrandProtocolProfile BcxOmniProtocolAdapter::profile() const
 
 LaserSdkResult BcxOmniProtocolAdapter::checkCraft(const CraftInfoLaserSdk& craftInfo) const
 {
-    // 宝辰鑫暂未提供独立工艺校验范围, 先复用现有超强校验以保持行为稳定.
-    // return checkSupCraft(craftInfo);
+    // 宝辰鑫中心偏移寄存器按0.01mm缩放，允许范围为-15.00～15.00mm。
+    if (!std::isfinite(craftInfo.craftXAxisOffset)
+            || !std::isfinite(craftInfo.craftYAxisOffset)
+            || craftInfo.craftXAxisOffset < BCX_CENTER_OFFSET_MIN_MM
+            || craftInfo.craftXAxisOffset > BCX_CENTER_OFFSET_MAX_MM
+            || craftInfo.craftYAxisOffset < BCX_CENTER_OFFSET_MIN_MM
+            || craftInfo.craftYAxisOffset > BCX_CENTER_OFFSET_MAX_MM)
+    {
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
     return SUCCESS_LASER_SDK;
 }
 
@@ -785,8 +823,10 @@ bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
 
     ParamMap currentParameters;
     currentParameters[LaserParam::RatedPower] = static_cast<uint16_t>(hd.laserHeadPeakPower);
-    currentParameters[LaserParam::CenterOffsetX] = static_cast<uint16_t>(pw.laserHeadXOffset * 100);
-    currentParameters[LaserParam::CenterOffsetY] = static_cast<uint16_t>(pw.laserHeadYOffset * 100);
+    currentParameters[LaserParam::CenterOffsetX] =
+            static_cast<uint16_t>(scaleBcxCenterOffset(pw.laserHeadXOffset));
+    currentParameters[LaserParam::CenterOffsetY] =
+            static_cast<uint16_t>(scaleBcxCenterOffset(pw.laserHeadYOffset));
     currentParameters[LaserParam::LaserPower] = static_cast<uint16_t>(pw.laserPower);
     currentParameters[LaserParam::LaserFrequency] = static_cast<uint16_t>(hd.laserHeadLowPulseFrequency);
     currentParameters[LaserParam::DutyCycle] = static_cast<uint16_t>(hd.laserHeadDutyCycle);
@@ -827,7 +867,8 @@ bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
         script << "    write_int16_register(0x"
                << std::hex << std::setw(4) << std::setfill('0')
                << static_cast<uint16_t>(it->first)  // 获取枚举地址
-               << ", " << std::dec << it->second    // 获取参数值
+               << ", " << std::dec
+               << bcxScriptRegisterValue(it->first, it->second) // 获取参数值
                << ")\n";
     }
 
