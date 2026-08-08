@@ -831,15 +831,16 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     }
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
 
-    // 计算关光功率下降时间
-    int  disX = curCraftInfo.craftLeadOutRampDistance - curCraftInfo.craftRetractionDistance ;  //关光渐进距离-提前回抽距离
-    if(disX  < 0)
+    // craftRetractionDistance 已由上层废弃，缓降时间只按完整的关光渐进距离计算。
+    const int rampDownDistance = curCraftInfo.craftLeadOutRampDistance;
+    if (rampDownDistance < 0 || curCraftInfo.craftWeldingSpeed <= 0.0)
     {
         writeLog("craft_script_configure_machine_param_set_script_get :: laserRampDownTime out of range");
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     //降功率的距离 → 时间
-    double tempTime = static_cast<double>((disX * 1000)/ curCraftInfo.craftWeldingSpeed);
+    const double tempTime = static_cast<double>(rampDownDistance) * 1000.0
+            / curCraftInfo.craftWeldingSpeed;
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
     // 提前送气时间
     machineResource.laserPowerParams.gasStartupAdvanceTime = curCraftInfo.craftPreGasTime;
@@ -892,15 +893,11 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserPowerParams.weldMode = curCraftInfo.craftweldMode;
     ///< 写入激光头图案
     machineResource.laserHeadParams.laserSpotPattern = curCraftInfo.graphicsSwitching;
-    //  送丝机参数
-    int distance = curCraftInfo.craftRetractionDistance;
-    //回抽焊丝的过程距离 mm
-    machineResource.wireFeederParams.lengthBack = distance;
-    //  计算补丝延迟//计算补丝延迟,s换算成ms
-    int wireDelayTime = static_cast<int>((distance / curCraftInfo.craftWeldingSpeed)*1000);
-    if ( wireDelayTime > 9000)
+    // craftRetractionDistance 保留用于结构兼容，不再换算补丝延迟；补丝延迟由上层直接给出。
+    machineResource.wireFeederParams.lengthBack = 0;
+    if (curCraftInfo.wireDelayTime < 0 || curCraftInfo.wireDelayTime > 2000)
     {
-        writeLog("补丝延迟时间过大");
+        writeLog("craft_script_configure_machine_param_set_script_get :: wireDelayTime out of range");
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     //  回抽长度判断
@@ -909,7 +906,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
         curCraftInfo.craftRetractionLength = 20;
     }
 
-    machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;    ///< 补丝延时    0~2000 ms
+    machineResource.wireFeederParams.wireFeederWaitTime = curCraftInfo.wireDelayTime;    ///< 补丝延时    0~2000 ms
     machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftRetractionLength;     ///< 收尾回抽     回抽长度
     machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;    ///< 回送长度
     machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;      ///< 自动送丝速度 15~600cm/min 0x0100 R/W
@@ -1054,15 +1051,16 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     machineResource.laserPowerParams.laserPowerClose = curCraftInfo.craftLeadOutPower;
-    //  5.计算关光功率下降时间
-    int  disX = curCraftInfo.craftLeadOutRampDistance - curCraftInfo.craftRetractionDistance ;  //关光渐进距离-提前回抽距离
-    if(disX  < 0)
+    //  5. craftRetractionDistance 已由上层废弃，缓降时间只按完整的关光渐进距离计算。
+    const int rampDownDistance = curCraftInfo.craftLeadOutRampDistance;
+    if (rampDownDistance < 0 || curCraftInfo.craftWeldingSpeed <= 0.0)
     {
         writeLog("craft_script_configure_machine_param_set_script_get :: laserRampDownTime out of range");
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     //  6.降功率的距离
-    double tempTime = static_cast<double>((disX * 1000)/ curCraftInfo.craftWeldingSpeed);
+    const double tempTime = static_cast<double>(rampDownDistance) * 1000.0
+            / curCraftInfo.craftWeldingSpeed;
     machineResource.laserPowerParams.laserRampDownTime = tempTime;
 
     //  7.提前送气时间
@@ -1198,23 +1196,19 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
         script += adapter.writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");
         script += "    wait(290) \n";
     }
-    //  送丝机参数
-    //  计算焊丝回抽的距离
-    //double backVelocity = (curCraftInfo.craftEndingWireRetraction * 100) / 60; //收尾抽丝速度 cm/min换算成 mm/s
-    int distance = curCraftInfo.craftRetractionDistance;            //回抽焊丝的过程距离 mm
-    machineResource.wireFeederParams.lengthBack = distance;
-    //计算补丝延迟
-    int wireDelayTime = static_cast<int>((distance / curCraftInfo.craftWeldingSpeed)*1000); //计算补丝延迟,s换算成ms
-    if ( wireDelayTime > 2000)
+    // craftRetractionDistance 保留用于结构兼容，不再换算补丝延迟；补丝延迟由上层直接给出。
+    machineResource.wireFeederParams.lengthBack = 0;
+    if (curCraftInfo.wireDelayTime < 0 || curCraftInfo.wireDelayTime > 2000)
     {
-        writeLog("补丝延迟时间过大");
+        writeLog("craft_script_write_craft_resource_script_get :: wireDelayTime out of range");
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
     //  回抽长度判断
     if(curCraftInfo.craftRetractionLength < 0 || curCraftInfo.craftRetractionLength > 20)
     {
         curCraftInfo.craftRetractionLength = 20;
     }
-    machineResource.wireFeederParams.wireFeederWaitTime = wireDelayTime;    ///< 补丝延时    0~2000 ms
+    machineResource.wireFeederParams.wireFeederWaitTime = curCraftInfo.wireDelayTime;    ///< 补丝延时    0~2000 ms
     machineResource.wireFeederParams.wireFeederBackLength = curCraftInfo.craftRetractionLength;     ///< 收尾回抽     回抽长度
     machineResource.wireFeederParams.wireFeederFeedLength = curCraftInfo.craftEndLoopbackLength;    ///< 回送长度
     machineResource.wireFeederParams.wireFeederMotorSpeed = curCraftInfo.craftWeldingWireFeed;      ///< 自动送丝速度 15~600cm/min 0x0100 R/W

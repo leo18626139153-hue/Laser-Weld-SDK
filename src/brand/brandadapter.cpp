@@ -205,7 +205,7 @@ std::vector<BrandRegisterRole> SupProtocolAdapter::craftWireFeederRoles(WeldingP
     // 修改理由: 工艺下发时的送丝机参数集合由品牌和焊接类型共同决定.
     // 逻辑:
     // 1. 所有模式先包含送丝机运行状态.
-    // 2. 填丝焊追加速度, 抽丝长度, 补丝长度和断丝模式.
+    // 2. 填丝焊追加速度、抽丝长度、补丝长度、补丝延迟和断丝模式。
     // 3. 自熔焊不追加普通送丝机参数.
     std::vector<BrandRegisterRole> roles;
     roles.push_back(BrandRegisterRole::WireFeederRunStatus);
@@ -214,6 +214,7 @@ std::vector<BrandRegisterRole> SupProtocolAdapter::craftWireFeederRoles(WeldingP
         roles.push_back(BrandRegisterRole::AutoWireFeedSpeed);
         roles.push_back(BrandRegisterRole::WireRetractLength);
         roles.push_back(BrandRegisterRole::WireFeedLength);
+        roles.push_back(BrandRegisterRole::WireFeedBackDelay);
         roles.push_back(BrandRegisterRole::BreakWireFeedingMode);
     }
     return roles;

@@ -363,7 +363,7 @@ struct CraftInfoLaserSdk
     double craftWeldingSpeed;   ///< 焊接速度 mm/s
     int craftLeadOutPower;      ///< 关光功率   
     int craftLeadOutRampDistance;   ///< 关光渐进距离 mm
-    int craftRetractionDistance;    ///< 提前回抽距离 mm
+    int craftRetractionDistance;    ///< 提前回抽距离 mm（兼容字段，当前版本不参与缓降和补丝延迟计算）
 
     int craftLeadInWireFeed;            ///< 开光送丝     送丝速度
     int craftWeldingWireFeed;           ///< 焊接送丝     送丝速度
@@ -371,6 +371,7 @@ struct CraftInfoLaserSdk
     int craftEndingWireRetraction;      ///< 收尾抽丝     回抽速度
     int craftRetractionLength;          ///< 收尾回抽     回抽长度
     int craftEndLoopbackLength;         ///< 收尾回送长度  补丝长度
+    int wireDelayTime;                  ///< 补丝延迟时间 ms，直接下发到送丝机（0~2000）
 };
 
 /* ---指令列表--- */
