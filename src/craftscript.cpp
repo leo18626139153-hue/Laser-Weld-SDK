@@ -100,6 +100,7 @@ bool shouldSplitRampDownTrajectory(const InstListData& instListData, int movemen
 }
 
 LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
+                                     const MachineResource& machineResource,
                                      CommuBase& craftCommu,
                                      const ScriptGenerationPolicy& policy,
                                      std::string& bodyScriptText)
@@ -110,6 +111,20 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
     }
 
     bodyScriptText += " --SLOW_DOWN--\n";
+
+    // BCX 内控由焊板在使能下降沿触发，SDK 只负责在降功率点关闭外部使能。
+    // 送丝焊同时关闭 CO2，避免降功率阶段继续送丝；自融焊不输出 CO2。
+    if (machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+    {
+        if (machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK)
+        {
+            bodyScriptText += "set_configurable_digital_out(2, false)  ---CO2 = 0\n";
+        }
+        bodyScriptText += "set_configurable_digital_out(1, false)  ---CO1 = 0\n";
+        return LaserSdkResult::SUCCESS_LASER_SDK;
+    }
+
+    // SUP 暂时保留原有外控缓降脚本，后续再统一重写外控状态机。
     LaserSdkResult result = craftCommu.craft_script_slow_arc_function_switch_script_get(
                 laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK)
@@ -127,6 +142,7 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
 }
 
 LaserSdkResult appendStraightRampDownTrajectory(LaserMachineHandle laserMachineHandle,
+                                                const MachineResource& machineResource,
                                                 CommuBase& craftCommu,
                                                 const ScriptGenerationPolicy& policy,
                                                 const PointDataLaserSdk& startPoint,
@@ -149,7 +165,8 @@ LaserSdkResult appendStraightRampDownTrajectory(LaserMachineHandle laserMachineH
     // 降功率点是内部合成点，不写到达寄存器；两段边界半径必须为0，保证机器人经过触发点。
     bodyScriptText += strMoveLReplace(doubleArray2Str(rampDownPoint, 6),
                                       std::to_string(speed), std::to_string(acc), "0");
-    result = appendRampDownControl(laserMachineHandle, craftCommu, policy, bodyScriptText);
+    result = appendRampDownControl(laserMachineHandle, machineResource,
+                                   craftCommu, policy, bodyScriptText);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK)
     {
         return result;
@@ -207,7 +224,8 @@ LaserSdkResult appendCircleRampDownTrajectory(LaserMachineHandle laserMachineHan
                                       doubleArray2Str(rampDownPoint, 6),
                                       doubleArray2Str(rampDownJoint, 6),
                                       std::to_string(speed), std::to_string(acc), "0", "0");
-    result = appendRampDownControl(laserMachineHandle, craftCommu, policy, bodyScriptText);
+    result = appendRampDownControl(laserMachineHandle, machineResource,
+                                   craftCommu, policy, bodyScriptText);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK)
     {
         return result;
@@ -388,8 +406,9 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 {
                     return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
                 }
-                result = appendStraightRampDownTrajectory(laserMachineHandle, *craftCommu,
-                                                          environment.policy, *startPoint, *endPoint,
+                result = appendStraightRampDownTrajectory(laserMachineHandle, machineResource,
+                                                           *craftCommu,
+                                                           environment.policy, *startPoint, *endPoint,
                                                           currentCraft->craftLeadOutRampDistance,
                                                           speed, acc, bodyScriptText);
                 if (result != LaserSdkResult::SUCCESS_LASER_SDK)
@@ -402,6 +421,17 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 bodyScriptText += strMoveLReplace(doubleArray2Str(endPoint->pose, 6),
                                                   std::to_string(speed), std::to_string(acc),
                                                   std::to_string(transitionRadius));
+                // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
+                if (splitRampDown
+                        && machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+                {
+                    result = appendRampDownControl(laserMachineHandle, machineResource,
+                                                   *craftCommu, environment.policy, bodyScriptText);
+                    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                    {
+                        return result;
+                    }
+                }
             }
             bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, instLoc);
             if (!environment.policy.emitArcControl)
@@ -490,6 +520,17 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   doubleArray2Str(endPoint->joint, 6),
                                                   std::to_string(speed), std::to_string(acc),
                                                   std::to_string(transitionRadius), "0");
+                // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
+                if (splitRampDown
+                        && machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+                {
+                    result = appendRampDownControl(laserMachineHandle, machineResource,
+                                                   *craftCommu, environment.policy, bodyScriptText);
+                    if (result != LaserSdkResult::SUCCESS_LASER_SDK)
+                    {
+                        return result;
+                    }
+                }
             }
             bodyScriptText += strWriteInt32RegReplace(INT32_REG_ARRIVE_POINT_LOC_663, circleEndLoc);
             if (!environment.policy.emitArcControl)

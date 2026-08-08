@@ -423,7 +423,14 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
     {
         return HANDLE_ERROR_LASER_SDK;
     }
-    //MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    const bool controlBcxWireFeeder =
+            machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK
+            && machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK;
+    const std::string wireFeederEnableScript = controlBcxWireFeeder
+            ? "                set_configurable_digital_out(2, true)  ---CO2 = 1\n" : "";
+    const std::string wireFeederDisableScript = controlBcxWireFeeder
+            ? "                    set_configurable_digital_out(2, false)  ---CO2 = 0\n" : "";
     std::string writeFunction;
     std::string dataFunction;
     int gasWaitTime = 1;
@@ -439,6 +446,8 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         write_integer_register(673, 0) --起弧异常信号清空
         if read_integer_register(821) ~= 0 then
             print(string.format("起弧异常，超时 : 0x%04X", read_integer_register(821)))
+        )" + wireFeederDisableScript + R"(            set_configurable_digital_out(1, false)  ---CO1 = 0
+            set_configurable_digital_out(0, false)  ---CO0 = 0
             write_integer_register(673, 1)
             return
         end
@@ -447,13 +456,13 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
             --检测开始信号
             if true then
                 set_configurable_digital_out(0, true)  ---CO0 = 1
-                set_configurable_digital_out(1, true)  ---CO1 = 1
+        )" + wireFeederEnableScript + R"(                set_configurable_digital_out(1, true)  ---CO1 = 1
                 print("起弧成功")
                 break
             else
                 retry_times = retry_times - 1
                 if(retry_times < 1) then
-                    set_configurable_digital_out(1, false)  ---CO1 = 0
+        )" + wireFeederDisableScript + R"(                    set_configurable_digital_out(1, false)  ---CO1 = 0
                     set_configurable_digital_out(0, false)  ---CO0 = 0
                     print("起弧失败")
                     --送气使能关
@@ -464,7 +473,8 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         end
     end
         )";
-        startLuaScripts.emplace("arc_start", writeFunction);
+        // 工艺可能在自融焊和送丝焊之间切换，必须覆盖旧函数，不能沿用首次缓存的 CO2 策略。
+        startLuaScripts["arc_start"] = writeFunction;
     }
     else if (laserSwitch == SWITCH_OFF_LASER_SDK)
     {
@@ -477,15 +487,15 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
             while true do
                 --检测开始信号
                 if read_integer_register(821) == 0 then
-                    set_configurable_digital_out(1, false)
+        )" + wireFeederDisableScript + R"(                    set_configurable_digital_out(1, false)
                     set_configurable_digital_out(0, false)
                     print("收弧成功")
                     break
                 else
                     retry_times = retry_times - 1
                     if(retry_times < 1) then
+        )" + wireFeederDisableScript + R"(                        set_configurable_digital_out(1, false)
                         set_configurable_digital_out(0, false)
-                        set_configurable_digital_out(1, false)
                         print("收弧异常")
                         write_integer_register(675, 1) --收弧异常信号
                         break
@@ -494,7 +504,7 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
             end
         end
         )";
-        startLuaScripts.emplace("arc_stop", writeFunction); //收弧脚本
+        startLuaScripts["arc_stop"] = writeFunction; //收弧脚本
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 
@@ -797,12 +807,8 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
 
     // ====== 工艺参数计算与赋值（仅更新 machineResource，不写脚本） ======
 
-    /*
-     * Lead-in and lead-out power belong to the current craft and must be
-     * validated against this craft's welding power. machineResource contains
-     * the previous applied result and cannot be used as the validation base.
-     * Direct comparison also avoids division by zero and integer overflow.
-     */
+    // 超强沿用开关光功率不超过当前焊接功率的历史规则；宝辰鑫使用瓦特并已由品牌适配器按峰值功率校验。
+    const bool isBcx = machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK;
     const int craftLaserPower = curCraftInfo.craftLaserPower;
     if (craftLaserPower < 0)
     {
@@ -810,8 +816,8 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
                  + std::to_string(craftLaserPower));
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    if (curCraftInfo.craftLeadInPower < 0
-            || curCraftInfo.craftLeadInPower > craftLaserPower)
+    if (!isBcx && (curCraftInfo.craftLeadInPower < 0
+            || curCraftInfo.craftLeadInPower > craftLaserPower))
     {
         writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadInPower out of range, craftLeadInPower="
                  + std::to_string(curCraftInfo.craftLeadInPower)
@@ -821,8 +827,8 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
     machineResource.laserPowerParams.laserPowerOpen = curCraftInfo.craftLeadInPower;
     machineResource.laserPowerParams.laserRampUpTime = curCraftInfo.craftLeadInRampTime;
 
-    if (curCraftInfo.craftLeadOutPower < 0
-            || curCraftInfo.craftLeadOutPower > craftLaserPower)
+    if (!isBcx && (curCraftInfo.craftLeadOutPower < 0
+            || curCraftInfo.craftLeadOutPower > craftLaserPower))
     {
         writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadOutPower out of range, craftLeadOutPower="
                  + std::to_string(curCraftInfo.craftLeadOutPower)

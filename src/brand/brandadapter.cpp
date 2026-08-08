@@ -7,6 +7,7 @@ const unsigned int INVALID_REGISTER_ADDR = 0xFFFFFFFF;
 const double BCX_CENTER_OFFSET_MIN_MM = -15.0;
 const double BCX_CENTER_OFFSET_MAX_MM = 15.0;
 const double BCX_CENTER_OFFSET_SCALE = 100.0;
+const int BCX_RAMP_TIME_MAX_MS = 9999;
 
 /**
  * @brief 将宝辰鑫中心偏移转换为寄存器有符号整数。
@@ -719,7 +720,33 @@ BrandProtocolProfile BcxOmniProtocolAdapter::profile() const
 
 LaserSdkResult BcxOmniProtocolAdapter::checkCraft(const CraftInfoLaserSdk& craftInfo) const
 {
-    // 宝辰鑫中心偏移寄存器按0.01mm缩放，允许范围为-15.00～15.00mm。
+    // 1. 宝辰鑫功率使用瓦特，焊接、开光和关光功率均必须小于激光器峰值功率。
+    // 2. 缓升时间和由距离换算出的缓降时间均不得超过板卡9999ms上限。
+    // 3. 中心偏移寄存器按0.01mm缩放，允许范围为-15.00～15.00mm。
+    const int peakPower = craftInfo.laserHeadPeakPower;
+    if (peakPower <= 0
+            || craftInfo.craftLaserPower < 0
+            || craftInfo.craftLaserPower >= peakPower
+            || craftInfo.craftLeadInPower < 0
+            || craftInfo.craftLeadInPower >= peakPower
+            || craftInfo.craftLeadOutPower < 0
+            || craftInfo.craftLeadOutPower >= peakPower
+            || craftInfo.craftLeadInRampTime < 0
+            || craftInfo.craftLeadInRampTime > BCX_RAMP_TIME_MAX_MS
+            || craftInfo.craftLeadOutRampDistance < 0
+            || !std::isfinite(craftInfo.craftWeldingSpeed)
+            || craftInfo.craftWeldingSpeed <= 0.0)
+    {
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
+
+    const double rampDownTime = static_cast<double>(craftInfo.craftLeadOutRampDistance) * 1000.0
+            / craftInfo.craftWeldingSpeed;
+    if (!std::isfinite(rampDownTime) || rampDownTime > BCX_RAMP_TIME_MAX_MS)
+    {
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
+
     if (!std::isfinite(craftInfo.craftXAxisOffset)
             || !std::isfinite(craftInfo.craftYAxisOffset)
             || craftInfo.craftXAxisOffset < BCX_CENTER_OFFSET_MIN_MM
