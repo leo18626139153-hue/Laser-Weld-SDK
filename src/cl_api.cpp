@@ -503,7 +503,25 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     script += bodyScriptText;
 
     // scripts为nullptr是合法长度查询；strToChar保证容量不足时不写缓冲区。
-    return strToChar(scripts, scriptLen, script);
+    //脚本赋值
+    LaserSdkResult bufferResult = strToChar(scripts, scriptLen, script);
+    if(bufferResult != SUCCESS_LASER_SDK)
+    {
+        return bufferResult;
+    }
+    //将脚本存入示教器日志中
+    else
+    {
+        // 打开文件进行写入
+        std::ofstream outFile("script.txt");
+        if (!outFile) {
+            std::cerr << "无法打开文件进行写入！" << std::endl;
+        }
+        outFile << scripts;
+        // 关闭文件
+        outFile.close();
+    }
+    return bufferResult;
 }
 LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
 {

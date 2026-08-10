@@ -260,20 +260,20 @@ std::string CommuRS485::buildSlowArcStopFunctionScript(const MachineResource &ma
     const std::string wireFeederWriteCode = scriptCodeToLuaHex(profile.wireFeederWriteSingleScriptCode);
 
     std::ostringstream script;
-    script << "    function slow_arc_stop()\n"
-           << "   write_integer_register(675, 0) \n"
-           << "   if read_integer_register(821) ~= 0 then \n"
-           << "       print(string.format(\"收弧异常，超时 : 0x%04X\", read_integer_register(821))) \n"
-           << "       write_integer_register(675, 1) \n"
-           << "       return \n"
-           << "   end \n"
-           << "   laserPower = " << laserHeadParams.laserHeadPeakPower << "\n"
-           << "   closePower  = " << laserPowerParams.laserPowerClose << "\n"
-           << "   closeLightTime  = " << laserPowerParams.laserRampDownTime << "\n"
-           << "   if closeLightTime == 0 then \n"
-           << "       print(\"closeLightTime = 0\") \n"
-           << "       return \n"
-           << "   end \n";
+    script << "function slow_arc_stop()\n"
+           << "    write_integer_register(675, 0) \n"
+           << "    if read_integer_register(821) ~= 0 then \n"
+           << "        print(string.format(\"收弧异常，超时 : 0x%04X\", read_integer_register(821))) \n"
+           << "        write_integer_register(675, 1) \n"
+           << "        return \n"
+           << "    end \n"
+           << "    laserPower = " << laserHeadParams.laserHeadPeakPower << "\n"
+           << "    closePower  = " << laserPowerParams.laserPowerClose << "\n"
+           << "    closeLightTime  = " << laserPowerParams.laserRampDownTime << "\n"
+           << "    if closeLightTime == 0 then \n"
+           << "        print(\"closeLightTime = 0\") \n"
+           << "        return \n"
+           << "    end \n";
     if (writeWireFeeder)
     {
         script << "   wirefeedeCloseSendSpeed = " << wireFeederParams.wireFeederStopMotorSpeed << "\n"
@@ -996,7 +996,7 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_program_run_script_get(LaserMac
     }
     else if (startSwitch == SWITCH_OFF_LASER_SDK)
     {
-        script += " --slow_arc_stop()\n";
+        script += " slow_arc_stop()\n";
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
