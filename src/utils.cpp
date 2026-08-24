@@ -543,6 +543,25 @@ std::string generateLuaScript(const std::string funcName, const std::string func
             break;
     }
 
+    // P0修复：校验函数名/参数名为合法Lua标识符，防止Lua注入
+    auto isValidLuaIdentifier = [](const std::string& name) -> bool {
+        if (name.empty()) { return false; }
+        char first = name[0];
+        if (!((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_')) { return false; }
+        for (size_t i = 1; i < name.size(); i++) {
+            char c = name[i];
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) { return false; }
+        }
+        return true;
+    };
+    if (!isValidLuaIdentifier(funcName)) {
+        writeLog("generateLuaScript: invalid Lua function name rejected");
+        throw PARAMETER_ERROR_LASER_SDK;
+    }
+    if (!isLiteral && !isValidLuaIdentifier(funcParam)) {
+        writeLog("generateLuaScript: invalid Lua parameter name rejected");
+        throw PARAMETER_ERROR_LASER_SDK;
+    }
     std::ostringstream luaCode;
     luaCode << std::hex << std::setfill('0');
 
