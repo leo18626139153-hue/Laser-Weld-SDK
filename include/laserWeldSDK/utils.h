@@ -40,9 +40,22 @@ LaserSdkResult strToChar(char* script, int* scriptLen, const std::string& genera
 void checkLaserSdkResult(LaserSdkResult result);
 
 /**
- * 将已知的问题写入到日志
+ * @brief SDK 日志级别
  */
-void writeLog(std::string recordingLog);
+enum LogLevelSdk
+{
+    LOG_INFO_LASER_SDK = 0,    ///< 信息级别
+    LOG_WARNING_LASER_SDK = 1, ///< 警告级别
+    LOG_ERROR_LASER_SDK = 2    ///< 错误级别
+};
+
+/**
+ * @brief 写入分级日志：追加模式、带时间戳与级别前缀，超过大小上限自动滚动归档。
+ * @param[in] recordingLog 日志内容
+ * @param[in] level 日志级别，默认 WARNING
+ * @note SDK 为单例单线程设计，本函数不做内部加锁，调用方须串行调用。
+ */
+void writeLog(const std::string& recordingLog, LogLevelSdk level = LOG_WARNING_LASER_SDK);
 
 
 

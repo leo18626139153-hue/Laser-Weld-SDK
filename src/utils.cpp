@@ -2,6 +2,8 @@
 #include <sstream>
 #include <iomanip>
 #include <climits>
+#include <cstdio>
+#include <ctime>
 
 #include "messageprase.h"  // SDK refactor: message assembly moved to C++ layer
 /**
@@ -639,11 +641,61 @@ void checkLaserSdkResult(LaserSdkResult result)
     }
 }
 
-void writeLog(std::string recordingLog)
+/**
+ * @brief 写入分级日志：追加模式，带时间戳与级别前缀，超过大小上限自动滚动归档。
+ * @param[in] recordingLog 日志内容
+ * @param[in] level 日志级别，默认 WARNING
+ * @note SDK 为单例单线程设计，本函数不做内部加锁，调用方须串行调用。
+ */
+void writeLog(const std::string& recordingLog, LogLevelSdk level)
 {
-    std::ofstream file("./logRecord.txt");
-    file << recordingLog;
-    file.close();
+    // 日志文件路径与大小上限
+    static const std::string kLogFilePath = "./logRecord.txt";
+    static const std::string kArchivedLogFilePath = "./logRecord.old.txt";
+    static const std::streamoff kMaxLogFileSize = 2 * 1024 * 1024; // 2MB
+
+    const char* levelText = "WARN";
+    switch (level)
+    {
+        case LOG_INFO_LASER_SDK:    levelText = "INFO"; break;
+        case LOG_WARNING_LASER_SDK: levelText = "WARN"; break;
+        case LOG_ERROR_LASER_SDK:   levelText = "ERROR"; break;
+        default: break;
+    }
+
+    std::ofstream file(kLogFilePath, std::ios::app);
+    if (!file)
+    {
+        return;
+    }
+
+    // 滚动处理：超过大小上限时，先归档旧文件再写入新文件
+    file.seekp(0, std::ios::end);
+    if (file.tellp() >= kMaxLogFileSize)
+    {
+        file.close();
+        std::remove(kArchivedLogFilePath.c_str());
+        std::rename(kLogFilePath.c_str(), kArchivedLogFilePath.c_str());
+        file.open(kLogFilePath, std::ios::app);
+        if (!file)
+        {
+            return;
+        }
+    }
+
+    // 时间戳：YYYY-MM-DD HH:MM:SS（localtime_s/localtime_r 避免非线程安全的 localtime）
+    std::time_t nowTime = std::time(nullptr);
+    std::tm localTime;
+    std::memset(&localTime, 0, sizeof(localTime));
+#ifdef _MSC_VER
+    localtime_s(&localTime, &nowTime);
+#else
+    localtime_r(&nowTime, &localTime);
+#endif
+    char timeBuffer[32] = {0};
+    std::strftime(timeBuffer, sizeof(timeBuffer), "%Y-%m-%d %H:%M:%S", &localTime);
+
+    file << "[" << timeBuffer << "][" << levelText << "] " << recordingLog << "\n";
 }
 
 
