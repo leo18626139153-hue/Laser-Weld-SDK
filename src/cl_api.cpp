@@ -25,6 +25,11 @@ static void checkCrSdkResultOrThrow(const CRresult& errorResult)
 
 LaserSdkResult cl_sdk_version_get(char *version, int *versionLen)
 {
+    // P0修复：入参空指针校验，防止调用方传NULL导致崩溃
+    if (version == nullptr || versionLen == nullptr)
+    {
+        return PARAMETER_ERROR_LASER_SDK;
+    }
     if(*versionLen < sizeof(LASERWELDSDK_VERSION)+1)
     {
         return MEMORY_ERROR_LASER_SDK;
