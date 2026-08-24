@@ -4,71 +4,81 @@
 #include <climits>
 
 #include "messageprase.h"  // SDK refactor: message assembly moved to C++ layer
-std::string strReplace(std::string srcStr, std::array<double,6> vecDouble)
+/**
+ * @brief 单次扫描精确替换%N占位符，按最长数字匹配，避免%1误替换%10等子串问题
+ * @param[in] srcStr 源字符串
+ * @param[in] values 占位符对应的值（字符串形式，索引0对应%1）
+ * @return 替换后的字符串
+ */
+static std::string replacePlaceholdersOnce(const std::string& srcStr, const std::vector<std::string>& values)
 {
-    int vecLen = vecDouble.size();
-    for(int i = vecLen; i >= 1; i--)
+    std::string result;
+    result.reserve(srcStr.size());
+    size_t i = 0;
+    while (i < srcStr.size())
     {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = std::to_string(vecDouble[i-1]);
-        while(true)
+        if (srcStr[i] == '%' && i + 1 < srcStr.size()
+            && srcStr[i + 1] >= '0' && srcStr[i + 1] <= '9')
         {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
+            size_t numStart = i + 1;
+            size_t numEnd = numStart;
+            while (numEnd < srcStr.size() && srcStr[numEnd] >= '0' && srcStr[numEnd] <= '9')
             {
-                break;
+                numEnd++;
+            }
+            int index = 0;
+            bool overflow = false;
+            for (size_t k = numStart; k < numEnd; k++)
+            {
+                int digit = srcStr[k] - '0';
+                if (index > (2147483647 - digit) / 10)
+                {
+                    overflow = true;
+                    break;
+                }
+                index = index * 10 + digit;
+            }
+            if (!overflow && index >= 1 && index <= static_cast<int>(values.size()))
+            {
+                result += values[index - 1];
+                i = numEnd;
+                continue;
             }
         }
+        result += srcStr[i];
+        i++;
     }
-    return srcStr;
+    return result;
+}
+std::string strReplace(std::string srcStr, std::array<double,6> vecDouble)
+{
+    std::vector<std::string> values;
+    for (size_t i = 0; i < vecDouble.size(); i++)
+    {
+        values.push_back(std::to_string(vecDouble[i]));
+    }
+    return replacePlaceholdersOnce(srcStr, values);
 }
 
 
 std::string strReplace(std::string srcStr, std::vector<double> vecDouble)
 {
-    int vecLen = vecDouble.size();
-    for(int i = vecLen; i >= 1; i--)
+    std::vector<std::string> values;
+    for (size_t i = 0; i < vecDouble.size(); i++)
     {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = std::to_string(vecDouble[i-1]);
-        while(true)
-        {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
-            {
-                break;
-            }
-        }
+        values.push_back(std::to_string(vecDouble[i]));
     }
-    return srcStr;
+    return replacePlaceholdersOnce(srcStr, values);
 }
 
 std::string strReplace(std::string srcStr, std::vector<int> vecInt)
 {
-    int vecLen = vecInt.size();
-    for(int i = vecLen; i >= 1; i--)
+    std::vector<std::string> values;
+    for (size_t i = 0; i < vecInt.size(); i++)
     {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = std::to_string(vecInt[i-1]);
-        while(true)
-        {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
-            {
-                break;
-            }
-        }
+        values.push_back(std::to_string(vecInt[i]));
     }
-    return srcStr;
+    return replacePlaceholdersOnce(srcStr, values);
 }
 
 std::string strReplace(std::string srcStr, std::string format, std::string replaceStr)
@@ -158,24 +168,7 @@ std::string strReplace(std::string srcStr, std::string format, float replaceFloa
 
 std::string strReplace(std::string srcStr, std::vector<std::string> vecStr)
 {
-    int vecLen = vecStr.size();
-    for(int i = vecLen; i >= 1; i--)
-    {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = vecStr[i-1];
-        while(true)
-        {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    return srcStr;
+    return replacePlaceholdersOnce(srcStr, vecStr);
 }
 
 std::string point2str(std::vector<double> point)
