@@ -266,8 +266,8 @@ int32_t parse_modbus_register32(const std::string& hexResponse){
     // 数据从第6个字节开始（跳过：长度1+功能码1+地址1+字节数1+CRC2）
     size_t data_start_index = 6;
 
-    if (data_start_index + 2 > bytes.size()) {
-        LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
+    if (data_start_index + 4 > bytes.size()) {
+        throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
     // ---- 第五步：组合int32数据（考虑字节序）----
