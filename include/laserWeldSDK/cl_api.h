@@ -13,9 +13,9 @@
 #endif
 #else
 #ifdef  LASERWELDSDK_LIBRARY
-#define LASERWELDSDK_EXPORT
+#define LASERWELDSDK_EXPORT __attribute__((visibility("default")))
 #else
-#define LASERWELDSDK_EXPORT
+#define LASERWELDSDK_EXPORT __attribute__((visibility("default")))
 #endif
 #endif
 
