@@ -51,26 +51,29 @@ LaserSdkResult writeMessageToRegisters(LaserMachineHandle laserMachineHandle, co
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
-    // 检查寄存器范围
-    if (registerNums > message.size()) {
+    // P0修复：按字节数校验寄存器范围（类型0每寄存器1字节，类型1每寄存器2字节），
+    // 原实现用寄存器个数与字节数直接比较，单位不一致
+    const size_t bytesPerRegister = (registerType == 1) ? 2 : 1;
+    if (static_cast<size_t>(registerNums) * bytesPerRegister > message.size()) {
         writeLog("writeMessageToRegisters: Register range out of bounds");
         return LaserSdkResult::OUT_OF_RANGE_CRSDK_LASER_SDK;
     }
-    // 写入寄存器
+    // 写入寄存器（P0修复：消除对vector内部缓冲的强制类型转换，改为逐字节拷贝组装，避免非对齐访问）
     if (registerType == 0)
     {
-        /* bool */
-        cr_set_boolRegValue(laserMachineHandle, firstRegister, message.size(), (BOOL *)&message);
+        /* bool：展开为独立BOOL数组，避免把vector对象地址强转为BOOL* */
+        std::vector<BOOL> boolValues(message.begin(), message.begin() + registerNums);
+        cr_set_boolRegValue(laserMachineHandle, firstRegister, registerNums, boolValues.data());
     }
     else if (registerType == 1)
     {
-        int tmp_Size = static_cast<int>(message.size());
-        for (int i = 0; i < tmp_Size / 2; i++)
+        for (unsigned int i = 0; i < registerNums; i++)
         {
-            unsigned short tmpValue = *(unsigned short*)&message[i*2];
-            cr_set_int16RegValue(machineResource.robotHandle, firstRegister + i, 1, (int*)tmpValue);
+            /* 逐字节组装16位值，避免unsigned short*强转造成的非对齐访问 */
+            int tmpValue = static_cast<int>(message[i * 2]) |
+                           (static_cast<int>(message[i * 2 + 1]) << 8);
+            cr_set_int16RegValue(machineResource.robotHandle, firstRegister + i, 1, &tmpValue);
         }
-
     }
     else
     {
