@@ -514,18 +514,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     {
         return bufferResult;
     }
-    //将脚本存入示教器日志中
-    else
-    {
-        // 打开文件进行写入
-        std::ofstream outFile("script.txt");
-        if (!outFile) {
-            std::cerr << "无法打开文件进行写入！" << std::endl;
-        }
-        outFile << scripts;
-        // 关闭文件
-        outFile.close();
-    }
     return bufferResult;
 }
 LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
@@ -779,18 +767,6 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         {
             return bufferResult;
         }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-            // 关闭文件
-            outFile.close();
-        }
     }
     catch (const LaserSdkResult& errorResult)
     {
@@ -892,20 +868,6 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         if(bufferResult != SUCCESS_LASER_SDK)
         {
             return bufferResult;
-        }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-
-            // 关闭文件
-            outFile.close();
         }
     }
     catch (const LaserSdkResult& errorResult)
@@ -1032,16 +994,6 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     {
         return bufferResult;
     }
-    else
-    {
-        // 打开文件 写入脚本
-        std::ofstream outFile("device_status_modify_script.txt");
-        if (!outFile) {
-            std::cerr << "无法打开文件进行写入！" << std::endl;
-        }
-        outFile << scripts;
-        outFile.close();
-    }
 
     return SUCCESS_LASER_SDK;
 }
@@ -1057,7 +1009,6 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
             throw HANDLE_ERROR_LASER_SDK;
         }
         MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-        std::cout << "machineResource " << machineResource.laserHeadBrand << std::endl;
         // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
         CommuBase* curCommuFunction = NULL;
         LaserSdkResult commuRes = craft_script_commu_class_get(
@@ -1078,19 +1029,6 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
         if(bufferResult != SUCCESS_LASER_SDK)
         {
             throw bufferResult;
-        }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-            // 关闭文件
-            outFile.close();
-
         }
          return SUCCESS_LASER_SDK;
     }
@@ -1308,18 +1246,6 @@ LaserSdkResult cl_get_instance_function_script(const char* funcName, const char*
         if(bufferResult != SUCCESS_LASER_SDK)
         {
             throw bufferResult;
-        }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-            // 关闭文件
-            outFile.close();
         }
         return SUCCESS_LASER_SDK;
     }

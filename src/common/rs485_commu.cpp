@@ -611,8 +611,11 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
         }
         else
         {
-            std::cerr << "Warning: Missing Lua script for laser address 0x"
-                      << std::hex << addr << std::dec << std::endl;
+            {
+                std::ostringstream oss;
+                oss << "Missing Lua script for laser address 0x" << std::hex << addr << std::dec;
+                writeLog(oss.str(), LOG_WARNING_LASER_SDK);
+            }
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }
     }
@@ -678,8 +681,11 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
         }
         else
         {
-            std::cerr << "Warning: Missing Lua script for address 0x"
-                      << std::hex << addr << std::dec << std::endl;
+            {
+                std::ostringstream oss;
+                oss << "Missing Lua script for address 0x" << std::hex << addr << std::dec;
+                writeLog(oss.str(), LOG_WARNING_LASER_SDK);
+            }
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }
     }
@@ -1044,7 +1050,6 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
     write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(machineResource.laserPowerParams.laserPower)+"\n";
     int craftLeadInPowerPercent = (curCraftInfo.craftLeadInPower*100)/machineResource.laserPowerParams.laserPower;  ///开光功率百分比
     if(craftLeadInPowerPercent < 0 || craftLeadInPowerPercent > 100){
-        std::cout << "craftLeadInPowerPercent out of range" << std::endl;
         writeLog("craft_script_configure_machine_param_set_script_get :: craftLeadInPowerPercent out of range");
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }

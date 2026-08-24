@@ -191,15 +191,13 @@ int16_t* parse_modbus_register(const std::string& hexResponse, const int regInde
     }
     uint8_t dataByteCount = swappedBytes[3];
     int num = dataByteCount / 2;  // 实际寄存器数量
-    std::cout << "Data byte count: " << static_cast<int>(dataByteCount)
-                  << ", Register count: " << num << std::endl;
     // ---- 第六步：提取目标寄存器值 ----
     if (regLen < 1 || regLen > num) {
-        std::cout << "Error: regLen (" << regIndex << ") out of range [1, " << num << "]" << std::endl;
+        writeLog("parse_modbus_register: register index out of range", LOG_ERROR_LASER_SDK);
         throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
     if (regIndex < 1 || regIndex > num) {
-        std::cout << "Error: regIndex (" << regIndex << ") out of range [1, " << num << "]" << std::endl;
+        writeLog("parse_modbus_register: register index out of range", LOG_ERROR_LASER_SDK);
         throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
@@ -254,13 +252,7 @@ int32_t parse_modbus_register32(const std::string& hexResponse){
         throw LaserSdkResult::CALCULATION_RESULT_ILLOGICAL_SDK;
     }
 
-    // 数据长度应该是 2N (N=寄存器数量)
-    uint8_t data_length_2n = bytes[0];
-    uint8_t register_count = data_length_2n / 2;
 
-    std::cout << "Data length (2N): " << static_cast<int>(data_length_2n)
-              << ", Register count: " << static_cast<int>(register_count)
-              << ", Byte count: " << static_cast<int>(byte_count) << std::endl;
 
     // ---- 第四步：提取数据部分 ----
     // 数据从第6个字节开始（跳过：长度1+功能码1+地址1+字节数1+CRC2）
@@ -280,11 +272,6 @@ int32_t parse_modbus_register32(const std::string& hexResponse){
               (static_cast<int32_t>(bytes[data_start_index + 1]) << 8) |
               (static_cast<int32_t>(bytes[data_start_index]));
 
-    std::cout << "Raw data bytes: "
-              << std::hex << static_cast<int>(bytes[data_start_index]) << " "
-              << static_cast<int>(bytes[data_start_index + 1]) << " "
-              << static_cast<int>(bytes[data_start_index + 2]) << " "
-              << static_cast<int>(bytes[data_start_index + 3]) << std::dec << std::endl;
 
     return result;
 }
