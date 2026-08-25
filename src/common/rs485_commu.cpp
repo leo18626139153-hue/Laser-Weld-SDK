@@ -1127,11 +1127,9 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
     machineResource.laserPowerParams.spotWeldIntervalTime = curCraftInfo.craftSpotWeldInterval;
     //  19.写入激光焊接参数、点焊参数
     std::string write_weld_params =
-            "    comNo = 3\n"
-            "    slave_addr = " + writeMultiFuncCode + "\n"
-            "    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数\n"
-            "    write_multi_value_port(laserHeadRegisterMap)  --写入激光头\n"
-            "    write_multi_value_port(spotWeld)              --写入点焊参数\n";
+            "    write_multi_value_port(laserRegisterMap, " + writeMultiFuncCode + ", 3)      --写入激光焊接参数\n"
+            "    write_multi_value_port(laserHeadRegisterMap, " + writeMultiFuncCode + ", 3)  --写入激光头\n"
+            "    write_multi_value_port(spotWeld, " + writeMultiFuncCode + ", 3)              --写入点焊参数\n";
 
     ///< 写入焊接模式
     write_laser_params += adapter.writeLuaScript(writeSingleFuncCode, std::to_string(machineResource.weldingModeLoc), std::to_string(static_cast<int>(curCraftInfo.craftweldMode)), "3", "SendCommuRegAddr", "1");

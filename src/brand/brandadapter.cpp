@@ -297,11 +297,9 @@ bool SupProtocolAdapter::buildConfigureMachineBodyScript(
             break;
     }
     // ---- 批量写调用 ----
-    script << "    comNo = 3\n"
-           << "    slave_addr = " << writeMultiFuncCode << "\n"
-           << "    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数\n"
-           << "    write_multi_value_port(laserHeadRegisterMap)  --写入激光头\n"
-           << "    write_multi_value_port(spotWeld)              --写入点焊参数\n";
+    script << "    write_multi_value_port(laserRegisterMap, " << writeMultiFuncCode << ", 3)      --写入激光焊接参数\n"
+           << "    write_multi_value_port(laserHeadRegisterMap, " << writeMultiFuncCode << ", 3)  --写入激光头\n"
+           << "    write_multi_value_port(spotWeld, " << writeMultiFuncCode << ", 3)              --写入点焊参数\n";
 
     scriptBody = script.str();
     return true;
@@ -512,9 +510,9 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
                 local hex_value = to_hex_string(value)
                 result = result .. hex_value
             elseif type(value) == "table" then
-                local high, low = split_to_bytes(value[1])
-                local high_hex = to_hex_string(high)
-                local low_hex = to_hex_string(low)
+                local byte_pair = Lua_split(value[1])
+                local high_hex = to_hex_string(byte_pair[1])
+                local low_hex = to_hex_string(byte_pair[2])
                 result = result .. high_hex .. low_hex
             end
         end
@@ -598,7 +596,7 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
         end
 
     end
-    function write_multi_value_port(addr_value_map)
+    function write_multi_value_port(addr_value_map, slave_addr, comNo)
         -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
         bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
         register_clear(RecvCommuRegAddr, RecvCommuReg_n)
