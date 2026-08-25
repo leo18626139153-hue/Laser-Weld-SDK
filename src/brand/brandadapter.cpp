@@ -221,22 +221,21 @@ std::vector<BrandRegisterRole> SupProtocolAdapter::craftWireFeederRoles(WeldingP
     return roles;
 }
 
-std::string SupProtocolAdapter::writeLuaScript(const std::string& functionCode,
+std::string BrandProtocolAdapter::writeLuaScript(const std::string& functionCode,
                                                 const std::string& portAddress,
                                                 const std::string& paramValue,
                                                 const std::string& portNum,
                                                 const std::string& firstRegisterNum,
                                                 const std::string& receiptNeed) const
 {
-    // 【修改理由】从 utils.h 移到品牌适配器层，后续子品牌可重写为不同Lua函数格式（如不同函数名、参数顺序）。
-    // 【逻辑】生成 write_value_port Lua 调用行，参数依次为：功能码、地址、值、端口、起始寄存器、回执标志。
+    // 修改理由: 默认实现统一生成 write_value_port 调用, 各品牌无差异时复用, 避免逐字重复.
+    // 逻辑: 参数依次为功能码、地址、值、端口、起始寄存器、回执标志; 子品牌可覆写定制.
     std::ostringstream writeScript;
     writeScript << "    write_value_port(" << functionCode << "," << portAddress << ","
                 << paramValue << "," << portNum << "," << firstRegisterNum << ","
                 << receiptNeed << ")\n";
     return writeScript.str();
 }
-
 bool SupProtocolAdapter::buildConfigureMachineBodyScript(
     const MachineResource& machineResource,
     const CraftInfoLaserSdk& craftInfo,
@@ -324,69 +323,7 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
     //   数据表属于超强品牌地址规则, 不应硬编码在通讯层 initData() 中.
     // 逻辑: 返回超强品牌的 Lua 数据表定义, 通讯层拼接通用工具函数后输出完整初始化脚本.
     std::ostringstream script;
-//    // ---- 激光器寄存器数据表 ----
-//    script << "laserRegisterMap = {\n"
-//           << "    {0x0001, 0, 0x0001},\n"
-//           << "    {0x0002, 0, 0x0002},\n"
-//           << "    {0x0003, 0, 0x0003},\n"
-//           << "    {0x0004, 0, 0x0004},\n"
-//           << "    {0x0005, 0, 0x0005},\n"
-//           << "    {0x0006, 0, 0x0006},\n"
-//           << "    {0x0007, 0, 0x0007},\n"
-//           << "    {0x0008, 0, 0x0008},\n"
-//           << "    {0x0009, 0, 0x0009},\n"
-//           << "    {0x000A, 0, 0x000A},\n"
-//           << "    {0x000B, 0, 0x000B},\n"
-//           << "    {0x000C, 0, 0x000C},\n"
-//           << "}\n\n";
 
-//    // ---- 送丝机寄存器数据表 ----
-//    script << "wireRegisterMap = {\n"
-//           << "    {0x0100, 0, 0x0100},\n"
-//           << "    {0x0101, 0, 0x0101},\n"
-//           << "    {0x0102, 0, 0x0102},\n"
-//           << "    {0x0103, 0, 0x0103},\n"
-//           << "    {0x0104, 0, 0x0104},\n"
-//           << "    {0x0105, 0, 0x0105},\n"
-//           << "    {0x0106, 0, 0x0106},\n"
-//           << "    {0x0107, 0, 0x0107},\n"
-//           << "    {0x0108, 0, 0x0108},\n"
-//           << "    {0x0109, 0, 0x0109},\n"
-//           << "    {0x010A, 0, 0x010A},\n"
-//           << "    {0x010B, 0, 0x010B},\n"
-//           << "    {0x010C, 0, 0x010C},\n"
-//           << "    {0x010D, 0, 0x010D},\n"
-//           << "    {0x010E, 0, 0x010E},\n"
-//           << "    {0x010F, 0, 0x010F},\n"
-//           << "    {0x0110, 0, 0x0110},\n"
-//           << "    {0x0111, 0, 0x0111},\n"
-//           << "    {0x0112, 0, 0x0112},\n"
-//           << "    {0x0113, 0, 0x0113},\n"
-//           << "    {0x0114, 0, 0x0114},\n"
-//           << "    {0x0115, 0, 0x0115},\n"
-//           << "}\n\n";
-
-//    // ---- 点焊参数数据表 ----
-//    script << "spotWeld = {\n"
-//           << "    {0x0020, 0, 0x0020},\n"
-//           << "    {0x0021, 0, 0x0021},\n"
-//           << "    {0x0022, 0, 0x0022},\n"
-//           << "}\n\n";
-
-//    // ---- 激光头寄存器数据表 ----
-//    script << "laserHeadRegisterMap = {\n"
-//           << "    {0x0030, 0, 0x0030},\n"
-//           << "    {0x0031, 0, 0x0031},\n"
-//           << "    {0x0032, 0, 0x0032},\n"
-//           << "    {0x0033, 0, 0x0033},\n"
-//           << "    {0x0034, 0, 0x0034},\n"
-//           << "    {0x0035, 0, 0x0035},\n"
-//           << "    {0x0036, 0, 0x0036},\n"
-//           << "    {0x0037, 0, 0x0037},\n"
-//           << "}\n";
-
-
-    //组装最终要下发执行的脚本
     std::string commandListStartData =
     R"(--激光器工艺
     local laserRegisterMap = {
@@ -411,7 +348,7 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
         [4] = {0x0106, 0},    --补丝延时
 
         [100] = {0x0100, 123},  --自动送丝速度
-        [115] = {)" + std::to_string(GetBrandProtocolAdapter(LaserHeadBrandSdk::CQLASERPOWER_SDK).registerInfo(BrandRegisterRole::WireFeederRunStatus).writeAddr) + R"(, 0},    --送丝机运行状态
+        [115] = {)" + std::to_string(registerInfo(BrandRegisterRole::WireFeederRunStatus).writeAddr) + R"(, 0},    --送丝机运行状态
     }
     --点焊工艺
     local spotWeld = {
@@ -822,20 +759,6 @@ std::vector<BrandRegisterRole> BcxOmniProtocolAdapter::craftWireFeederRoles(Weld
     return roles;
 }
 
-std::string BcxOmniProtocolAdapter::writeLuaScript(const std::string& functionCode,
-                                                    const std::string& portAddress,
-                                                    const std::string& paramValue,
-                                                    const std::string& portNum,
-                                                    const std::string& firstRegisterNum,
-                                                    const std::string& receiptNeed) const
-{
-    std::ostringstream writeScript;
-    writeScript << "    write_value_port(" << functionCode << "," << portAddress << ","
-                << paramValue << "," << portNum << "," << firstRegisterNum << ","
-                << receiptNeed << ")\n";
-    return writeScript.str();
-}
-
 bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
     const MachineResource& machineResource,
     const CraftInfoLaserSdk& craftInfo,
@@ -876,15 +799,6 @@ bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
     currentParameters[LaserParam::ScaleFactorX] = static_cast<uint16_t>(pw.laserHeadXEnlarge * 100);
     currentParameters[LaserParam::ScaleFactorY] = static_cast<uint16_t>(pw.laserHeadYEnlarge * 100);
 
-    // ModbusBuildResult builderResult =
-    //     LaserModbusRtuBuilder::BuildChangedWriteFrames(currentParameters, m_lastAppliedParameters, 0x5A);
-
-    // if (!builderResult.success )
-    // {
-    //     scriptBody = builderResult.errorMessage;
-    //     return false;
-    // }
-    //const ModbusWriteFrame &frame = builderResult.frames.front();
 
     std::ostringstream script;
     // 生成脚本：遍历变化的帧
@@ -905,13 +819,7 @@ bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
 
 void BcxOmniProtocolAdapter::BeginNewSession()
 {
-//    /*
-//     * 新连接建立后，不能继续使用旧连接的成功下发记录。
-//     *
-//     * 因为无法确定板卡是否重启、掉电或恢复默认参数。
-//     */
-//    m_lastAppliedParameters.clear();
-//    m_firstSynchronization = true;
+    // 宝辰鑫采用全量寄存器写入, 不维护跨会话增量同步状态, 此处无需清理.
 }
 
 bool BcxOmniProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType weldingType) const

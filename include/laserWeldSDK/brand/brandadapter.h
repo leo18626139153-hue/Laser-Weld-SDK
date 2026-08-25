@@ -145,7 +145,7 @@ public:
                                        const std::string& paramValue,
                                        const std::string& portNum,
                                        const std::string& firstRegisterNum,
-                                       const std::string& receiptNeed) const = 0;
+                                       const std::string& receiptNeed) const;
 
     /**
      * @brief 生成工艺参数配置的Lua脚本体（品牌特有部分）
@@ -209,13 +209,6 @@ public:
     bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
     int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
     std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
-    std::string writeLuaScript(
-        const std::string& functionCode, 
-        const std::string& portAddress,
-        const std::string& paramValue,
-        const std::string& portNum,
-        const std::string& firstRegisterNum,
-        const std::string& receiptNeed) const override;
 
     bool buildConfigureMachineBodyScript(
         const MachineResource& machineResource, 
@@ -249,12 +242,6 @@ public:
     bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
     int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
     std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
-        std::string writeLuaScript(const std::string& functionCode, 
-        const std::string& portAddress,
-        const std::string& paramValue,
-        const std::string& portNum,
-        const std::string& firstRegisterNum,
-        const std::string& receiptNeed) const override;
     bool buildConfigureMachineBodyScript(
         const MachineResource& machineResource,
         const CraftInfoLaserSdk& craftInfo, 
