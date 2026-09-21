@@ -30,10 +30,14 @@ enum Sup26AdLocalRegister
     SUP26AD_DUTY_CYCLE = 76,
     SUP26AD_PWM_HIGH = 77,
     SUP26AD_PWM_LOW = 78,
-    SUP26AD_LASER_ON_POWER = 79,
-    SUP26AD_RAMP_UP_TIME = 80,
-    SUP26AD_LASER_OFF_POWER = 81,
-    SUP26AD_RAMP_DOWN_TIME = 82
+    SUP26AD_WIRE_FEED_SPEED = 79,
+    SUP26AD_WIRE_FEED_SWITCH = 80,
+    SUP26AD_WIRE_RETRACT_LENGTH = 81,
+    SUP26AD_WIRE_STICK_LENGTH = 82,
+    SUP26AD_LASER_ON_POWER = 83,
+    SUP26AD_RAMP_UP_TIME = 84,
+    SUP26AD_LASER_OFF_POWER = 85,
+    SUP26AD_RAMP_DOWN_TIME = 86
 };
 
 int sup26AdPatternValue(SpotPatternLaserSdk pattern)
@@ -54,6 +58,7 @@ int sup26AdScanFrequency(const CraftInfoLaserSdk& craftInfo)
     switch (craftInfo.graphicsSwitching)
     {
     case SpotPatternLaserSdk::CIR_LASERSDK:
+    case SpotPatternLaserSdk::DOUBLE_CIRCLE_LASERSDK:
         frequency = speed / (PI * width);
         break;
     case SpotPatternLaserSdk::LINE_LASERSDK:
@@ -77,14 +82,15 @@ int sup26AdScanFrequency(const CraftInfoLaserSdk& craftInfo)
 
 int sup26AdMaxScanFrequency(const CraftInfoLaserSdk& craftInfo)
 {
-    // SUP26AD(150聚焦) 协议表，当前UI只开放宽度0.1~5.0mm和六种图形。
-    static const int limits[6][5] = {
+    // SUP26AD(150聚焦) 协议表，当前UI开放宽度0.1~5.0mm和0~6七种图形。
+    static const int limits[7][5] = {
         {500, 500, 500, 500, 400}, // 圆
         {500, 450, 350, 300, 200}, // 8字
         {500, 500, 500, 500, 500}, // 一字
         {400, 400, 400, 400, 350}, // 四尖瓣
         {500, 500, 500, 500, 400}, // 三尖瓣
-        {400, 400, 400, 300, 250}  // 十字
+        {400, 400, 400, 300, 250}, // 十字
+        {500, 500, 500, 500, 450}  // 双圆
     };
     const double graphSize = craftInfo.craftScanWidth > craftInfo.craftScanHeight
             ? craftInfo.craftScanWidth : craftInfo.craftScanHeight;
@@ -765,7 +771,7 @@ LaserSdkResult Sup26AdProtocolAdapter::checkCraft(const CraftInfoLaserSdk& craft
 
     const int pattern = static_cast<int>(craftInfo.graphicsSwitching);
     if (pattern < static_cast<int>(SpotPatternLaserSdk::CIR_LASERSDK)
-            || pattern > static_cast<int>(SpotPatternLaserSdk::TRIANGLE_LASERSDK))
+            || pattern > static_cast<int>(SpotPatternLaserSdk::DOUBLE_CIRCLE_LASERSDK))
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
 
     const int frequency = sup26AdScanFrequency(craftInfo);
@@ -781,6 +787,9 @@ LaserSdkResult Sup26AdProtocolAdapter::checkCraft(const CraftInfoLaserSdk& craft
             || craftInfo.craftPostGasTime < 0 || craftInfo.craftPostGasTime > 3000
             || craftInfo.craftLeadInRampTime < 0 || craftInfo.craftLeadInRampTime > 2000
             || craftInfo.craftLeadOutRampDistance < 0
+            || craftInfo.craftWeldingWireFeed < 0 || craftInfo.craftWeldingWireFeed > 600
+            || craftInfo.craftRetractionLength < 0 || craftInfo.craftRetractionLength > 200
+            || craftInfo.craftEndLoopbackLength < 0 || craftInfo.craftEndLoopbackLength > 200
             || !std::isfinite(craftInfo.craftWeldingSpeed)
             || craftInfo.craftWeldingSpeed <= 0.0)
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
@@ -872,6 +881,7 @@ bool Sup26AdProtocolAdapter::buildConfigureMachineBodyScript(
     appendSup26AdWrite(script, SUP26AD_POST_GAS_TIME, craftInfo.craftPostGasTime);
     appendSup26AdWrite(script, SUP26AD_SPOT_DURATION, craftInfo.craftSpotWeldDuration);
     appendSup26AdWrite(script, SUP26AD_SPOT_INTERVAL, craftInfo.craftSpotWeldInterval);
+    // 0x123C 固定专家模式，确保0x139E~0x13A5及渐进参数生效。
     appendSup26AdWrite(script, SUP26AD_EXPERT_MODE, 1);
     appendSup26AdWrite(script, SUP26AD_PATTERN,
                        sup26AdPatternValue(craftInfo.graphicsSwitching));
@@ -887,6 +897,15 @@ bool Sup26AdProtocolAdapter::buildConfigureMachineBodyScript(
                        static_cast<int>((pwmFrequency >> 16) & 0xFFFFu));
     appendSup26AdWrite(script, SUP26AD_PWM_LOW,
                        static_cast<int>(pwmFrequency & 0xFFFFu));
+    appendSup26AdWrite(script, SUP26AD_WIRE_FEED_SPEED,
+                       craftInfo.craftWeldingWireFeed);
+    appendSup26AdWrite(script, SUP26AD_WIRE_FEED_SWITCH,
+                       machineResource.weldingProcessType
+                       == WeldingProcessType::WIRE_WELDING_LASERSDK ? 1 : 0);
+    appendSup26AdWrite(script, SUP26AD_WIRE_RETRACT_LENGTH,
+                       craftInfo.craftRetractionLength);
+    appendSup26AdWrite(script, SUP26AD_WIRE_STICK_LENGTH,
+                       craftInfo.craftEndLoopbackLength);
     appendSup26AdWrite(script, SUP26AD_LASER_ON_POWER, laserOnPowerPercent);
     appendSup26AdWrite(script, SUP26AD_RAMP_UP_TIME, craftInfo.craftLeadInRampTime);
     appendSup26AdWrite(script, SUP26AD_LASER_OFF_POWER, laserOffPowerPercent);

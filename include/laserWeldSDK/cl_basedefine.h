@@ -163,7 +163,8 @@ enum SpotPatternLaserSdk
     LINE_LASERSDK = 2,      ///< 水平线（参数：长度mm）
     STAR_LASERSDK = 3,      ///< 正方形（参数：边长mm）
     CROSS_LASERSDK = 4,     ///< 十字形（参数：边长mm）
-    TRIANGLE_LASERSDK = 5   ///< 等边三角形（参数：边长mm）
+    TRIANGLE_LASERSDK = 5,  ///< 等边三角形（参数：边长mm）
+    DOUBLE_CIRCLE_LASERSDK = 6 ///< 双圆（SUP26AD）
 };
 
 ///< 激光头工艺参数
