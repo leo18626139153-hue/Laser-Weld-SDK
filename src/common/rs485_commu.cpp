@@ -424,12 +424,13 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    const bool controlBcxWireFeeder =
-            machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK
+    const bool controlWireThroughDigitalOutput =
+            GetBrandProtocolAdapter(machineResource.laserHeadBrand)
+                .controlsWireThroughDigitalOutput()
             && machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK;
-    const std::string wireFeederEnableScript = controlBcxWireFeeder
+    const std::string wireFeederEnableScript = controlWireThroughDigitalOutput
             ? "                set_configurable_digital_out(2, true)  ---CO2 = 1\n" : "";
-    const std::string wireFeederDisableScript = controlBcxWireFeeder
+    const std::string wireFeederDisableScript = controlWireThroughDigitalOutput
             ? "                    set_configurable_digital_out(2, false)  ---CO2 = 0\n" : "";
     std::string writeFunction;
     std::string dataFunction;
@@ -1045,6 +1046,12 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
     //超强激光头参数的判断
     res = adapter.checkCraft(curCraftInfo);
     if(res != LaserSdkResult::SUCCESS_LASER_SDK)    return res;
+    if (adapter.usesMappedSlaveRegisters())
+    {
+        // 映射从站只写机器人本地寄存器，禁止落入SUP25A自由通讯报文路径。
+        return craft_script_configure_machine_param_set_script_get(
+                    laserMachineHandle, curCraftInfo, script);
+    }
     //  3. 激光参数赋值
     std::string write_laser_params;
     write_laser_params += "    laserRegisterMap[1][2] = "+ std::to_string(machineResource.laserPowerParams.laserPower)+"\n";

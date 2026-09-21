@@ -9,6 +9,97 @@ const double BCX_CENTER_OFFSET_MAX_MM = 15.0;
 const double BCX_CENTER_OFFSET_SCALE = 100.0;
 const int BCX_RAMP_TIME_MAX_MS = 9999;
 
+enum Sup26AdLocalRegister
+{
+    SUP26AD_Y_SCALE = 60,
+    SUP26AD_Y_OFFSET = 61,
+    SUP26AD_X_SCALE = 62,
+    SUP26AD_X_OFFSET = 63,
+    SUP26AD_WELD_MODE = 64,
+    SUP26AD_PRE_GAS_TIME = 65,
+    SUP26AD_POST_GAS_TIME = 66,
+    SUP26AD_SPOT_DURATION = 67,
+    SUP26AD_SPOT_INTERVAL = 68,
+    SUP26AD_EXPERT_MODE = 69,
+    SUP26AD_PATTERN = 70,
+    SUP26AD_SCAN_FREQUENCY = 71,
+    SUP26AD_SCAN_WIDTH = 72,
+    SUP26AD_SCAN_HEIGHT = 73,
+    SUP26AD_ROTATION_ANGLE = 74,
+    SUP26AD_PEAK_POWER = 75,
+    SUP26AD_DUTY_CYCLE = 76,
+    SUP26AD_PWM_HIGH = 77,
+    SUP26AD_PWM_LOW = 78,
+    SUP26AD_LASER_ON_POWER = 79,
+    SUP26AD_RAMP_UP_TIME = 80,
+    SUP26AD_LASER_OFF_POWER = 81,
+    SUP26AD_RAMP_DOWN_TIME = 82
+};
+
+int sup26AdPatternValue(SpotPatternLaserSdk pattern)
+{
+    if (pattern == SpotPatternLaserSdk::TRIANGLE_LASERSDK)
+        return 4;
+    if (pattern == SpotPatternLaserSdk::CROSS_LASERSDK)
+        return 5;
+    return static_cast<int>(pattern);
+}
+
+int sup26AdScanFrequency(const CraftInfoLaserSdk& craftInfo)
+{
+    const double width = craftInfo.craftScanWidth;
+    const double height = craftInfo.craftScanHeight;
+    const double speed = static_cast<double>(craftInfo.craftScanSpeed);
+    double frequency = 0.0;
+    switch (craftInfo.graphicsSwitching)
+    {
+    case SpotPatternLaserSdk::CIR_LASERSDK:
+        frequency = speed / (PI * width);
+        break;
+    case SpotPatternLaserSdk::LINE_LASERSDK:
+        frequency = speed / (width * 2.0);
+        break;
+    case SpotPatternLaserSdk::STAR_LASERSDK:
+        frequency = speed * 2.0 / (3.0 * (width + height));
+        break;
+    case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
+        frequency = speed * 2.0 / (PI * (width + height));
+        break;
+    case SpotPatternLaserSdk::CROSS_LASERSDK:
+        frequency = speed / (width * 2.0 + height * 2.0);
+        break;
+    case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
+        frequency = speed / (3.0 * width);
+        break;
+    }
+    return static_cast<int>(std::lround(frequency));
+}
+
+int sup26AdMaxScanFrequency(const CraftInfoLaserSdk& craftInfo)
+{
+    // SUP26AD(150聚焦) 协议表，当前UI只开放宽度0.1~5.0mm和六种图形。
+    static const int limits[6][5] = {
+        {500, 500, 500, 500, 400}, // 圆
+        {500, 450, 350, 300, 200}, // 8字
+        {500, 500, 500, 500, 500}, // 一字
+        {400, 400, 400, 400, 350}, // 四尖瓣
+        {500, 500, 500, 500, 400}, // 三尖瓣
+        {400, 400, 400, 300, 250}  // 十字
+    };
+    const double graphSize = craftInfo.craftScanWidth > craftInfo.craftScanHeight
+            ? craftInfo.craftScanWidth : craftInfo.craftScanHeight;
+    int sizeIndex = static_cast<int>(std::ceil(graphSize)) - 1;
+    if (sizeIndex < 0) sizeIndex = 0;
+    if (sizeIndex > 4) sizeIndex = 4;
+    const int patternIndex = sup26AdPatternValue(craftInfo.graphicsSwitching);
+    return limits[patternIndex][sizeIndex];
+}
+
+void appendSup26AdWrite(std::ostringstream& script, int address, int value)
+{
+    script << "    write_int16_register(" << address << ", " << value << ")\n";
+}
+
 /**
  * @brief 将宝辰鑫中心偏移转换为寄存器有符号整数。
  * @param offsetMm 中心偏移，单位mm。
@@ -236,6 +327,7 @@ std::string BrandProtocolAdapter::writeLuaScript(const std::string& functionCode
                 << receiptNeed << ")\n";
     return writeScript.str();
 }
+
 bool SupProtocolAdapter::buildConfigureMachineBodyScript(
     const MachineResource& machineResource,
     const CraftInfoLaserSdk& craftInfo,
@@ -622,10 +714,202 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
 
     // 【修改理由】移除了 lua_data_get（零引用僵尸函数）和 alarm_bits_list（状态监控已注释）
     // 【逻辑】其余函数按依赖顺序拼接：基础工具 → 数据表 → 变量 → CRC → 拆分 → 清空 → 串口读写
-    script.str() += commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear
-     + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port;
+    script << commandListStartData << startData << swap_bytes << modbus_crc16
+           << lua_split << register_clear << concatenate_crc
+           << parse_little_endian_bytes << writeHex2Commu_reg << task_write_port;
 
     return script.str();
+}
+
+//----------------------------------------------------------------
+// 超强 SUP26AD 品牌适配器
+
+LaserHeadBrandSdk Sup26AdProtocolAdapter::brand() const
+{
+    return LaserHeadBrandSdk::CQ_SUP26AD_LASERPOWER_SDK;
+}
+
+BrandProtocolProfile Sup26AdProtocolAdapter::profile() const
+{
+    BrandProtocolProfile result;
+    result.slaveAddr = 0x09;
+    result.readFuncCode = 0x03;
+    result.writeSingleFuncCode = 0x06;
+    result.writeMultiFuncCode = 0x10;
+    result.laserWriteSingleScriptCode = 0x0906;
+    result.wireFeederWriteSingleScriptCode = 0x0906;
+    result.writeMultiScriptCode = 0x0910;
+    result.baudRate = 115200;
+    result.dataBits = 8;
+    result.stopBits = 1;
+    return result;
+}
+
+LaserSdkResult Sup26AdProtocolAdapter::checkCraft(const CraftInfoLaserSdk& craftInfo) const
+{
+    const int peakPower = craftInfo.laserHeadPeakPower;
+    if (peakPower <= 0
+            || craftInfo.craftLaserPower <= 0
+            || craftInfo.craftLaserPower > peakPower
+            || craftInfo.craftLeadInPower < 0
+            || craftInfo.craftLeadInPower > craftInfo.craftLaserPower
+            || craftInfo.craftLeadOutPower < 0
+            || craftInfo.craftLeadOutPower > craftInfo.craftLaserPower)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    if (!std::isfinite(craftInfo.craftScanWidth)
+            || !std::isfinite(craftInfo.craftScanHeight)
+            || craftInfo.craftScanWidth < 0.1 || craftInfo.craftScanWidth > 5.0
+            || craftInfo.craftScanHeight < 0.1 || craftInfo.craftScanHeight > 5.0)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    const int pattern = static_cast<int>(craftInfo.graphicsSwitching);
+    if (pattern < static_cast<int>(SpotPatternLaserSdk::CIR_LASERSDK)
+            || pattern > static_cast<int>(SpotPatternLaserSdk::TRIANGLE_LASERSDK))
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    const int frequency = sup26AdScanFrequency(craftInfo);
+    if (frequency < 10 || frequency > sup26AdMaxScanFrequency(craftInfo))
+        return LaserSdkResult::PARAM_SCAN_FREQUENCY_ERROR_LASER_SDK;
+
+    if (craftInfo.craftYAxisZoom < 0.01 || craftInfo.craftYAxisZoom > 4.0
+            || craftInfo.craftXAxisZoom < 0.01 || craftInfo.craftXAxisZoom > 4.0
+            || craftInfo.craftYAxisOffset < -3.0 || craftInfo.craftYAxisOffset > 3.0
+            || craftInfo.craftXAxisOffset < -3.0 || craftInfo.craftXAxisOffset > 3.0
+            || craftInfo.craftRotationAngle < 0 || craftInfo.craftRotationAngle > 360
+            || craftInfo.craftPreGasTime < 0 || craftInfo.craftPreGasTime > 3000
+            || craftInfo.craftPostGasTime < 0 || craftInfo.craftPostGasTime > 3000
+            || craftInfo.craftLeadInRampTime < 0 || craftInfo.craftLeadInRampTime > 2000
+            || craftInfo.craftLeadOutRampDistance < 0
+            || !std::isfinite(craftInfo.craftWeldingSpeed)
+            || craftInfo.craftWeldingSpeed <= 0.0)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    const double rampDownTime = craftInfo.craftLeadOutRampDistance * 1000.0
+            / craftInfo.craftWeldingSpeed;
+    if (!std::isfinite(rampDownTime) || rampDownTime > 2000.0)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+bool Sup26AdProtocolAdapter::hasRegister(BrandRegisterRole role) const
+{
+    return registerInfo(role).writeAddr != INVALID_REGISTER_ADDR;
+}
+
+BrandRegisterInfo Sup26AdProtocolAdapter::registerInfo(BrandRegisterRole role) const
+{
+    switch (role)
+    {
+    case BrandRegisterRole::GasValveSignal:
+        return makeRegister(0x1061, 0x1061);
+    case BrandRegisterRole::LaserOnOff:
+        return makeRegister(0x1060, 0x1060);
+    default:
+        return makeRegister(INVALID_REGISTER_ADDR, INVALID_REGISTER_ADDR,
+                            int16Reg, 1.0, false);
+    }
+}
+
+bool Sup26AdProtocolAdapter::allowWireFeederWrite(
+        WeldingProcessType weldingType, BrandRegisterRole role) const
+{
+    (void)weldingType;
+    (void)role;
+    return false;
+}
+
+int Sup26AdProtocolAdapter::wireFeederRunStatusValue(
+        WeldingProcessType weldingType) const
+{
+    (void)weldingType;
+    return 0;
+}
+
+std::vector<BrandRegisterRole> Sup26AdProtocolAdapter::craftWireFeederRoles(
+        WeldingProcessType weldingType) const
+{
+    (void)weldingType;
+    return std::vector<BrandRegisterRole>();
+}
+
+bool Sup26AdProtocolAdapter::buildConfigureMachineBodyScript(
+        const MachineResource& machineResource,
+        const CraftInfoLaserSdk& craftInfo,
+        std::string& scriptBody) const
+{
+    const CgxiLaserHeadLaserSdk& head = machineResource.laserHeadParams;
+    const uint32_t pwmFrequency =
+            (static_cast<uint32_t>(head.laserHeadHighPulseFrequency) << 16)
+            | (static_cast<uint32_t>(head.laserHeadLowPulseFrequency) & 0xFFFFu);
+    const int rampDownTime = static_cast<int>(std::lround(
+            craftInfo.craftLeadOutRampDistance * 1000.0
+            / craftInfo.craftWeldingSpeed));
+    const int weldingPower = craftInfo.craftLaserPower;
+    if (weldingPower <= 0)
+    {
+        return false;
+    }
+    const int laserOnPowerPercent = static_cast<int>(std::lround(
+            static_cast<double>(craftInfo.craftLeadInPower) * 100.0
+            / static_cast<double>(weldingPower)));
+    const int laserOffPowerPercent = static_cast<int>(std::lround(
+            static_cast<double>(craftInfo.craftLeadOutPower) * 100.0
+            / static_cast<double>(weldingPower)));
+
+    std::ostringstream script;
+    appendSup26AdWrite(script, SUP26AD_Y_SCALE,
+                       static_cast<int>(std::lround(craftInfo.craftYAxisZoom * 100.0)));
+    appendSup26AdWrite(script, SUP26AD_Y_OFFSET,
+                       static_cast<int>(std::lround(craftInfo.craftYAxisOffset * 100.0)));
+    appendSup26AdWrite(script, SUP26AD_X_SCALE,
+                       static_cast<int>(std::lround(craftInfo.craftXAxisZoom * 100.0)));
+    appendSup26AdWrite(script, SUP26AD_X_OFFSET,
+                       static_cast<int>(std::lround(craftInfo.craftXAxisOffset * 100.0)));
+    appendSup26AdWrite(script, SUP26AD_WELD_MODE,
+                       craftInfo.craftweldMode == WeldModeLaserSdk::SPOT_LASER_SDK ? 1 : 0);
+    appendSup26AdWrite(script, SUP26AD_PRE_GAS_TIME, craftInfo.craftPreGasTime);
+    appendSup26AdWrite(script, SUP26AD_POST_GAS_TIME, craftInfo.craftPostGasTime);
+    appendSup26AdWrite(script, SUP26AD_SPOT_DURATION, craftInfo.craftSpotWeldDuration);
+    appendSup26AdWrite(script, SUP26AD_SPOT_INTERVAL, craftInfo.craftSpotWeldInterval);
+    appendSup26AdWrite(script, SUP26AD_EXPERT_MODE, 1);
+    appendSup26AdWrite(script, SUP26AD_PATTERN,
+                       sup26AdPatternValue(craftInfo.graphicsSwitching));
+    appendSup26AdWrite(script, SUP26AD_SCAN_FREQUENCY, sup26AdScanFrequency(craftInfo));
+    appendSup26AdWrite(script, SUP26AD_SCAN_WIDTH,
+                       static_cast<int>(std::lround(craftInfo.craftScanWidth * 10.0)));
+    appendSup26AdWrite(script, SUP26AD_SCAN_HEIGHT,
+                       static_cast<int>(std::lround(craftInfo.craftScanHeight * 10.0)));
+    appendSup26AdWrite(script, SUP26AD_ROTATION_ANGLE, craftInfo.craftRotationAngle);
+    appendSup26AdWrite(script, SUP26AD_PEAK_POWER, craftInfo.craftLaserPower);
+    appendSup26AdWrite(script, SUP26AD_DUTY_CYCLE, head.laserHeadDutyCycle);
+    appendSup26AdWrite(script, SUP26AD_PWM_HIGH,
+                       static_cast<int>((pwmFrequency >> 16) & 0xFFFFu));
+    appendSup26AdWrite(script, SUP26AD_PWM_LOW,
+                       static_cast<int>(pwmFrequency & 0xFFFFu));
+    appendSup26AdWrite(script, SUP26AD_LASER_ON_POWER, laserOnPowerPercent);
+    appendSup26AdWrite(script, SUP26AD_RAMP_UP_TIME, craftInfo.craftLeadInRampTime);
+    appendSup26AdWrite(script, SUP26AD_LASER_OFF_POWER, laserOffPowerPercent);
+    appendSup26AdWrite(script, SUP26AD_RAMP_DOWN_TIME, rampDownTime);
+    scriptBody = script.str();
+    return true;
+}
+
+bool Sup26AdProtocolAdapter::shouldGenerateWireFeederScript(
+        WeldingProcessType weldingType) const
+{
+    (void)weldingType;
+    return false;
+}
+
+void Sup26AdProtocolAdapter::BeginNewSession()
+{
+    // SUP26AD 仅写本地映射寄存器，不复用 SUP25A 的自由通讯会话状态。
+}
+
+std::string Sup26AdProtocolAdapter::buildInitLuaFunc() const
+{
+    return std::string();
 }
 
 //----------------------------------------------------------------
@@ -866,6 +1150,7 @@ const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand)
     // 1. 已知品牌返回对应静态适配器.
     // 2. 未知品牌默认返回超强适配器, 保持历史默认行为.
     static const SupProtocolAdapter supAdapter;
+    static const Sup26AdProtocolAdapter sup26AdAdapter;
     static const OsrpProtocolAdapter osrpAdapter;
     static const BcxOmniProtocolAdapter bcxAdapter;
     switch (brand)
@@ -876,6 +1161,8 @@ const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand)
         return osrpAdapter;
     case LaserHeadBrandSdk::BCXLASERPOWER_SDK:
         return bcxAdapter;
+    case LaserHeadBrandSdk::CQ_SUP26AD_LASERPOWER_SDK:
+        return sup26AdAdapter;
     default:
         return supAdapter;
     }

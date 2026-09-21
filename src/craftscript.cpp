@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "messageprase.h"
 #include "rs485_commu.h"
+#include "brand/brandadapter.h"
 #include <sstream>
 #include <mutex>
 #include <random>
@@ -114,7 +115,8 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
 
     // BCX 内控由焊板在使能下降沿触发，SDK 只负责在降功率点关闭外部使能。
     // 送丝焊同时关闭 CO2，避免降功率阶段继续送丝；自融焊不输出 CO2。
-    if (machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+    if (GetBrandProtocolAdapter(machineResource.laserHeadBrand)
+            .usesBoardManagedRampDown())
     {
         if (machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK)
         {
@@ -423,7 +425,8 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   std::to_string(transitionRadius));
                 // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
                 if (splitRampDown
-                        && machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+                        && GetBrandProtocolAdapter(machineResource.laserHeadBrand)
+                           .usesBoardManagedRampDown())
                 {
                     result = appendRampDownControl(laserMachineHandle, machineResource,
                                                    *craftCommu, environment.policy, bodyScriptText);
@@ -522,7 +525,8 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   std::to_string(transitionRadius), "0");
                 // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
                 if (splitRampDown
-                        && machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+                        && GetBrandProtocolAdapter(machineResource.laserHeadBrand)
+                           .usesBoardManagedRampDown())
                 {
                     result = appendRampDownControl(laserMachineHandle, machineResource,
                                                    *craftCommu, environment.policy, bodyScriptText);

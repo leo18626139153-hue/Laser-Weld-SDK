@@ -190,6 +190,15 @@ public:
      * @return 品牌特有的Lua数据表定义脚本字符串
      */
     virtual std::string buildInitLuaFunc() const = 0;
+
+    /** @brief true表示工艺参数通过机器人本地映射寄存器下发。 */
+    virtual bool usesMappedSlaveRegisters() const { return false; }
+
+    /** @brief true表示板卡自行完成缓降，SDK不再生成轨迹分段缓降。 */
+    virtual bool usesBoardManagedRampDown() const { return false; }
+
+    /** @brief true表示正式焊接的送丝启停由板卡数字输出管理。 */
+    virtual bool controlsWireThroughDigitalOutput() const { return false; }
 };
 
 /**
@@ -253,6 +262,36 @@ public:
     void BeginNewSession() override;
 
     std::string buildInitLuaFunc() const override;
+    bool usesMappedSlaveRegisters() const override { return true; }
+    bool usesBoardManagedRampDown() const override { return true; }
+    bool controlsWireThroughDigitalOutput() const override { return true; }
+};
+
+/**
+ * @brief 超强伟业 SUP26AD 映射从站协议适配器
+ *
+ * 仅下发现有工艺使用的参数。送丝机设备参数由应用的设备页通过
+ * 独立从站一次性写入，不进入工艺脚本。
+ */
+class Sup26AdProtocolAdapter : public BrandProtocolAdapter
+{
+public:
+    LaserHeadBrandSdk brand() const override;
+    BrandProtocolProfile profile() const override;
+    LaserSdkResult checkCraft(const CraftInfoLaserSdk& craftInfo) const override;
+    bool hasRegister(BrandRegisterRole role) const override;
+    BrandRegisterInfo registerInfo(BrandRegisterRole role) const override;
+    bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
+    int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
+    std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
+    bool buildConfigureMachineBodyScript(
+        const MachineResource& machineResource,
+        const CraftInfoLaserSdk& craftInfo,
+        std::string& scriptBody) const override;
+    bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const override;
+    void BeginNewSession() override;
+    std::string buildInitLuaFunc() const override;
+    bool usesMappedSlaveRegisters() const override { return true; }
 };
 
 /**
