@@ -3,7 +3,7 @@
 
 #include "internaldatadefine.h"
 #include "utils.h"
-#include "laserModbusRtuBuilder.h"
+#include "lasermodbusrtubuilder.h"
 #include <vector>
 
 using ParamMap = LaserModbusRtuBuilder::ParamMap;

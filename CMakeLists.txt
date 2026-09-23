@@ -70,6 +70,7 @@ set(SOURCES
     src/messageprase.cpp
     src/utils.cpp
     src/brand/brandadapter.cpp
+    include/laserWeldSDK/brand/lasermodbusrtubuilder.cpp
     src/common/base_commu.cpp
     src/common/rs485_commu.cpp
 )

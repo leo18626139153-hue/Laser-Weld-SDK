@@ -57,9 +57,9 @@ message(STATUS "SDK_ARCH        : ${SDK_ARCH}")
 set(CRSDK_ROOT "${CMAKE_SOURCE_DIR}/third_party/cr_sdk")
 
 # 定义每个 SDK_ARCH 对应的 cr_sdk 库目录（相对于 CRSDK_ROOT）
-set(CRSDK_DIR_x86_64-win  "${CRSDK_ROOT}/windows/libs/x64")
-set(CRSDK_DIR_arm32       "${CRSDK_ROOT}/arm/libs")
-set(CRSDK_DIR_aarch64     "${CRSDK_ROOT}/aarch64/libs")
+set(CRSDK_DIR_x86_64-win  "${CRSDK_ROOT}/libs/x64")
+set(CRSDK_DIR_arm32       "${CRSDK_ROOT}/libs/arm")
+set(CRSDK_DIR_aarch64     "${CRSDK_ROOT}/libs/AARCH64-Release")
 
 # 头文件目录（所有架构共用）
 set(CRSDK_INCLUDE_DIR "${CRSDK_ROOT}/include")
