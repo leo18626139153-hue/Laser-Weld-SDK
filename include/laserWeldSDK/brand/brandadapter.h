@@ -292,6 +292,21 @@ public:
     void BeginNewSession() override;
     std::string buildInitLuaFunc() const override;
     bool usesMappedSlaveRegisters() const override { return true; }
+
+    /**
+     * @brief 缓降是否由板卡自行完成（与宝辰鑫一致）
+     *
+     * 【修改理由】SUP26AD 与 BCX 同属映射从站品牌：工艺参数与控制只能通过机器人本地寄存器下发，
+     *   不接受 write_value_port 自由通讯报文。此前未覆盖本开关（默认 false），
+     *   craftscript.cpp 的 appendRampDownControl 会按超强外控品牌生成 slow_arc_stop()：
+     *   内部用 write_value_port(0x0906/0x0910, 超强地址, ...) 发报文，并用 task_create 创建后台任务。
+     *   报文对映射从站板卡无效，而后台任务与 wait() 会让机器人程序一直停留在运行状态、无法停止。
+     * 【逻辑】声明缓降由板卡按已写入的 RAMP_DOWN_TIME / LASER_OFF_POWER 寄存器自行完成，
+     *   SDK 只在降功率点关闭外部使能 CO1（送丝焊且由数字输出管理送丝时同时关闭 CO2），
+     *   不再生成任何报文脚本，与宝辰鑫内控缓降行为一致。
+     * @return true 表示缓降由板卡内控
+     */
+    bool usesBoardManagedRampDown() const override { return true; }
 };
 
 /**

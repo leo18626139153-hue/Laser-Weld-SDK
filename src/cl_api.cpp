@@ -4,6 +4,7 @@
 #include "rs485_commu.h"
 #include "messageprase.h"
 #include "clmath.h"
+#include "brandadapter.h"
 #include <functional>
 #include <thread>
 #include <chrono>
@@ -696,6 +697,39 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
 
     try
     {
+        // 【修改理由】SUP26AD / 宝辰鑫 属于映射从站品牌，参数与控制只能写机器人本地寄存器，
+        //   不能生成 write_value_port 自由通讯报文脚本。
+        //   缓升参数（开光功率、缓升时间）已由工艺下发写入板卡寄存器，此处只输出数字输出动作，
+        //   由板卡按寄存器参数自行完成内控缓升；否则报文对板卡无效，且 task_create 的后台任务
+        //   会让机器人程序一直处于运行状态无法停止。
+        // 【逻辑】CO0 开气/开光 → 送丝焊且由数字输出管送丝时 CO2 开送丝 → CO1 开激光使能，
+        //   与宝辰鑫 arc_start 的时序保持一致；脚本外壳仍为 arcStartProgram + task_create，
+        //   保证上层调用方式不变。
+        const BrandProtocolAdapter& slowAdapter =
+                GetBrandProtocolAdapter(machineResource.laserHeadBrand);
+        if (slowAdapter.usesMappedSlaveRegisters())
+        {
+            const bool wireWelding =
+                    machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK;
+            std::string mappedBody = "function arcStartProgram()\n"
+                                     "    set_configurable_digital_out(0, true)  ---CO0 = 1\n";
+            if (wireWelding && slowAdapter.controlsWireThroughDigitalOutput())
+            {
+                mappedBody += "    set_configurable_digital_out(2, true)  ---CO2 = 1\n";
+            }
+            mappedBody += "    set_configurable_digital_out(1, true)  ---CO1 = 1\n"
+                          "end\n"
+                          "arcStartProgram_Result=task_create(arcStartProgram)\n";
+            std::string mappedFuncScript =
+                    curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);
+            scriptGet = mappedFuncScript + mappedBody;
+            LaserSdkResult mappedBufferResult = strToChar(scripts, scriptLen, scriptGet);
+            if(mappedBufferResult != SUCCESS_LASER_SDK)
+            {
+                return mappedBufferResult;
+            }
+            return SUCCESS_LASER_SDK;
+        }
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
@@ -816,6 +850,35 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
     std::string scriptGet;
     try
     {
+        // 【修改理由】SUP26AD / 宝辰鑫 属于映射从站品牌，缓降只能由板卡按寄存器参数内控完成，
+        //   不能生成 write_value_port 逐步降功率的报文脚本，也不能创建后台缓降任务。
+        // 【逻辑】缓降参数（关光功率、缓降时间）已由工艺下发写入板卡寄存器；
+        //   此处只在降功率点关闭 CO1（送丝焊且由数字输出管送丝时同时关闭 CO2），
+        //   由板卡使能下降沿触发内控缓降，与宝辰鑫 appendRampDownControl 的内控分支一致。
+        const BrandProtocolAdapter& slowAdapter =
+                GetBrandProtocolAdapter(machineResource.laserHeadBrand);
+        if (slowAdapter.usesMappedSlaveRegisters())
+        {
+            const bool wireWelding =
+                    machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK;
+            std::string mappedBody = "function arcStartProgram()\n";
+            if (wireWelding && slowAdapter.controlsWireThroughDigitalOutput())
+            {
+                mappedBody += "    set_configurable_digital_out(2, false)  ---CO2 = 0\n";
+            }
+            mappedBody += "    set_configurable_digital_out(1, false)  ---CO1 = 0\n"
+                          "end\n"
+                          "arcStartProgram_Result=task_create(arcStartProgram)\n";
+            std::string mappedFuncScript =
+                    curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);
+            scriptGet = mappedFuncScript + mappedBody;
+            LaserSdkResult mappedBufferResult = strToChar(scripts, scriptLen, scriptGet);
+            if(mappedBufferResult != SUCCESS_LASER_SDK)
+            {
+                return mappedBufferResult;
+            }
+            return SUCCESS_LASER_SDK;
+        }
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
