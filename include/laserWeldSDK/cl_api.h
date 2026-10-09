@@ -19,7 +19,7 @@
 #endif
 #endif
 
-#define LASERWELDSDK_VERSION "v1.2.3-5"
+#define LASERWELDSDK_VERSION "v1.2.3-5-fix"
 
 /**
  * @warning SDK当前不支持同一进程内并发调用。调用方必须串行化所有接口，
