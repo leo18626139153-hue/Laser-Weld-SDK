@@ -687,7 +687,7 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
 
     // 【修改理由】移除了 lua_data_get（零引用僵尸函数）和 alarm_bits_list（状态监控已注释）
     // 【逻辑】其余函数按依赖顺序拼接：基础工具 → 数据表 → 变量 → CRC → 拆分 → 清空 → 串口读写
-    script.str() += commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear
+    script <<  commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear
      + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port;
 
     return script.str();
