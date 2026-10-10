@@ -456,13 +456,15 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
             --检测开始信号
             if true then
                 set_configurable_digital_out(0, true)  ---CO0 = 1
-        )" + wireFeederEnableScript + R"(                set_configurable_digital_out(1, true)  ---CO1 = 1
+        )" + wireFeederEnableScript + R"(
+                set_configurable_digital_out(1, true)  ---CO1 = 1
                 print("起弧成功")
                 break
             else
                 retry_times = retry_times - 1
                 if(retry_times < 1) then
-        )" + wireFeederDisableScript + R"(                    set_configurable_digital_out(1, false)  ---CO1 = 0
+        )" + wireFeederDisableScript + R"(
+                    set_configurable_digital_out(1, false)  ---CO1 = 0
                     set_configurable_digital_out(0, false)  ---CO0 = 0
                     print("起弧失败")
                     --送气使能关
