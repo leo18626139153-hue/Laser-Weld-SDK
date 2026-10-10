@@ -296,10 +296,11 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 if (machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
                 {
                     std::ostringstream oss;
-                    oss << "set_configurable_digital_out(1, false)\n"
-                        << parameterScript
-                        << "set_configurable_digital_out(1, true)\n"
-                        << "wait(" << machineResource.laserPowerParams.gasStartupAdvanceTime << ")\n";
+                    oss << "--CQLASERPOWER_SDK\n"
+                        << parameterScript;
+//                        /<< "--set_configurable_digital_out(1, false)\n"
+//                        /<< "--set_configurable_digital_out(1, true)\n"
+//                        /<< "--wait(" << machineResource.laserPowerParams.gasStartupAdvanceTime << ")\n";
                     bodyScriptText += oss.str();
                 }
                 else
