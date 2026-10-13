@@ -33,7 +33,7 @@
 #define CR6_ISTALL_VAR_NAME_LENGTH 100
 #define CR6_INSTALL_VAR_MAX_LENGTH  100
 #define CR6_INSTALL_VAE_TABLE_MAX_LENGTH 10000
-#define Script_MAX_TableElement 500
+#define Script_MAX_TableElement 1000
 #define Script_MAX_DataLen 100
 #define Global_Var_Max_Num 100  ///读全局变量最大个数
 #define Set_Global_Var_Max_Num 1 ///写读全局变量最大个数
@@ -263,7 +263,7 @@ typedef enum RobotModes
     ///运动
     Jog = 100,                            ///< 点动
     Teach = 101,                          ///< 拖动示教
-    ForceControlTest = 102,               ///< 力控测试
+    SDK_Moving = 102,                     ///< SDK运动
     ProgramStop = 103,                    ///< 使能完成，程序停止
     ProgramPause = 104,                   ///< 使能完成，程序暂停
     ProgramStopping = 105,                ///< 使能完成，程序和运动正在停止
@@ -412,7 +412,7 @@ typedef struct RobotLogMsg
     unsigned int robotMessageCode;      ///<消息代码
     unsigned int robotMessageType;      ///<消息类型
     enum CommMessageSource source;      ///<消息来源
-    char textMessage[200];              ///<消息信息
+    char textMessage[400];              ///<消息信息
     WorldTime worldTime;                ///<时间戳
     enum WarningLevel warningLevel;     ///<警告等级
     RobotModes robotMode;               ///<机器人状态
@@ -446,7 +446,8 @@ typedef enum BaudRate
   BaudRate1200000 = 19,           ///波特率为1200000Baud
   BaudRate1500000 = 20,           ///波特率为1500000Baud
   BaudRate2400000 = 21,           ///波特率为2400000Baud
-  BaudRate3000000 = 22            ///波特率为3000000Baud
+  BaudRate3000000 = 22,           ///波特率为3000000Baud
+  BaudRate460800 = 23             ///波特率为460800Baud
 }BaudRate;
 typedef enum  ParityCheck
 {
@@ -778,19 +779,20 @@ typedef struct IPConfig
 }IPConfig;
 typedef enum ModbusMasterFunctionNo
 {
-    ReadBool = 0,         ///读位寄存器
-    WriteBool = 1,        ///写位寄存器
-    ReadInt16 = 2,        ///读16位整数寄存器
-    WriteInt16 = 3,       ///写16位整数寄存器
-    ReadInt32 = 4,        ///读32位整数寄存器
-    WriteInt32 = 5,       ///写32位整数寄存器
-    ReadFloat = 6,        ///读浮点寄存器
-    WriteFloat = 7,       ///写浮点寄存器
-
-    ReadWriteBool = 8,    ///预留
-    ReadWriteInt16 = 9,   ///预留
-    ReadWriteInt32 = 10,  ///预留
-    ReadWriteFloat = 11   ///预留
+    ReadBool = 0,               /// (01)读位寄存器
+    WriteBool = 1,              /// (15)写位寄存器
+    ReadInt16 = 2,              /// (03)读16位整数寄存器
+    WriteInt16 = 3,             /// (16)写16位整数寄存器
+    ReadInt32 = 4,              /// (03)读32位整数寄存器
+    WriteInt32 = 5,             /// (16)写32位整数寄存器
+    ReadFloat = 6,              /// (03)读浮点寄存器
+    WriteFloat = 7,             /// (16)写浮点寄存器
+    ReadDiscreteBool = 8,       /// (02)读位寄存器
+    ReadDiscreteInt16 = 9,      /// (04)读16位整数寄存器
+    ReadDiscreteInt32 = 10,     /// (04)读32位整数寄存器
+    ReadDiscreteFloat = 11,     /// (04)读浮点寄存器
+    WriteSingleBool = 12,       /// (05)写位寄存器
+    WriteSingleInt16 = 13      /// (06)写16位整数寄存器
 }ModbusMasterFunctionNo;  ///modbusMaster函数功能码
 
 
@@ -851,13 +853,13 @@ typedef struct PathPoint
 {
     double pose[ROB_AXIS_NUM];                  ///<坐标点向量:x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     double jointpos[ROB_AXIS_NUM];              ///<关节角度：关节1~6（单位：°）
+    double exjData[ROB_AXIS_NUM];               ///<扩展轴数据；扩展轴1~6，只在透传时有效
 }PathPoint;
-
 
 typedef struct PathPara  ///<轨迹参数
 {
-    int index;          ///<轨迹索引 下载时：0~9
-    int moveType;       ///<运动轨迹类型，0-透传，1-样条，3-movex
+    int index;          ///<轨迹索引 上传时：-1~49，下载时：0~49
+    int moveType;       ///<运动轨迹类型，0-透传，1-样条，3-movex, 4-关节再现
     double speed; 		///<速度  moveType为3时有效
     double acc; 		///<加速度 moveType为3时有效
     double blendRadius; ///<过渡半径 moveType为3时有效
@@ -868,6 +870,7 @@ typedef struct PathData     ///<轨迹数据
     PathPoint *pathPoints;  ///<轨迹序列数据
     int pathPointsNum;      ///<轨迹数量
     int moveTime;           ///<运动时间  moveType为1时有效,2~10000,单位:ms
+    int exjNum;             ///<实际扩展轴数量，只有透传时有效，非透传时需要设置为0
 }PathData;
 
 typedef struct PathDownloadData  ///<下载轨迹数据
@@ -1109,6 +1112,14 @@ typedef struct MechanicalUnitConfig
     int refExjCount;                                     ///< 机械单元中扩展轴数量,最多为6个
     RefExjConfig refExjConfig[REF_EXJ_CONFIG_MAX_NUM];   ///< 机械单元中扩展轴配置
 }MechanicalUnitConfig;
+
+/// 机械臂报警时锁存的数据
+typedef struct AlarmData
+{
+    int alarmCode;  ///< 报警代码
+    double tcpPosition[ROB_AXIS_NUM];    ///< 报警时位姿数据：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
+    double jointPosition[ROB_EXJOG_AXIS_NUM]; ///< 报警时关节及10个扩展轴数据：关节1~6（单位：°）, e0,e1...e9（单位：mm或°）
+}AlarmData;
 
 enum CoPdoType
 {

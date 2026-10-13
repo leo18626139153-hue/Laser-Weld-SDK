@@ -140,11 +140,11 @@ win32 {
     message("-- platform: Windows")
     equals(SDK_ARCH, x64) {
         message("-- link cr_sdk: windows x64")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/windows/libs/x64
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/x64
         exists($$CRSDK_LIB_DIR/cr_sdk.lib) {
             LIBS += -L$$CRSDK_LIB_DIR -lcr_sdk
             DEPENDPATH += $$CRSDK_LIB_DIR
-            INCLUDEPATH += $$CRSDK_ROOT/windows/include
+            INCLUDEPATH += $$CRSDK_ROOT/include
         } else {
             error("Can not find Windows x64 cr_sdk.lib: $$CRSDK_LIB_DIR")
         }
@@ -152,11 +152,11 @@ win32 {
 
     equals(SDK_ARCH, x86) {
         message("-- link cr_sdk: windows x86")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/windows/libs/x86
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/x86
         exists($$CRSDK_LIB_DIR/cr_sdk.lib) {
             LIBS += -L$$CRSDK_LIB_DIR -lcr_sdk
             DEPENDPATH += $$CRSDK_LIB_DIR
-            INCLUDEPATH += $$CRSDK_ROOT/windows/include
+            INCLUDEPATH += $$CRSDK_ROOT/include
         } else {
             error("Can not find Windows x86 cr_sdk.lib: $$CRSDK_LIB_DIR")
         }
@@ -171,8 +171,8 @@ unix:!macx {
 
     equals(SDK_ARCH, arm32) {
         message("-- link cr_sdk: linux arm32")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/arm/libs
-        CRSDK_INC_DIR = $$CRSDK_ROOT/arm/include
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/arm
+        CRSDK_INC_DIR = $$CRSDK_ROOT/include
         exists($$CRSDK_LIB_DIR/libcr_sdk.so) {
             INCLUDEPATH += $$CRSDK_INC_DIR
             DEPENDPATH += $$CRSDK_LIB_DIR
@@ -192,8 +192,8 @@ unix:!macx {
 
     equals(SDK_ARCH, aarch64) {
         message("-- link cr_sdk: linux aarch64")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/aarch64/libs
-        CRSDK_INC_DIR = $$CRSDK_ROOT/aarch64/include
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/AARCH64-Release
+        CRSDK_INC_DIR = $$CRSDK_ROOT/include
         exists($$CRSDK_LIB_DIR/libcr_sdk.so) {
             INCLUDEPATH += $$CRSDK_INC_DIR
             DEPENDPATH += $$CRSDK_LIB_DIR
