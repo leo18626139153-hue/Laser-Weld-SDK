@@ -887,10 +887,8 @@ void CommuRS485::init_multiple_registers_value(std::string multipleRegistersValu
         startLuaScripts.emplace("multipleRegistersValue", multipleRegistersValue); //写多个寄存器的初始化变量
         return;
     }
-    // 【修改理由】删除与 initData() 中完全重复的 40+ 行数据表定义（laserRegisterMap/wireRegisterMap/spotWeld/laserHeadRegisterMap）
-    // 【逻辑】initData() 已将4个数据表写入 loadLuaFunctionScript（持久存在，不会被 loadLuaFunctionScriptOut(machineResource.laserHeadBrand) 擦除）
-    //   因此每次脚本输出都自动包含表的初始定义，init_multiple_registers_value("") 无需重复添加
-    //   非空参数路径保留，用于外部调用者注入自定义初始化数据
+    // 参数数组已由统一编译链按当前配置直接生成，空输入无需维护固定地址 Lua 表。
+    // 非空输入仍可注入调用方提供的初始化片段，保留此兼容入口。
 }
 
 /** @brief 动态工艺修改复用同一参数编译链路，不使用固定地址Lua表。 */

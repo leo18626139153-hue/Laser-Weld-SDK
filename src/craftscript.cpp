@@ -114,7 +114,7 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
 
     bodyScriptText += " --SLOW_DOWN--\n";
 
-    // BCX 内控由焊板在使能下降沿触发，SDK 只负责在降功率点关闭外部使能。
+    // 映射通道的板卡在使能下降沿执行内控缓降，SDK 在降功率点关闭外部使能。
     // 送丝焊同时关闭 CO2，避免降功率阶段继续送丝；自融焊不输出 CO2。
     if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
     {
@@ -415,7 +415,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 bodyScriptText += strMoveLReplace(doubleArray2Str(endPoint->pose, 6),
                                                   std::to_string(speed), std::to_string(acc),
                                                   std::to_string(transitionRadius));
-                // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
+                // 映射通道缓降距离为零时不拆轨迹，在焊接终点触发板卡内控缓降。
                 if (splitRampDown
                         && laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
                 {
@@ -514,7 +514,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   doubleArray2Str(endPoint->joint, 6),
                                                   std::to_string(speed), std::to_string(acc),
                                                   std::to_string(transitionRadius), "0");
-                // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
+                // 映射通道缓降距离为零时不拆轨迹，在焊接终点触发板卡内控缓降。
                 if (splitRampDown
                         && laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
                 {
