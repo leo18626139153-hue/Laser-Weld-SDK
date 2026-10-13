@@ -2,73 +2,85 @@
 #include <sstream>
 #include <iomanip>
 #include <climits>
+#include <cstdio>
+#include <ctime>
 
 #include "messageprase.h"  // SDK refactor: message assembly moved to C++ layer
-std::string strReplace(std::string srcStr, std::array<double,6> vecDouble)
+/**
+ * @brief 单次扫描精确替换%N占位符，按最长数字匹配，避免%1误替换%10等子串问题
+ * @param[in] srcStr 源字符串
+ * @param[in] values 占位符对应的值（字符串形式，索引0对应%1）
+ * @return 替换后的字符串
+ */
+static std::string replacePlaceholdersOnce(const std::string& srcStr, const std::vector<std::string>& values)
 {
-    int vecLen = vecDouble.size();
-    for(int i = vecLen; i >= 1; i--)
+    std::string result;
+    result.reserve(srcStr.size());
+    size_t i = 0;
+    while (i < srcStr.size())
     {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = std::to_string(vecDouble[i-1]);
-        while(true)
+        if (srcStr[i] == '%' && i + 1 < srcStr.size()
+            && srcStr[i + 1] >= '0' && srcStr[i + 1] <= '9')
         {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
+            size_t numStart = i + 1;
+            size_t numEnd = numStart;
+            while (numEnd < srcStr.size() && srcStr[numEnd] >= '0' && srcStr[numEnd] <= '9')
             {
-                break;
+                numEnd++;
+            }
+            int index = 0;
+            bool overflow = false;
+            for (size_t k = numStart; k < numEnd; k++)
+            {
+                int digit = srcStr[k] - '0';
+                if (index > (2147483647 - digit) / 10)
+                {
+                    overflow = true;
+                    break;
+                }
+                index = index * 10 + digit;
+            }
+            if (!overflow && index >= 1 && index <= static_cast<int>(values.size()))
+            {
+                result += values[index - 1];
+                i = numEnd;
+                continue;
             }
         }
+        result += srcStr[i];
+        i++;
     }
-    return srcStr;
+    return result;
+}
+std::string strReplace(std::string srcStr, std::array<double,6> vecDouble)
+{
+    std::vector<std::string> values;
+    for (size_t i = 0; i < vecDouble.size(); i++)
+    {
+        values.push_back(std::to_string(vecDouble[i]));
+    }
+    return replacePlaceholdersOnce(srcStr, values);
 }
 
 
 std::string strReplace(std::string srcStr, std::vector<double> vecDouble)
 {
-    int vecLen = vecDouble.size();
-    for(int i = vecLen; i >= 1; i--)
+    std::vector<std::string> values;
+    for (size_t i = 0; i < vecDouble.size(); i++)
     {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = std::to_string(vecDouble[i-1]);
-        while(true)
-        {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
-            {
-                break;
-            }
-        }
+        values.push_back(std::to_string(vecDouble[i]));
     }
-    return srcStr;
+    return replacePlaceholdersOnce(srcStr, values);
 }
 
 std::string strReplace(std::string srcStr, std::vector<int> vecInt)
 {
-    int vecLen = vecInt.size();
-    for(int i = vecLen; i >= 1; i--)
+    std::vector<std::string> values;
+    for (size_t i = 0; i < vecInt.size(); i++)
     {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = std::to_string(vecInt[i-1]);
-        while(true)
-        {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
-            {
-                break;
-            }
-        }
+        values.push_back(std::to_string(vecInt[i]));
     }
-    return srcStr;
+    return replacePlaceholdersOnce(srcStr, values);
 }
 
 std::string strReplace(std::string srcStr, std::string format, std::string replaceStr)
@@ -158,24 +170,7 @@ std::string strReplace(std::string srcStr, std::string format, float replaceFloa
 
 std::string strReplace(std::string srcStr, std::vector<std::string> vecStr)
 {
-    int vecLen = vecStr.size();
-    for(int i = vecLen; i >= 1; i--)
-    {
-        std::string format = "%" + std::to_string(i);
-        std::string replaceStr = vecStr[i-1];
-        while(true)
-        {
-            size_t pos = srcStr.find(format);
-            if (pos != std::string::npos) {
-                srcStr.replace(pos, format.length(), replaceStr);
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    return srcStr;
+    return replacePlaceholdersOnce(srcStr, vecStr);
 }
 
 std::string point2str(std::vector<double> point)
@@ -550,6 +545,25 @@ std::string generateLuaScript(const std::string funcName, const std::string func
             break;
     }
 
+    // P0修复：校验函数名/参数名为合法Lua标识符，防止Lua注入
+    auto isValidLuaIdentifier = [](const std::string& name) -> bool {
+        if (name.empty()) { return false; }
+        char first = name[0];
+        if (!((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_')) { return false; }
+        for (size_t i = 1; i < name.size(); i++) {
+            char c = name[i];
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) { return false; }
+        }
+        return true;
+    };
+    if (!isValidLuaIdentifier(funcName)) {
+        writeLog("generateLuaScript: invalid Lua function name rejected");
+        throw PARAMETER_ERROR_LASER_SDK;
+    }
+    if (!isLiteral && !isValidLuaIdentifier(funcParam)) {
+        writeLog("generateLuaScript: invalid Lua parameter name rejected");
+        throw PARAMETER_ERROR_LASER_SDK;
+    }
     std::ostringstream luaCode;
     luaCode << std::hex << std::setfill('0');
 
@@ -627,11 +641,61 @@ void checkLaserSdkResult(LaserSdkResult result)
     }
 }
 
-void writeLog(std::string recordingLog)
+/**
+ * @brief 写入分级日志：追加模式，带时间戳与级别前缀，超过大小上限自动滚动归档。
+ * @param[in] recordingLog 日志内容
+ * @param[in] level 日志级别，默认 WARNING
+ * @note SDK 为单例单线程设计，本函数不做内部加锁，调用方须串行调用。
+ */
+void writeLog(const std::string& recordingLog, LogLevelSdk level)
 {
-    std::ofstream file("./logRecord.txt");
-    file << recordingLog;
-    file.close();
+    // 日志文件路径与大小上限
+    static const std::string kLogFilePath = "./logRecord.txt";
+    static const std::string kArchivedLogFilePath = "./logRecord.old.txt";
+    static const std::streamoff kMaxLogFileSize = 2 * 1024 * 1024; // 2MB
+
+    const char* levelText = "WARN";
+    switch (level)
+    {
+        case LOG_INFO_LASER_SDK:    levelText = "INFO"; break;
+        case LOG_WARNING_LASER_SDK: levelText = "WARN"; break;
+        case LOG_ERROR_LASER_SDK:   levelText = "ERROR"; break;
+        default: break;
+    }
+
+    std::ofstream file(kLogFilePath, std::ios::app);
+    if (!file)
+    {
+        return;
+    }
+
+    // 滚动处理：超过大小上限时，先归档旧文件再写入新文件
+    file.seekp(0, std::ios::end);
+    if (file.tellp() >= kMaxLogFileSize)
+    {
+        file.close();
+        std::remove(kArchivedLogFilePath.c_str());
+        std::rename(kLogFilePath.c_str(), kArchivedLogFilePath.c_str());
+        file.open(kLogFilePath, std::ios::app);
+        if (!file)
+        {
+            return;
+        }
+    }
+
+    // 时间戳：YYYY-MM-DD HH:MM:SS（localtime_s/localtime_r 避免非线程安全的 localtime）
+    std::time_t nowTime = std::time(nullptr);
+    std::tm localTime;
+    std::memset(&localTime, 0, sizeof(localTime));
+#ifdef _MSC_VER
+    localtime_s(&localTime, &nowTime);
+#else
+    localtime_r(&nowTime, &localTime);
+#endif
+    char timeBuffer[32] = {0};
+    std::strftime(timeBuffer, sizeof(timeBuffer), "%Y-%m-%d %H:%M:%S", &localTime);
+
+    file << "[" << timeBuffer << "][" << levelText << "] " << recordingLog << "\n";
 }
 
 

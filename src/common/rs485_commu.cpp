@@ -642,7 +642,7 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
             {
                 std::ostringstream oss;
                 oss << "Missing Lua script for laser address 0x" << std::hex << addr << std::dec;
-                writeLog(oss.str());
+                writeLog(oss.str(), LOG_WARNING_LASER_SDK);
             }
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }
@@ -712,7 +712,7 @@ LaserSdkResult CommuRS485::craft_laser_head_param_set_script_get(LaserMachineHan
             {
                 std::ostringstream oss;
                 oss << "Missing Lua script for address 0x" << std::hex << addr << std::dec;
-                writeLog(oss.str());
+                writeLog(oss.str(), LOG_WARNING_LASER_SDK);
             }
             return LaserSdkResult::PARAMETER_ERROR_LASER_SDK;
         }

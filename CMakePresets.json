@@ -1,0 +1,76 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "win-x64",
+      "displayName": "Windows x64 (Ninja + MSVC 2017+)",
+      "description": "本机构建 win-x64，需要先 call vcvarsall.bat amd64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/win-x64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "SDK_ARCH": "x86_64-win"
+      }
+    },
+    {
+      "name": "arm32",
+      "displayName": "Linux ARM32 (交叉编译 arm-linux-gnueabihf)",
+      "description": "在 Ubuntu host 上交叉编译 ARM32，需 sudo apt install g++-arm-linux-gnueabihf",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/arm32",
+      "toolchainFile": "${sourceDir}/cmake/toolchain_arm32.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SDK_ARCH": "arm32"
+      }
+    },
+    {
+      "name": "aarch64",
+      "displayName": "Linux AArch64 (交叉编译 aarch64-linux-gnu)",
+      "description": "在 Ubuntu host 上交叉编译 AArch64，需 sudo apt install g++-aarch64-linux-gnu",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/aarch64",
+      "toolchainFile": "${sourceDir}/cmake/toolchain_aarch64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SDK_ARCH": "aarch64"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "win-x64",
+      "configurePreset": "win-x64",
+      "configuration": "Release"
+    },
+    {
+      "name": "arm32",
+      "configurePreset": "arm32",
+      "configuration": "Release"
+    },
+    {
+      "name": "aarch64",
+      "configurePreset": "aarch64",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "win-x64",
+      "configurePreset": "win-x64",
+      "configuration": "Release"
+    },
+    {
+      "name": "arm32",
+      "configurePreset": "arm32",
+      "configuration": "Release"
+    },
+    {
+      "name": "aarch64",
+      "configurePreset": "aarch64",
+      "configuration": "Release"
+    }
+  ]
+}

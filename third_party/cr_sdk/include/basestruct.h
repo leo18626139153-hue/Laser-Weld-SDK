@@ -33,7 +33,7 @@
 #define CR6_ISTALL_VAR_NAME_LENGTH 100
 #define CR6_INSTALL_VAR_MAX_LENGTH  100
 #define CR6_INSTALL_VAE_TABLE_MAX_LENGTH 10000
-#define Script_MAX_TableElement 500
+#define Script_MAX_TableElement 1000
 #define Script_MAX_DataLen 100
 #define Global_Var_Max_Num 100  ///读全局变量最大个数
 #define Set_Global_Var_Max_Num 1 ///写读全局变量最大个数
@@ -59,6 +59,7 @@
 #define LOG_RPC_MAX_NUM 10
 #define MOVECPOINT_NUM 2
 #define PATHMAXPOINTS 10000   ///<轨迹最大数量为10000个点
+#define PATH_SIGNAL_MAX_NUM 8 ///<轨迹记录信号配置最大个数
 
 #define VERSION_MAX_LENGTH 50
 
@@ -263,7 +264,7 @@ typedef enum RobotModes
     ///运动
     Jog = 100,                            ///< 点动
     Teach = 101,                          ///< 拖动示教
-    ForceControlTest = 102,               ///< 力控测试
+    SDK_Moving = 102,                     ///< SDK运动
     ProgramStop = 103,                    ///< 使能完成，程序停止
     ProgramPause = 104,                   ///< 使能完成，程序暂停
     ProgramStopping = 105,                ///< 使能完成，程序和运动正在停止
@@ -407,12 +408,21 @@ typedef struct  WorldTime
     unsigned int milliSecond;        /// 毫秒
 }WorldTime;
 
+///控制柜上电运行时长
+typedef struct ControllerUptime
+{
+    unsigned long long days;    ///< 运行天数
+    unsigned int hours;         ///< 运行小时数(0-23)
+    unsigned int minutes;       ///< 运行分钟数 (0-59)
+    unsigned int seconds;       ///< 运行秒数 (0-59)
+} ControllerUptime;
+
 typedef struct RobotLogMsg
 {
     unsigned int robotMessageCode;      ///<消息代码
     unsigned int robotMessageType;      ///<消息类型
     enum CommMessageSource source;      ///<消息来源
-    char textMessage[200];              ///<消息信息
+    char textMessage[400];              ///<消息信息
     WorldTime worldTime;                ///<时间戳
     enum WarningLevel warningLevel;     ///<警告等级
     RobotModes robotMode;               ///<机器人状态
@@ -446,7 +456,8 @@ typedef enum BaudRate
   BaudRate1200000 = 19,           ///波特率为1200000Baud
   BaudRate1500000 = 20,           ///波特率为1500000Baud
   BaudRate2400000 = 21,           ///波特率为2400000Baud
-  BaudRate3000000 = 22            ///波特率为3000000Baud
+  BaudRate3000000 = 22,           ///波特率为3000000Baud
+  BaudRate460800 = 23             ///波特率为460800Baud
 }BaudRate;
 typedef enum  ParityCheck
 {
@@ -778,19 +789,20 @@ typedef struct IPConfig
 }IPConfig;
 typedef enum ModbusMasterFunctionNo
 {
-    ReadBool = 0,         ///读位寄存器
-    WriteBool = 1,        ///写位寄存器
-    ReadInt16 = 2,        ///读16位整数寄存器
-    WriteInt16 = 3,       ///写16位整数寄存器
-    ReadInt32 = 4,        ///读32位整数寄存器
-    WriteInt32 = 5,       ///写32位整数寄存器
-    ReadFloat = 6,        ///读浮点寄存器
-    WriteFloat = 7,       ///写浮点寄存器
-
-    ReadWriteBool = 8,    ///预留
-    ReadWriteInt16 = 9,   ///预留
-    ReadWriteInt32 = 10,  ///预留
-    ReadWriteFloat = 11   ///预留
+    ReadBool = 0,               /// (01)读位寄存器
+    WriteBool = 1,              /// (15)写位寄存器
+    ReadInt16 = 2,              /// (03)读16位整数寄存器
+    WriteInt16 = 3,             /// (16)写16位整数寄存器
+    ReadInt32 = 4,              /// (03)读32位整数寄存器
+    WriteInt32 = 5,             /// (16)写32位整数寄存器
+    ReadFloat = 6,              /// (03)读浮点寄存器
+    WriteFloat = 7,             /// (16)写浮点寄存器
+    ReadDiscreteBool = 8,       /// (02)读位寄存器
+    ReadDiscreteInt16 = 9,      /// (04)读16位整数寄存器
+    ReadDiscreteInt32 = 10,     /// (04)读32位整数寄存器
+    ReadDiscreteFloat = 11,     /// (04)读浮点寄存器
+    WriteSingleBool = 12,       /// (05)写位寄存器
+    WriteSingleInt16 = 13      /// (06)写16位整数寄存器
 }ModbusMasterFunctionNo;  ///modbusMaster函数功能码
 
 
@@ -847,17 +859,51 @@ typedef struct PopUpMsg
     double inVarMinValue; 		///输入弹窗时，变量数值范围最小值
     double inVarMaxValue; 		///输入弹窗时，变量数值范围最大值
 }PopUpMsg;
+
+typedef enum PathSignalType   ///<轨迹信号类型
+{
+    ///输出信号（轨迹记录和轨迹运行通用）
+    Path_StandardDO = 0,     ///<标准数字输出
+    Path_ConfigurableDO = 1, ///<可配置数字输出
+    Path_ToolDO = 2,         ///<工具数字输出
+    Path_AnalogDO = 3,       ///<模拟量输出
+    Path_ExpandDO = 4,       ///<扩展输出
+
+    ///输入信号（仅限轨迹记录场景)
+    Path_StandardDI = 5,     ///<标准数字输入
+    Path_ConfigurableDI = 6, ///<可配置数字输入
+    Path_ToolDI = 7,         ///<工具数字输入
+    Path_AnalogDI = 8,       ///<模拟量输入
+    Path_ToolAnalogDI = 9,  ///<工具模拟量输入
+    Path_ExpandDI = 10,       ///<扩展输入
+
+    ///寄存器（当前仅限轨迹运行场景，轨迹记录暂不支持）
+    Path_BoolReg = 11,        ///<bool寄存器
+    Path_Int16Reg = 12,        ///<int16寄存器
+    Path_Int32Reg = 13,        ///<int32寄存器
+    Path_FloatReg = 14,        ///<float寄存器
+}PathSignalType;
+
+
+typedef struct PathIOPara ///<轨迹记录信号类型信息
+{
+    enum PathSignalType ioType[PATH_SIGNAL_MAX_NUM];  ///<IO类型
+    int ioIndex[PATH_SIGNAL_MAX_NUM]; ///<IO索引
+    int ioNum;  ///<IO数量
+}PathIOPara;
+
 typedef struct PathPoint
 {
     double pose[ROB_AXIS_NUM];                  ///<坐标点向量:x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     double jointpos[ROB_AXIS_NUM];              ///<关节角度：关节1~6（单位：°）
+    double exjData[ROB_AXIS_NUM];               ///<扩展轴数据；扩展轴1~6，只在透传时有效
+    int ioData[PATH_SIGNAL_MAX_NUM];            ///<轨迹IO数据（对应IO的值）
 }PathPoint;
-
 
 typedef struct PathPara  ///<轨迹参数
 {
-    int index;          ///<轨迹索引 下载时：0~9
-    int moveType;       ///<运动轨迹类型，0-透传，1-样条，3-movex
+    int index;          ///<轨迹索引 上传时：-1~49，下载时：0~49
+    int moveType;       ///<运动轨迹类型，0-透传，1-样条，3-movex, 4-关节再现
     double speed; 		///<速度  moveType为3时有效
     double acc; 		///<加速度 moveType为3时有效
     double blendRadius; ///<过渡半径 moveType为3时有效
@@ -868,6 +914,8 @@ typedef struct PathData     ///<轨迹数据
     PathPoint *pathPoints;  ///<轨迹序列数据
     int pathPointsNum;      ///<轨迹数量
     int moveTime;           ///<运动时间  moveType为1时有效,2~10000,单位:ms
+    int exjNum;             ///<实际扩展轴数量，只有透传时有效，非透传时需要设置为0
+    int ioDataNum;          ///<轨迹IO数量
 }PathData;
 
 typedef struct PathDownloadData  ///<下载轨迹数据
@@ -876,10 +924,18 @@ typedef struct PathDownloadData  ///<下载轨迹数据
     PathPara pathPara;     ///<轨迹参数
 }PathDownloadData;
 
+typedef struct PathControlPara ///< 轨迹控制参数
+{
+    int pathIndex;          ///< 轨迹索引：0~49
+    int runControl;         ///< 0-停止，1-启动，2-开启在线透传，3-开启离线透传
+    PathIOPara pathIOPara;  ///< IO配置参数
+}PathControlPara;
+
 typedef struct RecordPathPara  ///< 轨迹记录参数
 {
     int sampleTime;     ///<采样时间,recordControl为1时有效,单位:ms
     int recordControl;  ///<记录控制，0-停止，1-启动，2-暂停
+    PathIOPara pathIOPara; ///<IO配置参数
 }RecordPathPara;
 
 typedef struct PathRecordStatus  ///<轨迹记录状态
@@ -890,7 +946,7 @@ typedef struct PathRecordStatus  ///<轨迹记录状态
 
 typedef struct PathRunMsg  ///<轨迹运行状态
 {
-    int pathrunstatus;  ///< 0或10001-轨迹控制停止 1-轨迹运行中
+    int pathrunstatus;  ///< 0或1 0-轨迹控制停止 1-轨迹运行中
     int pointIndex;    ///<  当前运行轨迹索引
 }PathRunMsg;
 
@@ -1109,6 +1165,14 @@ typedef struct MechanicalUnitConfig
     int refExjCount;                                     ///< 机械单元中扩展轴数量,最多为6个
     RefExjConfig refExjConfig[REF_EXJ_CONFIG_MAX_NUM];   ///< 机械单元中扩展轴配置
 }MechanicalUnitConfig;
+
+/// 机械臂报警时锁存的数据
+typedef struct AlarmData
+{
+    int alarmCode;  ///< 报警代码
+    double tcpPosition[ROB_AXIS_NUM];    ///< 报警时位姿数据：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
+    double jointPosition[ROB_EXJOG_AXIS_NUM]; ///< 报警时关节及10个扩展轴数据：关节1~6（单位：°）, e0,e1...e9（单位：mm或°）
+}AlarmData;
 
 enum CoPdoType
 {

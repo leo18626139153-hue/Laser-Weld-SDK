@@ -14,13 +14,13 @@
 #endif
 #else
 #ifdef  LASERWELDSDK_LIBRARY
-#define LASERWELDSDK_EXPORT
+#define LASERWELDSDK_EXPORT __attribute__((visibility("default")))
 #else
-#define LASERWELDSDK_EXPORT
+#define LASERWELDSDK_EXPORT __attribute__((visibility("default")))
 #endif
 #endif
 
-#define LASERWELDSDK_VERSION "v1.2.3-5-fix"
+#define LASERWELDSDK_VERSION "v1.2.3-6"
 
 /**
  * @warning SDK当前不支持同一进程内并发调用。调用方必须串行化所有接口，

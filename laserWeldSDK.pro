@@ -8,6 +8,11 @@
 # 用法：
 #   qmake laserWeldSDK.pro "SDK_ARCH=x64" CONFIG+=release
 #   qmake laserWeldSDK.pro "SDK_ARCH=aarch64" CONFIG+=release
+#
+# 产物路径（debug / release 已隔离，互不覆盖）：
+#   Windows x64 : libs/x64/release/laserWeldSDK.dll  与  libs/x64/debug/laserWeldSDK.dll
+#   Linux/ARM   : libs/<aarch64|arm32|x64>/<release|debug>/liblaserWeldSDK.so*
+#   中间文件    : build/obj/<arch>/<release|debug>/
 # ============================================================
 
 CONFIG -= qt
@@ -72,13 +77,37 @@ message("SDK_ARCH = $$SDK_ARCH")
 message("========================================")
 
 # ============================================================
-# 输出目录
+# 构建配置（debug / release）区分
+# ============================================================
+# 【修改理由】原工程 Debug 与 Release 共用同一个 OBJECTS_DIR（build/obj/<arch>）
+#   和同一个 DESTDIR（libs/<arch>），由此产生两个问题：
+#   1) 两个配置的同名 .obj 互相复用：nmake 依据文件时间戳判定目标"已是最新"而跳过编译，
+#      "Debug 构建"实际链接的是之前 Release 编译出来的 .obj，最终 DLL 是 -O2 优化过的
+#      Release 代码（依赖 MSVCP140.dll/VCRUNTIME140.dll 而非 D 版），
+#      调试时 PDB 与源码行号对不上，断点无法命中；
+#   2) 两个配置的 DLL/PDB 互相覆盖，无法判断 libs/<arch> 里当前是哪一种产物。
+#
+# 【逻辑梳理】用 CONFIG(debug, debug|release) 判定当前构建配置（qmake 生成
+#   Makefile.Debug / Makefile.Release 时会分别求值本文件，因此两者取值不同），
+#   把中间产物与输出产物分别落到 debug/、release/ 子目录，使两个配置完全隔离、
+#   可同时存在：debug 版为 /Zi + /MDd（可调试），release 版为 -O2 + /MD（发布用）。
+#   注意：BUILD_FLAVOR 必须在下面所有 DESTDIR / OBJECTS_DIR 赋值之前定义。
+CONFIG(debug, debug|release) {
+    BUILD_FLAVOR = debug
+} else {
+    BUILD_FLAVOR = release
+}
+
+message("BUILD_FLAVOR = $$BUILD_FLAVOR")
+
+# ============================================================
+# 输出目录（按架构 + 构建配置区分）
 # ============================================================
 
-equals(SDK_ARCH, aarch64) { DESTDIR = $$OUT_ROOT/aarch64 }
-equals(SDK_ARCH, arm32)   { DESTDIR = $$OUT_ROOT/arm32 }
-equals(SDK_ARCH, x64)     { DESTDIR = $$OUT_ROOT/x64 }
-equals(SDK_ARCH, x86)     { DESTDIR = $$OUT_ROOT/x86 }
+equals(SDK_ARCH, aarch64) { DESTDIR = $$OUT_ROOT/aarch64/$$BUILD_FLAVOR }
+equals(SDK_ARCH, arm32)   { DESTDIR = $$OUT_ROOT/arm32/$$BUILD_FLAVOR }
+equals(SDK_ARCH, x64)     { DESTDIR = $$OUT_ROOT/x64/$$BUILD_FLAVOR }
+equals(SDK_ARCH, x86)     { DESTDIR = $$OUT_ROOT/x86/$$BUILD_FLAVOR }
 
 isEmpty(DESTDIR) {
     error("Unknown SDK_ARCH: $$SDK_ARCH. Please use SDK_ARCH=aarch64/arm32/x64/x86")
@@ -87,18 +116,19 @@ isEmpty(DESTDIR) {
 message("DESTDIR = $$DESTDIR")
 
 # ============================================================
-# 中间文件目录
+# 中间文件目录（按架构 + 构建配置区分，避免 debug/release 的目标文件互相复用）
 # ============================================================
-OBJECTS_DIR = $$BUILD_ROOT/obj/$$SDK_ARCH   #指定 C++ 源文件编译后生成的目标文件（.o 或 .obj）的存放路径。
-MOC_DIR     = $$BUILD_ROOT/moc/$$SDK_ARCH   #指定 Qt 的 MOC（元对象编译器） 生成的 moc_*.cpp 文件的存放路径。
-RCC_DIR     = $$BUILD_ROOT/rcc/$$SDK_ARCH   #指定 Qt 的 RCC（资源编译器） 生成的 qrc_*.cpp 文件的存放路径。
-UI_DIR      = $$BUILD_ROOT/ui/$$SDK_ARCH    #指定 Qt 的 UIC（UI 编译器） 生成的 ui_*.h 头文件的存放路径。
+OBJECTS_DIR = $$BUILD_ROOT/obj/$$SDK_ARCH/$$BUILD_FLAVOR   #指定 C++ 源文件编译后生成的目标文件（.o 或 .obj）的存放路径。
+MOC_DIR     = $$BUILD_ROOT/moc/$$SDK_ARCH/$$BUILD_FLAVOR   #指定 Qt 的 MOC（元对象编译器） 生成的 moc_*.cpp 文件的存放路径。
+RCC_DIR     = $$BUILD_ROOT/rcc/$$SDK_ARCH/$$BUILD_FLAVOR   #指定 Qt 的 RCC（资源编译器） 生成的 qrc_*.cpp 文件的存放路径。
+UI_DIR      = $$BUILD_ROOT/ui/$$SDK_ARCH/$$BUILD_FLAVOR    #指定 Qt 的 UIC（UI 编译器） 生成的 ui_*.h 头文件的存放路径。
 
 # ============================================================
 # 源.文.件
 # ============================================================ 
 SOURCES += \
     src/brand/brandadapter.cpp \
+    include/laserWeldSDK/brand/lasermodbusrtubuilder.cpp \
     src/cl_api.cpp \
     src/clmath.cpp \
     src/common/base_commu.cpp \
@@ -149,11 +179,11 @@ win32 {
     message("-- platform: Windows")
     equals(SDK_ARCH, x64) {
         message("-- link cr_sdk: windows x64")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/windows/libs/x64
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/x64
         exists($$CRSDK_LIB_DIR/cr_sdk.lib) {
             LIBS += -L$$CRSDK_LIB_DIR -lcr_sdk
             DEPENDPATH += $$CRSDK_LIB_DIR
-            INCLUDEPATH += $$CRSDK_ROOT/windows/include
+            INCLUDEPATH += $$CRSDK_ROOT/include
         } else {
             error("Can not find Windows x64 cr_sdk.lib: $$CRSDK_LIB_DIR")
         }
@@ -165,7 +195,7 @@ win32 {
         exists($$CRSDK_LIB_DIR/cr_sdk.lib) {
             LIBS += -L$$CRSDK_LIB_DIR -lcr_sdk
             DEPENDPATH += $$CRSDK_LIB_DIR
-            INCLUDEPATH += $$CRSDK_ROOT/windows/include
+            INCLUDEPATH += $$CRSDK_ROOT/include
         } else {
             error("Can not find Windows x86 cr_sdk.lib: $$CRSDK_LIB_DIR")
         }
@@ -180,8 +210,8 @@ unix:!macx {
 
     equals(SDK_ARCH, arm32) {
         message("-- link cr_sdk: linux arm32")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/arm/libs
-        CRSDK_INC_DIR = $$CRSDK_ROOT/arm/include
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/arm
+        CRSDK_INC_DIR = $$CRSDK_ROOT/include
         exists($$CRSDK_LIB_DIR/libcr_sdk.so) {
             INCLUDEPATH += $$CRSDK_INC_DIR
             DEPENDPATH += $$CRSDK_LIB_DIR
@@ -201,8 +231,8 @@ unix:!macx {
 
     equals(SDK_ARCH, aarch64) {
         message("-- link cr_sdk: linux aarch64")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/aarch64/libs
-        CRSDK_INC_DIR = $$CRSDK_ROOT/aarch64/include
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/AARCH64-Release
+        CRSDK_INC_DIR = $$CRSDK_ROOT/include
         exists($$CRSDK_LIB_DIR/libcr_sdk.so) {
             INCLUDEPATH += $$CRSDK_INC_DIR
             DEPENDPATH += $$CRSDK_LIB_DIR
