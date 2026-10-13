@@ -183,6 +183,9 @@ public:
      * @return 初始化脚本内容（函数定义 + 变量初始化）
      */
     std::string loadLuaFunctionScriptOut(LaserHeadBrandSdk brand);
+
+    /** @brief 按本次输出通道加载初始化函数；映射通道不加载自由通讯定义。 */
+    std::string loadLuaFunctionScriptOut(LaserHeadBrandSdk brand, bool mappedParameters);
 };
 
 /**

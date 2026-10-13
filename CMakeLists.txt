@@ -64,6 +64,8 @@ set(SOURCES
     src/common/parametercompiler.cpp
     src/common/parameterscript.cpp
     src/brand/deviceparameters.cpp
+    src/common/parametercontext.cpp
+    src/parameters_api.cpp
 )
 
 # ============================================================

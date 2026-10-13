@@ -48,6 +48,12 @@ void CommuBase::resetPendingScriptFragments()
 
 std::string CommuBase::loadLuaFunctionScriptOut(LaserHeadBrandSdk brand)
 {
+    // 保留原单参数符号，避免内部C++接口的既有调用方链接失效。
+    return loadLuaFunctionScriptOut(brand, false);
+}
+
+std::string CommuBase::loadLuaFunctionScriptOut(LaserHeadBrandSdk brand, bool mappedParameters)
+{
     std::string tmpLuaScript;   //接口函数
     for (auto it = startLuaScripts.begin(); it != startLuaScripts.end(); )
     {
@@ -61,7 +67,9 @@ std::string CommuBase::loadLuaFunctionScriptOut(LaserHeadBrandSdk brand)
         it = startDataScripts.erase(it); //加载后删除
     }
     //获取品牌脚本中的函数定义
-    std::string luaFunctionScript = GetBrandProtocolAdapter(brand).buildInitLuaFunc();
+    // 本地映射输出由控制器主站负责通讯，禁止附带旧串口与CRC函数。
+    std::string luaFunctionScript = mappedParameters ? std::string()
+            : GetBrandProtocolAdapter(brand).buildInitLuaFunc();
 
     return tmpLuaStartDataScript + luaFunctionScript + tmpLuaScript ;
 }

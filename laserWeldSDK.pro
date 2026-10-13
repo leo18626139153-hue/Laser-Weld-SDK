@@ -108,7 +108,9 @@ SOURCES += \
     src/utils.cpp \
     src/common/parametercompiler.cpp \
     src/common/parameterscript.cpp \
-    src/brand/deviceparameters.cpp
+    src/brand/deviceparameters.cpp \
+    src/common/parametercontext.cpp \
+    src/parameters_api.cpp
 # 头.文.件
 HEADERS += \
     include/laserWeldSDK/brand/brandadapter.h \
@@ -124,7 +126,8 @@ HEADERS += \
     include/laserWeldSDK/parameterdefine.h \
     include/laserWeldSDK/common/parametercompiler.h \
     include/laserWeldSDK/common/parameterscript.h \
-    include/laserWeldSDK/brand/deviceparameters.h
+    include/laserWeldSDK/brand/deviceparameters.h \
+    include/laserWeldSDK/common/parametercontext.h
 
 # cr_sdk 头文件（不参与编译，仅用于 IDE 索引）
 HEADERS += \

@@ -4,6 +4,8 @@
 #include "utils.h"
 #include "messageprase.h"
 #include "rs485_commu.h"
+#include "parametercontext.h"
+#include "brand/brandadapter.h"
 #include <sstream>
 #include <mutex>
 #include <random>
@@ -114,9 +116,10 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
 
     // BCX 内控由焊板在使能下降沿触发，SDK 只负责在降功率点关闭外部使能。
     // 送丝焊同时关闭 CO2，避免降功率阶段继续送丝；自融焊不输出 CO2。
-    if (machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+    if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
     {
-        if (machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK)
+        if (machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK
+                && GetBrandProtocolAdapter(machineResource.laserHeadBrand).controlsWireThroughDigitalOutput())
         {
             bodyScriptText += "set_configurable_digital_out(2, false)  ---CO2 = 0\n";
         }
@@ -291,20 +294,10 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                 {
                     return result;
                 }
-                if (machineResource.laserHeadBrand == LaserHeadBrandSdk::CQLASERPOWER_SDK)
-                {
-                    std::ostringstream oss;
-                    oss << "--CQLASERPOWER_SDK\n"
-                        << parameterScript;
-//                        /<< "--set_configurable_digital_out(1, false)\n"
-//                        /<< "--set_configurable_digital_out(1, true)\n"
-//                        /<< "--wait(" << machineResource.laserPowerParams.gasStartupAdvanceTime << ")\n";
-                    bodyScriptText += oss.str();
-                }
-                else
-                {
-                    bodyScriptText += parameterScript;
-                }
+                // 外层生成作用域会恢复资源；旧缓降读取本次工艺的工作快照。
+                laser_parameters::UpdateCompilationResource(machineResource, *currentCraft);
+                // 首次选择或运行中切换工艺都只写参数；出光动作由起收弧指令管理。
+                bodyScriptText += parameterScript;
             }
             break;
         }
@@ -424,7 +417,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   std::to_string(transitionRadius));
                 // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
                 if (splitRampDown
-                        && machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+                        && laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
                 {
                     result = appendRampDownControl(laserMachineHandle, machineResource,
                                                    *craftCommu, environment.policy, bodyScriptText);
@@ -523,7 +516,7 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   std::to_string(transitionRadius), "0");
                 // BCX 缓降距离为0时不拆轨迹，在焊接终点直接触发板卡内控缓降。
                 if (splitRampDown
-                        && machineResource.laserHeadBrand == LaserHeadBrandSdk::BCXLASERPOWER_SDK)
+                        && laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
                 {
                     result = appendRampDownControl(laserMachineHandle, machineResource,
                                                    *craftCommu, environment.policy, bodyScriptText);

@@ -2,6 +2,7 @@
 #define CL_API_H
 
 #include "cl_basedefine.h"
+#include "parameterdefine.h"
 #include "robotapi.h"
 #include <stdint.h>
 
@@ -68,6 +69,61 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_get(const LaserMachineHan
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachineHandle);
+
+/**
+ * @brief 设置参数描述和控制器本地地址绑定，SDK深复制配置并按句柄独立保存。
+ * @param[in] laserMachineHandle 已注册的焊机句柄。
+ * @param[in] descriptors 参数描述数组，物理值编码为value*scale+offset。
+ * @param[in] descriptorCount 参数描述个数。
+ * @param[in] bindings 本地读写地址数组，地址0合法，未配置方向使用无效地址常量。
+ * @param[in] bindingCount 地址绑定个数。
+ * @param[out] diagnostic 可为空；非空时必须先设置structSize。
+ * @warning 显式配置启用本地映射输出。上位机必须预先配置Modbus RTU主从站及远端地址映射。
+ * @return 配置校验失败时保留该句柄原配置，成功不产生通讯或设备动作。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_set(
+    LaserMachineHandle laserMachineHandle,
+    const LaserParameterDescriptorSdk* descriptors, unsigned int descriptorCount,
+    const LaserParameterBindingSdk* bindings, unsigned int bindingCount,
+    LaserParameterDiagnosticSdk* diagnostic);
+
+/**
+ * @brief 获取有效参数配置；未设置时返回当前型号的兼容默认描述与绑定。
+ * @param[in] laserMachineHandle 已注册的焊机句柄。
+ * @param[out] descriptors 参数描述数组；为空且bindings为空时仅查询所需个数。
+ * @param[in,out] descriptorCount 输入描述数组容量，输出所需个数。
+ * @param[out] bindings 参数地址绑定数组，语义与当前输出模式一致。
+ * @param[in,out] bindingCount 输入绑定数组容量，输出所需个数。
+ * @note 两个数组均为空时只查询个数；任一容量不足时两个数组均不写入。
+ * @return 成功、无效句柄、参数错误、内存不足或输出容量不足。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_get(
+    LaserMachineHandle laserMachineHandle,
+    LaserParameterDescriptorSdk* descriptors, unsigned int* descriptorCount,
+    LaserParameterBindingSdk* bindings, unsigned int* bindingCount);
+
+/**
+ * @brief 清除显式参数配置并恢复型号默认行为，不修改控制器主从站配置。
+ * @param[in] laserMachineHandle 已注册的焊机句柄。
+ * @return 成功、无效句柄或内部异常；原始焊机资源不变。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_reset(LaserMachineHandle laserMachineHandle);
+
+/**
+ * @brief 按有效描述及绑定生成参数脚本，不修改焊机资源、不执行通讯、不触发出光。
+ * @param[in] laserMachineHandle 已注册的焊机句柄。
+ * @param[in] values 物理单位参数值数组，允许客户扩展参数ID。
+ * @param[in] valueCount 参数值个数，0表示空写入计划。
+ * @param[out] scripts 输出Lua；为空时仅查询所需字节数。
+ * @param[in,out] scriptLen 输入缓冲区容量，输出所需字节数，包含结尾空字符。
+ * @param[out] diagnostic 可为空；非空时必须先设置structSize。
+ * @note 未显式配置的旧超强保留自由通讯兼容输出；显式配置后三品牌均输出本地寄存器操作。
+ * @return 成功、参数配置或编码错误、无效句柄、内存不足或输出容量不足。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_script_get(
+    LaserMachineHandle laserMachineHandle,
+    const LaserParameterValueSdk* values, unsigned int valueCount,
+    char* scripts, int* scriptLen, LaserParameterDiagnosticSdk* diagnostic);
 
 /*
 *************激光焊功能接口*************

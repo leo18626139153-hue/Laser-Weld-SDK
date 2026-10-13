@@ -4,6 +4,8 @@
 #include "rs485_commu.h"
 #include "messageprase.h"
 #include "clmath.h"
+#include "brandadapter.h"
+#include "parametercontext.h"
 #include <functional>
 #include <thread>
 #include <chrono>
@@ -23,8 +25,54 @@ static void checkCrSdkResultOrThrow(const CRresult& errorResult)
     }
 }
 
+/** @brief 从有效参数配置筛选旧设备页对应的可写参数，不推测未支持参数的地址。 */
+static LaserSdkResult buildMappedDeviceSettings(LaserMachineHandle handle,
+                                                const MachineResource& resource,
+                                                std::string& script)
+{
+    laser_parameters::Configuration configuration;
+    LaserSdkResult result = laser_parameters::GetMachineConfiguration(handle, configuration);
+    if (result != SUCCESS_LASER_SDK) return result;
+    std::vector<LaserParameterValueSdk> values;
+    const auto appendSupported = [&configuration, &values](unsigned int id, double value) -> bool
+    {
+        for (std::size_t i = 0; i < configuration.descriptors.size(); ++i)
+        {
+            const LaserParameterDescriptorSdk& descriptor = configuration.descriptors[i];
+            if (descriptor.parameterId != id || (descriptor.flags & LASER_PARAMETER_WRITABLE_SDK) == 0)
+                continue;
+            LaserParameterValueSdk parameter = {};
+            parameter.structSize = sizeof(parameter);
+            parameter.parameterId = id;
+            parameter.value = value;
+            values.push_back(parameter);
+            return true;
+        }
+        return false;
+    };
+    if (resource.laserHeadBrand == CQLASERPOWER_SDK)
+    {
+        appendSupported(LASER_PARAM_WELD_POWER_SDK, resource.laserPowerParams.laserPower);
+        appendSupported(LASER_PARAM_DRIVER_TEMPERATURE_SDK, resource.laserPowerParams.driverTemp);
+        appendSupported(LASER_PARAM_WINDOW_TEMPERATURE_SDK, resource.laserPowerParams.protectiveWindowTemp);
+        appendSupported(LASER_PARAM_COLLIMATOR_TEMPERATURE_SDK, resource.laserPowerParams.collimatorTemp);
+    }
+    const bool manualFeedSupported = appendSupported(LASER_PARAM_MANUAL_FEED_SPEED_SDK,
+                                                     resource.wireFeederParams.wireFeederManualFeedSpeed);
+    appendSupported(LASER_PARAM_MANUAL_RETRACT_SPEED_SDK, resource.wireFeederParams.wireFeederManualBackSpeed);
+    // 宝辰鑫既有设备页使用抽补丝速度槽配置手动送丝速度，保持其兼容语义。
+    if (!manualFeedSupported && resource.laserHeadBrand == BCXLASERPOWER_SDK)
+        appendSupported(LASER_PARAM_WIRE_RETRACT_SPEED_SDK, resource.wireFeederParams.wireFeederManualFeedSpeed);
+    return laser_parameters::BuildMachineParameterScript(handle, resource, values, script);
+}
+
 LaserSdkResult cl_sdk_version_get(char *version, int *versionLen)
 {
+    // P0修复：入参空指针校验，防止调用方传NULL导致崩溃
+    if (version == nullptr || versionLen == nullptr)
+    {
+        return PARAMETER_ERROR_LASER_SDK;
+    }
     if(*versionLen < sizeof(LASERWELDSDK_VERSION)+1)
     {
         return MEMORY_ERROR_LASER_SDK;
@@ -39,6 +87,13 @@ LaserSdkResult cl_sdk_version_get(char *version, int *versionLen)
 // 焊机资源管理函数
 LaserSdkResult cl_machine_resource_init(const MachineResource* laserMachineResource, LaserMachineHandle* laserMachineHandle)
 {
+    if (laserMachineResource == nullptr || laserMachineHandle == nullptr)
+        return PARAMETER_ERROR_LASER_SDK;
+    if (laserMachineResource->laserHeadBrand != CQLASERPOWER_SDK
+            && laserMachineResource->laserHeadBrand != OSRPLASERPOWER_SDK
+            && laserMachineResource->laserHeadBrand != BCXLASERPOWER_SDK
+            && laserMachineResource->laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK)
+        return PARAM_TYPE_ERROR_LASER_SDK;
     // 设置随机数种子
     std::random_device rd;
     engine.seed(rd());
@@ -56,10 +111,18 @@ LaserSdkResult cl_machine_resource_init(const MachineResource* laserMachineResou
 
 LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineHandle, const MachineResource *laserMachineResource)
 {
+    if (laserMachineResource == nullptr) return PARAMETER_ERROR_LASER_SDK;
+    if (laserMachineResource->laserHeadBrand != CQLASERPOWER_SDK
+            && laserMachineResource->laserHeadBrand != OSRPLASERPOWER_SDK
+            && laserMachineResource->laserHeadBrand != BCXLASERPOWER_SDK
+            && laserMachineResource->laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK)
+        return PARAM_TYPE_ERROR_LASER_SDK;
     if(machineResourcesMap.count(laserMachineHandle) == 0)
     {
         return HANDLE_ERROR_LASER_SDK;
     }
+    if (machineResourcesMap[laserMachineHandle].laserHeadBrand != laserMachineResource->laserHeadBrand)
+        laser_parameters::ReleaseMachineConfiguration(laserMachineHandle);
     machineResourcesMap[laserMachineHandle] = *laserMachineResource;
     return SUCCESS_LASER_SDK;
 }
@@ -67,6 +130,7 @@ LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineH
 //获取焊机资源句柄对应的数据
 LaserSdkResult cl_machine_resource_get(const LaserMachineHandle laserMachineHandle, MachineResource *laserMachineResource)
 {
+    if (laserMachineResource == nullptr) return PARAMETER_ERROR_LASER_SDK;
     //判断是否存在该句柄
     if(machineResourcesMap.count(laserMachineHandle) == 0)
     {
@@ -83,6 +147,7 @@ LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachine
     {
         return HANDLE_ERROR_LASER_SDK;
     }
+    laser_parameters::ReleaseMachineConfiguration(laserMachineHandle);
     machineResourcesMap.erase(laserMachineHandle);
     return SUCCESS_LASER_SDK;
 }
@@ -103,6 +168,24 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
     if (commuRes != SUCCESS_LASER_SDK)
     {
         return commuRes;
+    }
+
+    if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+    {
+        curCommuFunction->resetPendingScriptFragments();
+        std::string body;
+        LaserSdkResult result = curCommuFunction->craft_script_arc_function_switch_script_get(
+                    laserMachineHandle, SWITCH_ON_LASER_SDK);
+        if (result == SUCCESS_LASER_SDK)
+            result = curCommuFunction->craft_script_arc_program_run_script_get(
+                        laserMachineHandle, SWITCH_ON_LASER_SDK, body);
+        if (result != SUCCESS_LASER_SDK)
+        {
+            curCommuFunction->resetPendingScriptFragments();
+            return result;
+        }
+        body = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand, true) + body;
+        return strToChar(scripts, scriptLen, body);
     }
 
     std::vector<unsigned int> laserPowerVec;
@@ -148,7 +231,8 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         checkLaserSdkResult(curCommuFunction->craft_laser_head_param_set_script_get(laserMachineHandle, laserHeadVec, scriptGet));
         //起弧执行程序
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SWITCH_ON_LASER_SDK, scriptGet));
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand)) + scriptGet;
         //脚本赋值
         LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
         if(bufferResult != SUCCESS_LASER_SDK)
@@ -180,6 +264,24 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     if (commuRes != SUCCESS_LASER_SDK)
     {
         return commuRes;
+    }
+
+    if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+    {
+        curCommuFunction->resetPendingScriptFragments();
+        std::string body;
+        LaserSdkResult result = curCommuFunction->craft_script_arc_function_switch_script_get(
+                    laserMachineHandle, SWITCH_OFF_LASER_SDK);
+        if (result == SUCCESS_LASER_SDK)
+            result = curCommuFunction->craft_script_arc_program_run_script_get(
+                        laserMachineHandle, SWITCH_OFF_LASER_SDK, body);
+        if (result != SUCCESS_LASER_SDK)
+        {
+            curCommuFunction->resetPendingScriptFragments();
+            return result;
+        }
+        body = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand, true) + body;
+        return strToChar(scripts, scriptLen, body);
     }
 
     std::vector<unsigned int> laserPowerVec;
@@ -243,7 +345,8 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         checkLaserSdkResult(curCommuFunction->craft_script_arc_program_run_script_get(laserMachineHandle, SWITCH_OFF_LASER_SDK, scriptGet));
         //收弧执行程序
         //scriptGet = funcScript + scriptGet;      //脚本赋值
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand)) + scriptGet;
         LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
         if(bufferResult != SUCCESS_LASER_SDK)
         {
@@ -496,7 +599,8 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     std::string script;
-    script += craftCommu->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);
+    script += craftCommu->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand));
     script += breakPointListScript;
     script += signalStepPointLocListScript;
     script += strWriteInt32RegReplace(INT32_REG_WELD_MODE_660, isWeld ? 2 : 1);
@@ -508,18 +612,6 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     if(bufferResult != SUCCESS_LASER_SDK)
     {
         return bufferResult;
-    }
-    //将脚本存入示教器日志中
-    else
-    {
-        // 打开文件进行写入
-        std::ofstream outFile("script.txt");
-        if (!outFile) {
-            std::cerr << "无法打开文件进行写入！" << std::endl;
-        }
-        outFile << scripts;
-        // 关闭文件
-        outFile.close();
     }
     return bufferResult;
 }
@@ -703,6 +795,40 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
 
     try
     {
+        // 【修改理由】SUP26AD / 宝辰鑫 属于映射从站品牌，参数与控制只能写机器人本地寄存器，
+        //   不能生成 write_value_port 自由通讯报文脚本。
+        //   缓升参数（开光功率、缓升时间）已由工艺下发写入板卡寄存器，此处只输出数字输出动作，
+        //   由板卡按寄存器参数自行完成内控缓升；否则报文对板卡无效，且 task_create 的后台任务
+        //   会让机器人程序一直处于运行状态无法停止。
+        // 【逻辑】CO0 开气/开光 → 送丝焊且由数字输出管送丝时 CO2 开送丝 → CO1 开激光使能，
+        //   与宝辰鑫 arc_start 的时序保持一致；脚本外壳仍为 arcStartProgram + task_create，
+        //   保证上层调用方式不变。
+        const BrandProtocolAdapter& slowAdapter =
+                GetBrandProtocolAdapter(machineResource.laserHeadBrand);
+        if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+        {
+            const bool wireWelding =
+                    machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK;
+            std::string mappedBody = "function arcStartProgram()\n"
+                                     "    set_configurable_digital_out(0, true)  ---CO0 = 1\n";
+            if (wireWelding && slowAdapter.controlsWireThroughDigitalOutput())
+            {
+                mappedBody += "    set_configurable_digital_out(2, true)  ---CO2 = 1\n";
+            }
+            mappedBody += "    set_configurable_digital_out(1, true)  ---CO1 = 1\n"
+                          "end\n"
+                          "arcStartProgram_Result=task_create(arcStartProgram)\n";
+            std::string mappedFuncScript =
+                    curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand));
+            scriptGet = mappedFuncScript + mappedBody;
+            LaserSdkResult mappedBufferResult = strToChar(scripts, scriptLen, scriptGet);
+            if(mappedBufferResult != SUCCESS_LASER_SDK)
+            {
+                return mappedBufferResult;
+            }
+            return SUCCESS_LASER_SDK;
+        }
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
@@ -765,7 +891,8 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         std::string arcStartProgram2 = "end\n"
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
-        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);  //功能函数
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand));  //功能函数
         scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
@@ -773,18 +900,6 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         if(bufferResult != SUCCESS_LASER_SDK)
         {
             return bufferResult;
-        }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-            // 关闭文件
-            outFile.close();
         }
     }
     catch (const LaserSdkResult& errorResult)
@@ -835,6 +950,36 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
     std::string scriptGet;
     try
     {
+        // 【修改理由】SUP26AD / 宝辰鑫 属于映射从站品牌，缓降只能由板卡按寄存器参数内控完成，
+        //   不能生成 write_value_port 逐步降功率的报文脚本，也不能创建后台缓降任务。
+        // 【逻辑】缓降参数（关光功率、缓降时间）已由工艺下发写入板卡寄存器；
+        //   此处只在降功率点关闭 CO1（送丝焊且由数字输出管送丝时同时关闭 CO2），
+        //   由板卡使能下降沿触发内控缓降，与宝辰鑫 appendRampDownControl 的内控分支一致。
+        const BrandProtocolAdapter& slowAdapter =
+                GetBrandProtocolAdapter(machineResource.laserHeadBrand);
+        if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+        {
+            const bool wireWelding =
+                    machineResource.weldingProcessType == WeldingProcessType::WIRE_WELDING_LASERSDK;
+            std::string mappedBody = "function arcStartProgram()\n";
+            if (wireWelding && slowAdapter.controlsWireThroughDigitalOutput())
+            {
+                mappedBody += "    set_configurable_digital_out(2, false)  ---CO2 = 0\n";
+            }
+            mappedBody += "    set_configurable_digital_out(1, false)  ---CO1 = 0\n"
+                          "end\n"
+                          "arcStartProgram_Result=task_create(arcStartProgram)\n";
+            std::string mappedFuncScript =
+                    curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand));
+            scriptGet = mappedFuncScript + mappedBody;
+            LaserSdkResult mappedBufferResult = strToChar(scripts, scriptLen, scriptGet);
+            if(mappedBufferResult != SUCCESS_LASER_SDK)
+            {
+                return mappedBufferResult;
+            }
+            return SUCCESS_LASER_SDK;
+        }
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
@@ -879,7 +1024,8 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         std::string arcStartProgram2 = "end\n"
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
         scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
-        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);  //功能函数
+        std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand));  //功能函数
         scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
         //脚本赋值
@@ -887,20 +1033,6 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         if(bufferResult != SUCCESS_LASER_SDK)
         {
             return bufferResult;
-        }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-
-            // 关闭文件
-            outFile.close();
         }
     }
     catch (const LaserSdkResult& errorResult)
@@ -969,6 +1101,19 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
 
+    if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+    {
+        try
+        {
+            std::string mappedScript;
+            const LaserSdkResult result = buildMappedDeviceSettings(laserMachineHandle, machineResource, mappedScript);
+            if (result != SUCCESS_LASER_SDK) return result;
+            return strToChar(scripts, scriptLen, mappedScript);
+        }
+        catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+        catch (...) { return OTHER_ERROR_LASER_SDK; }
+    }
+
     // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
     LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
@@ -1014,7 +1159,8 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
         //送丝机
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
+        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+                laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand)) + scriptGet;
     }
     catch (const LaserSdkResult& errorResult)
     {
@@ -1027,75 +1173,33 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
     {
         return bufferResult;
     }
-    else
-    {
-        // 打开文件 写入脚本
-        std::ofstream outFile("device_status_modify_script.txt");
-        if (!outFile) {
-            std::cerr << "无法打开文件进行写入！" << std::endl;
-        }
-        outFile << scripts;
-        outFile.close();
-    }
 
     return SUCCESS_LASER_SDK;
 }
 
-//修改工艺-小吴
+/** @brief 纯编译工艺参数，长度查询及失败不修改资源或输出设备动作。 */
 LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char *scripts, int *scriptLen)
 {
+    if (scriptLen == nullptr) return PARAMETER_ERROR_LASER_SDK;
+    const std::unordered_map<int, MachineResource>::const_iterator it = machineResourcesMap.find(laserMachineHandle);
+    if (it == machineResourcesMap.end()) return HANDLE_ERROR_LASER_SDK;
+    if (it->second.commuType != RS485_2_LASER_SDK) return COMMU_ERROR_LASER_SDK;
     try
     {
-        //获取句柄对应的焊机资源对象
-        if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
-        {
-            throw HANDLE_ERROR_LASER_SDK;
-        }
-        MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-        std::cout << "machineResource " << machineResource.laserHeadBrand << std::endl;
-        // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
-        CommuBase* curCommuFunction = NULL;
-        LaserSdkResult commuRes = craft_script_commu_class_get(
-                    laserMachineHandle,
-                    curCommuFunction);
-        if (commuRes != SUCCESS_LASER_SDK)
-        {
-            throw commuRes;
-        }
-        std::string scriptGet;
-        checkLaserSdkResult(
-                    curCommuFunction->craft_script_configure_machine_param_set_script_get(
-                        laserMachineHandle,
-                        craftInfo,
-                        scriptGet));
-        scriptGet = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand) + scriptGet;
-        LaserSdkResult bufferResult = strToChar(scripts, scriptLen, scriptGet);
-        if(bufferResult != SUCCESS_LASER_SDK)
-        {
-            throw bufferResult;
-        }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-            // 关闭文件
-            outFile.close();
-
-        }
-         return SUCCESS_LASER_SDK;
+        const MachineResource resource = it->second;
+        std::string body;
+        const LaserSdkResult result = laser_parameters::BuildMachineCraftScript(
+                    laserMachineHandle, resource, craftInfo, body);
+        if (result != SUCCESS_LASER_SDK) return result;
+        const bool mapped = laser_parameters::UsesMappedParameters(laserMachineHandle, resource.laserHeadBrand);
+        const std::string script = (mapped ? std::string()
+                : GetBrandProtocolAdapter(resource.laserHeadBrand).buildInitLuaFunc())
+                + strWriteInt32RegReplace(INT32_REG_COMMU_TIMEOUT_821, 0) + body;
+        return strToChar(scripts, scriptLen, script);
     }
-    catch (const LaserSdkResult& errorResult)
-    {
-        return errorResult;
-    }
-    catch (...) {
-        return OTHER_ERROR_LASER_SDK;
-    }
+    catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+    catch (const LaserSdkResult& result) { return result; }
+    catch (...) { return OTHER_ERROR_LASER_SDK; }
 }
 
 LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message,int *length)
@@ -1303,18 +1407,6 @@ LaserSdkResult cl_get_instance_function_script(const char* funcName, const char*
         if(bufferResult != SUCCESS_LASER_SDK)
         {
             throw bufferResult;
-        }
-        //将脚本存入示教器日志中
-        else
-        {
-            // 打开文件进行写入
-            std::ofstream outFile("script.txt");
-            if (!outFile) {
-                std::cerr << "无法打开文件进行写入！" << std::endl;
-            }
-            outFile << scripts;
-            // 关闭文件
-            outFile.close();
         }
         return SUCCESS_LASER_SDK;
     }
