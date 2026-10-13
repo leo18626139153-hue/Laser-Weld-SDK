@@ -3,7 +3,7 @@
 
 #include "internaldatadefine.h"
 #include "utils.h"
-#include "laserModbusRtuBuilder.h"
+#include "lasermodbusrtubuilder.h"
 #include <vector>
 
 using ParamMap = LaserModbusRtuBuilder::ParamMap;
@@ -32,7 +32,10 @@ enum class BrandRegisterRole
 };
 
 /**
- * @brief 品牌寄存器描述
+ * @brief 旧兼容接口使用的品牌寄存器描述。
+ *
+ * 地址含义由原品牌协议定义；新参数流水线使用 Configuration 绑定本地映射槽，
+ * 不将本结构中的设备远端地址直接写入机器人本地寄存器。
  */
 struct BrandRegisterInfo
 {
@@ -44,7 +47,9 @@ struct BrandRegisterInfo
 };
 
 /**
- * @brief 品牌 Modbus 通讯基础参数
+ * @brief 旧自由通讯接口保留的品牌协议参数。
+ *
+ * 新映射参数路径不以本结构配置串口或主从站；这些配置由上位机负责。
  */
 struct BrandProtocolProfile
 {
@@ -52,9 +57,9 @@ struct BrandProtocolProfile
     unsigned int readFuncCode;        ///< 读寄存器功能码
     unsigned int writeSingleFuncCode; ///< 写单寄存器功能码
     unsigned int writeMultiFuncCode;  ///< 写多寄存器功能码
-    unsigned int laserWriteSingleScriptCode;      ///< 激光器和激光头单写脚本功能码
-    unsigned int wireFeederWriteSingleScriptCode; ///< 送丝机单写脚本功能码
-    unsigned int writeMultiScriptCode;            ///< 批量写脚本功能码
+    unsigned int laserWriteSingleScriptCode;      ///< 旧脚本复合码，高字节为从站地址、低字节为功能码
+    unsigned int wireFeederWriteSingleScriptCode; ///< 送丝机旧脚本复合码，不是十六位 Modbus 功能码
+    unsigned int writeMultiScriptCode;            ///< 批量写入旧脚本复合码
     int baudRate;                     ///< 串口波特率
     int dataBits;                     ///< 串口数据位
     int stopBits;                     ///< 串口停止位
@@ -63,12 +68,12 @@ struct BrandProtocolProfile
 /**
  * @brief 品牌协议适配器基类
  *
- * 修改理由: 通讯类只负责 RS485/Modbus 脚本拼接, 品牌地址表和送丝机写入策略固定到品牌层.
- * 逻辑: 通讯层通过寄存器语义查询地址, 校验规则和送丝机写入策略, 不再直接判断具体品牌.
+ * 保留旧品牌调用契约及型号能力策略；工艺参数生成统一委托设备参数流水线。
+ * 参数语义、类型、缩放及地址由描述和绑定表达，串口及主从站配置不进入新参数模型。
  *
  * @legacy_source src/brand/brandadapter.cpp
  * @legacy_baseline 6fefa14
- * @compatibility 所有虚函数签名和品牌地址映射保持不变，新增品牌只需新增适配器子类
+ * @compatibility 原自由通讯方法保留；新增映射能力和 SUP26AD 策略不改变旧品牌枚举值
  */
 class BrandProtocolAdapter
 {
@@ -131,8 +136,8 @@ public:
     virtual std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const = 0;
 
     /**
-     * @brief 生成单寄存器写入的Lua脚本调用行
-     * @param[in] functionCode      功能码(如"0x0906")
+     * @brief 生成旧自由通讯单寄存器写入调用行，不执行设备动作。
+     * @param[in] functionCode      旧脚本复合码，如 "0x0906" 表示从站 0x09 和功能码 0x06
      * @param[in] portAddress       寄存器地址
      * @param[in] paramValue        参数值
      * @param[in] portNum           通讯端口号
@@ -145,14 +150,14 @@ public:
                                        const std::string& paramValue,
                                        const std::string& portNum,
                                        const std::string& firstRegisterNum,
-                                       const std::string& receiptNeed) const = 0;
+                                       const std::string& receiptNeed) const;
 
     /**
-     * @brief 生成工艺参数配置的Lua脚本体（品牌特有部分）
-     * @param[in] machineResource 已计算好工艺参数的焊机资源
+     * @brief 委托设备参数流水线生成工艺脚本体，不修改资源或控制数字输出。
+     * @param[in] machineResource 设备型号及兼容地址配置，不依赖提前写入参数缓存。
      * @param[in] craftInfo       工艺参数
      * @param[out] scriptBody     生成的Lua脚本体
-     * @return 品牌特有的Lua脚本体字符串
+     * @return true 表示脚本生成成功；false 表示工艺或配置错误，输出保持原值。
      */
     virtual bool buildConfigureMachineBodyScript(
         const MachineResource& machineResource,
@@ -165,31 +170,46 @@ public:
      * @return true 表示通讯层需要调用 craft_wire_feeder_param_set_script_get 追加送丝机脚本;
      *         false 表示品牌适配器的 buildConfigureMachineBodyScript 已自行处理送丝机参数
      *
-     * 【修改理由】不同品牌对送丝机参数的处理方式不同：
-     *   - SUP(超强) 品牌在 buildConfigureMachineBodyScript 中仅生成激光器批量写脚本，
-     *     送丝机参数需要通讯层通过 write_value_port 逐寄存器追加；
-     *   - BCX(宝辰鑫) 品牌在 buildConfigureMachineBodyScript 中已通过 write_int16_register
-     *     将送丝机参数一并写入，通讯层不应再重复生成。
-     * 通过此虚方法将决策权归还品牌层，消除通讯类中的硬编码品牌判断。
+     * 当前三种已接入型号的参数流水线都包含所需送丝参数，返回 false。
+     * 后续兼容适配器若自行省略送丝参数，可通过本接口声明需要独立补充。
      */
     virtual bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const = 0;
 
     /**
-     * @brief 开始新的配置会话
-     * 协议需要在新会话开始时清空上次成功参数, 避免跨会话残留影响.
-     * 品牌协议适配器可在新会话开始时清理内部状态, 通讯层无需感知品牌内部状态.
+     * @brief 保留原兼容接口的会话清理入口。
+     * 旧适配器可清理历史缓存；新的参数计划使用不可变快照，不依赖跨会话缓存。
+     * @return 无；不确认任何设备参数已下发成功。
      */
     virtual void BeginNewSession() = 0;
 
     /**
-     * @brief 生成品牌特有的Lua初始化数据表脚本
+     * @brief 生成旧自由通讯需要的 Lua 工具函数及兼容初始化内容。
      *
      * 【修改理由】initData() 中的 laserRegisterMap / wireRegisterMap / spotWeld /
      *   laserHeadRegisterMap 数据表属于超强品牌地址规则, 不应硬编码在通讯层.
-     * 【逻辑】通讯层调用此方法获取品牌特有的Lua数据表定义, 通用Modbus工具函数仍由通讯层维护.
-     * @return 品牌特有的Lua数据表定义脚本字符串
+     * 新工艺写计划使用实时地址绑定，不依赖此处历史固定地址数据表。
+     * 调用方仅在旧自由通讯路径加载这些工具，本地映射路径无需拼报文或 CRC。
+     * @return 初始化脚本字符串；不需要工具函数的映射品牌可返回空字符串。
      */
     virtual std::string buildInitLuaFunc() const = 0;
+
+    /**
+     * @brief 判断该型号的默认参数路径是否使用机器人本地映射。
+     * @return true 表示默认使用本地映射；句柄的显式配置由通讯上下文另行判断。
+     */
+    virtual bool usesMappedSlaveRegisters() const { return false; }
+
+    /**
+     * @brief 判断该型号是否由板卡执行缓降。
+     * @return true 表示不生成旧自由通讯逐步降功率脚本，SDK 保留起收弧控制边界。
+     */
+    virtual bool usesBoardManagedRampDown() const { return false; }
+
+    /**
+     * @brief 判断正式焊接的送丝启停是否使用板卡数字输出。
+     * @return true 表示起收弧流程按焊接类型控制送丝数字输出，不在参数配置中启停。
+     */
+    virtual bool controlsWireThroughDigitalOutput() const { return false; }
 };
 
 /**
@@ -198,8 +218,7 @@ public:
 class SupProtocolAdapter : public BrandProtocolAdapter
 {
 private:
-    // 上次已经收到从站成功响应的参数。
-    ParamMap m_lastAppliedParameters;
+    ParamMap m_lastAppliedParameters; ///< 保留旧会话缓存；新参数编译不会更新此成员
 public:
     LaserHeadBrandSdk brand() const override;
     BrandProtocolProfile profile() const override;
@@ -209,14 +228,11 @@ public:
     bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
     int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
     std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
-    std::string writeLuaScript(
-        const std::string& functionCode, 
-        const std::string& portAddress,
-        const std::string& paramValue,
-        const std::string& portNum,
-        const std::string& firstRegisterNum,
-        const std::string& receiptNeed) const override;
 
+    /**
+     * @brief 以设备参数流水线生成旧超强及其兼容别名的参数脚本体。
+     * @return true 表示成功；不控制数字输出，不预先修改资源参数。
+     */
     bool buildConfigureMachineBodyScript(
         const MachineResource& machineResource, 
         const CraftInfoLaserSdk& craftInfo, 
@@ -249,12 +265,10 @@ public:
     bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
     int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
     std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
-        std::string writeLuaScript(const std::string& functionCode, 
-        const std::string& portAddress,
-        const std::string& paramValue,
-        const std::string& portNum,
-        const std::string& firstRegisterNum,
-        const std::string& receiptNeed) const override;
+    /**
+     * @brief 生成宝辰鑫默认本地映射参数脚本体，瓦特值与偏移按描述统一编码。
+     * @return true 表示成功；失败时保留原输出。
+     */
     bool buildConfigureMachineBodyScript(
         const MachineResource& machineResource,
         const CraftInfoLaserSdk& craftInfo, 
@@ -262,16 +276,66 @@ public:
 
     bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const override;
 
-    // 新的配置会话开始时清空上次成功参数, 避免跨会话残留影响.
+    // 保留会话入口；当前默认本地映射采用全量参数计划，无增量缓存需要清理。
     void BeginNewSession() override;
 
     std::string buildInitLuaFunc() const override;
+    bool usesMappedSlaveRegisters() const override { return true; }
+    bool usesBoardManagedRampDown() const override { return true; }
+    bool controlsWireThroughDigitalOutput() const override { return true; }
+};
+
+/**
+ * @brief 超强伟业 SUP26AD 映射从站协议适配器
+ *
+ * 仅下发现有工艺使用的参数。送丝机设备参数由应用的设备页通过
+ * 独立从站一次性写入，不进入工艺脚本。
+ */
+class Sup26AdProtocolAdapter : public BrandProtocolAdapter
+{
+public:
+    LaserHeadBrandSdk brand() const override;
+    BrandProtocolProfile profile() const override;
+    LaserSdkResult checkCraft(const CraftInfoLaserSdk& craftInfo) const override;
+    bool hasRegister(BrandRegisterRole role) const override;
+    BrandRegisterInfo registerInfo(BrandRegisterRole role) const override;
+    bool allowWireFeederWrite(WeldingProcessType weldingType, BrandRegisterRole role) const override;
+    int wireFeederRunStatusValue(WeldingProcessType weldingType) const override;
+    std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType weldingType) const override;
+    /**
+     * @brief 生成 SUP26AD 默认映射工艺，保持百分比、扫描频率及原始回抽长度。
+     * @return true 表示成功；不进入旧超强自由通讯路径。
+     */
+    bool buildConfigureMachineBodyScript(
+        const MachineResource& machineResource,
+        const CraftInfoLaserSdk& craftInfo,
+        std::string& scriptBody) const override;
+    bool shouldGenerateWireFeederScript(WeldingProcessType weldingType) const override;
+    void BeginNewSession() override;
+    std::string buildInitLuaFunc() const override;
+    bool usesMappedSlaveRegisters() const override { return true; }
+
+    /**
+     * @brief 缓降是否由板卡自行完成（与宝辰鑫一致）
+     *
+     * 【修改理由】SUP26AD 与 BCX 同属映射从站品牌：工艺参数与控制只能通过机器人本地寄存器下发，
+     *   不接受 write_value_port 自由通讯报文。此前未覆盖本开关（默认 false），
+     *   craftscript.cpp 的 appendRampDownControl 会按超强外控品牌生成 slow_arc_stop()：
+     *   内部用 write_value_port(0x0906/0x0910, 超强地址, ...) 发报文，并用 task_create 创建后台任务。
+     *   报文对映射从站板卡无效，而后台任务与 wait() 会让机器人程序一直停留在运行状态、无法停止。
+     * 【逻辑】声明缓降由板卡按已写入的 RAMP_DOWN_TIME / LASER_OFF_POWER 寄存器自行完成，
+     *   SDK 只在降功率点关闭外部使能 CO1（送丝焊且由数字输出管理送丝时同时关闭 CO2），
+     *   不再生成任何报文脚本，与宝辰鑫内控缓降行为一致。
+     * @return true 表示缓降由板卡内控
+     */
+    bool usesBoardManagedRampDown() const override { return true; }
 };
 
 /**
  * @brief 获取品牌协议适配器（品牌工厂函数）
  * @param[in] brand 激光头品牌枚举
- * @return 品牌协议适配器引用, 未知品牌返回默认超强适配器
+ * @return 原接口保留的适配器引用；未知枚举仍返回旧超强适配器。
+ * @note 新参数流水线会在调用本工厂前拒绝未知品牌，不以此回退推测设备地址。
  *
  * @legacy_source src/brand/brandadapter.cpp
  * @legacy_function GetBrandProtocolAdapter

@@ -1,4 +1,5 @@
 #include "brandadapter.h"
+#include "brand/deviceparameters.h"
 #include <cmath>
 
 namespace {
@@ -6,33 +7,78 @@ namespace {
 const unsigned int INVALID_REGISTER_ADDR = 0xFFFFFFFF;
 const double BCX_CENTER_OFFSET_MIN_MM = -15.0;
 const double BCX_CENTER_OFFSET_MAX_MM = 15.0;
-const double BCX_CENTER_OFFSET_SCALE = 100.0;
 const int BCX_RAMP_TIME_MAX_MS = 9999;
 
-/**
- * @brief 将宝辰鑫中心偏移转换为寄存器有符号整数。
- * @param offsetMm 中心偏移，单位mm。
- * @return 放大100倍并四舍五入后的寄存器值。
- */
-int16_t scaleBcxCenterOffset(double offsetMm)
+/** @brief SUP26AD 默认协议图形编号；三角和十字与 SDK 枚举的值互换。 */
+int sup26AdPatternValue(SpotPatternLaserSdk pattern)
 {
-    return static_cast<int16_t>(std::lround(offsetMm * BCX_CENTER_OFFSET_SCALE));
+    if (pattern == SpotPatternLaserSdk::TRIANGLE_LASERSDK)
+        return 4;
+    if (pattern == SpotPatternLaserSdk::CROSS_LASERSDK)
+        return 5;
+    return static_cast<int>(pattern);
 }
 
 /**
- * @brief 获取宝辰鑫脚本使用的寄存器参数值。
- * @param parameter 参数类型。
- * @param registerValue 寄存器原始16位数据。
- * @return 中心偏移按有符号数返回，其它参数保持无符号取值。
+ * @brief 将 SUP26AD 工艺扫描速度按图形周长换算为默认协议频率。
+ * @param craftInfo 已检查图形与尺寸的原始工艺。
+ * @return 四舍五入后的频率，用于默认型号能力表校验。
  */
-int bcxScriptRegisterValue(LaserParam parameter, uint16_t registerValue)
+int sup26AdScanFrequency(const CraftInfoLaserSdk& craftInfo)
 {
-    if (parameter == LaserParam::CenterOffsetX
-            || parameter == LaserParam::CenterOffsetY)
+    const double width = craftInfo.craftScanWidth;
+    const double height = craftInfo.craftScanHeight;
+    const double speed = static_cast<double>(craftInfo.craftScanSpeed);
+    double frequency = 0.0;
+    switch (craftInfo.graphicsSwitching)
     {
-        return static_cast<int16_t>(registerValue);
+    case SpotPatternLaserSdk::CIR_LASERSDK:
+    case SpotPatternLaserSdk::DOUBLE_CIRCLE_LASERSDK:
+        frequency = speed / (PI * width);
+        break;
+    case SpotPatternLaserSdk::LINE_LASERSDK:
+        frequency = speed / (width * 2.0);
+        break;
+    case SpotPatternLaserSdk::STAR_LASERSDK:
+        frequency = speed * 2.0 / (3.0 * (width + height));
+        break;
+    case SpotPatternLaserSdk::HORIZON_8_LASERSDK:
+        frequency = speed * 2.0 / (PI * (width + height));
+        break;
+    case SpotPatternLaserSdk::CROSS_LASERSDK:
+        frequency = speed / (width * 2.0 + height * 2.0);
+        break;
+    case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
+        frequency = speed / (3.0 * width);
+        break;
     }
-    return static_cast<int>(registerValue);
+    return static_cast<int>(std::lround(frequency));
+}
+
+/**
+ * @brief 查询已保留 SUP26AD 聚焦规格的图形尺寸频率上限。
+ * @param craftInfo 已检查图形编号的工艺，不把其它聚焦规格套用本表。
+ * @return 默认型号允许的最大扫描频率，单位 Hz。
+ */
+int sup26AdMaxScanFrequency(const CraftInfoLaserSdk& craftInfo)
+{
+    // SUP26AD(150聚焦) 协议表，当前UI开放宽度0.1~5.0mm和0~6七种图形。
+    static const int limits[7][5] = {
+        {500, 500, 500, 500, 400}, // 圆
+        {500, 450, 350, 300, 200}, // 8字
+        {500, 500, 500, 500, 500}, // 一字
+        {400, 400, 400, 400, 350}, // 四尖瓣
+        {500, 500, 500, 500, 400}, // 三尖瓣
+        {400, 400, 400, 300, 250}, // 十字
+        {500, 500, 500, 500, 450}  // 双圆
+    };
+    const double graphSize = craftInfo.craftScanWidth > craftInfo.craftScanHeight
+            ? craftInfo.craftScanWidth : craftInfo.craftScanHeight;
+    int sizeIndex = static_cast<int>(std::ceil(graphSize)) - 1;
+    if (sizeIndex < 0) sizeIndex = 0;
+    if (sizeIndex > 4) sizeIndex = 4;
+    const int patternIndex = sup26AdPatternValue(craftInfo.graphicsSwitching);
+    return limits[patternIndex][sizeIndex];
 }
 
 // 修改理由: 统一构造品牌寄存器描述, 避免各品牌地址表重复填充结构体字段.
@@ -72,7 +118,7 @@ bool isWireFeederRole(BrandRegisterRole role)
     }
 }
 
-} // namespace
+} // 匿名命名空间
 
 LaserHeadBrandSdk SupProtocolAdapter::brand() const
 {
@@ -83,6 +129,7 @@ BrandProtocolProfile SupProtocolAdapter::profile() const
 {
     // 修改理由: 超强 SUP 协议基础参数属于品牌规则, 通讯层不应硬编码.
     // 逻辑: 返回默认 Modbus 从站, 读写功能码和串口参数, 供脚本生成统一使用.
+    // 保留历史字段；旧报文实际从站取复合脚本码高字节 0x09/0x0A，新映射不使用此配置。
     BrandProtocolProfile profile;
     profile.slaveAddr = 0x01;
     profile.readFuncCode = 0x03;
@@ -221,15 +268,15 @@ std::vector<BrandRegisterRole> SupProtocolAdapter::craftWireFeederRoles(WeldingP
     return roles;
 }
 
-std::string SupProtocolAdapter::writeLuaScript(const std::string& functionCode,
+std::string BrandProtocolAdapter::writeLuaScript(const std::string& functionCode,
                                                 const std::string& portAddress,
                                                 const std::string& paramValue,
                                                 const std::string& portNum,
                                                 const std::string& firstRegisterNum,
                                                 const std::string& receiptNeed) const
 {
-    // 【修改理由】从 utils.h 移到品牌适配器层，后续子品牌可重写为不同Lua函数格式（如不同函数名、参数顺序）。
-    // 【逻辑】生成 write_value_port Lua 调用行，参数依次为：功能码、地址、值、端口、起始寄存器、回执标志。
+    // 修改理由: 默认实现统一生成 write_value_port 调用, 各品牌无差异时复用, 避免逐字重复.
+    // 逻辑: 参数依次为功能码、地址、值、端口、起始寄存器、回执标志; 子品牌可覆写定制.
     std::ostringstream writeScript;
     writeScript << "    write_value_port(" << functionCode << "," << portAddress << ","
                 << paramValue << "," << portNum << "," << firstRegisterNum << ","
@@ -242,69 +289,10 @@ bool SupProtocolAdapter::buildConfigureMachineBodyScript(
     const CraftInfoLaserSdk& craftInfo,
     std::string& scriptBody) const
 {
-    // 1. 构建 laserRegisterMap / laserHeadRegisterMap / spotWeld Lua数据表赋值
-    // 2. 写入焊接模式和图形切换的单寄存器
-    // 3. 构建 write_multi_value_port 批量写调用
-    const BrandProtocolProfile p = this->profile();
-    const std::string writeSingleFuncCode = decimalToHexStringStream(p.laserWriteSingleScriptCode);
-    const std::string writeMultiFuncCode  = decimalToHexStringStream(p.writeMultiScriptCode);
-    const CgxiLaserPowerLaserSdk& pw = machineResource.laserPowerParams;
-    const CgxiLaserHeadLaserSdk&  hd = machineResource.laserHeadParams;
-    std::ostringstream script;
-    // ---- 激光器数据表赋值 ----
-    script << "    laserRegisterMap[1][2] = "  << pw.laserPower << "\n";
-    script << "    laserRegisterMap[6][2] = "  << craftInfo.craftPreGasTime << "\n";
-    script << "    laserRegisterMap[7][2] = "  << craftInfo.craftPostGasTime << "\n";
-    script << "    laserRegisterMap[9][2] = "  << double2str(craftInfo.craftYAxisZoom, 2)   << "*100 \n";
-    script << "    laserRegisterMap[10][2] = " << double2str(craftInfo.craftYAxisOffset, 2)  << "*100 \n";
-    script << "    laserRegisterMap[11][2] = " << double2str(craftInfo.craftXAxisZoom, 2)   << "*100 \n";
-    script << "    laserRegisterMap[12][2] = " << double2str(craftInfo.craftXAxisOffset, 2)  << "*100 \n";
-    // ---- 激光头数据表赋值 ----
-    script << "    laserHeadRegisterMap[1][2] = " << craftInfo.craftScanSpeed << "\n";
-    script << "    laserHeadRegisterMap[2][2] = " << double2str(craftInfo.craftScanWidth, 1)  << "*10 \n";
-    script << "    laserHeadRegisterMap[3][2] = " << craftInfo.craftLeadInPower << "\n";
-    script << "    laserHeadRegisterMap[4][2] = " << hd.laserHeadDutyCycle << "\n";
-    script << "    laserHeadRegisterMap[5][2] = " << hd.laserHeadHighPulseFrequency << "\n";
-    script << "    laserHeadRegisterMap[6][2] = " << hd.laserHeadLowPulseFrequency << "\n";
-    script << "    laserHeadRegisterMap[7][2] = " << double2str(craftInfo.craftScanHeight, 1) << "*10 \n";
-    script << "    laserHeadRegisterMap[8][2] = " << craftInfo.craftRotationAngle << "\n";
-    // ---- 点焊数据表赋值 ----
-    script << "    spotWeld[1][2] = " << static_cast<int>(craftInfo.craftWeldType) << "\n";
-    script << "    spotWeld[2][2] = " << craftInfo.craftSpotWeldDuration << "\n";
-    script << "    spotWeld[3][2] = " << craftInfo.craftSpotWeldInterval << "\n";
-    // ---- 写入焊接模式 ----
-    script << writeLuaScript(writeSingleFuncCode,
-                             std::to_string(machineResource.weldingModeLoc),
-                             std::to_string(static_cast<int>(craftInfo.craftweldMode)),
-                             "3", "SendCommuRegAddr", "1");
-    // ---- 写入图形切换 ----
-    switch (craftInfo.graphicsSwitching)
-    {
-        case SpotPatternLaserSdk::TRIANGLE_LASERSDK:
-            script << writeLuaScript(writeSingleFuncCode,
-                                    std::to_string(machineResource.laserHeadPatternIdLoc),
-                                    std::to_string(4), "3", "SendCommuRegAddr", "1");
-            break;
-        case SpotPatternLaserSdk::CROSS_LASERSDK:
-            script << writeLuaScript(writeSingleFuncCode,
-                                    std::to_string(machineResource.laserHeadPatternIdLoc),
-                                    std::to_string(5), "3", "SendCommuRegAddr", "1");
-            break;
-        default:
-            script << writeLuaScript(writeSingleFuncCode,
-                                    std::to_string(machineResource.laserHeadPatternIdLoc),
-                                    std::to_string(craftInfo.graphicsSwitching), "3", "SendCommuRegAddr", "1");
-            break;
-    }
-    // ---- 批量写调用 ----
-    script << "    comNo = 3\n"
-           << "    slave_addr = " << writeMultiFuncCode << "\n"
-           << "    write_multi_value_port(laserRegisterMap)      --写入激光焊接参数\n"
-           << "    write_multi_value_port(laserHeadRegisterMap)  --写入激光头\n"
-           << "    write_multi_value_port(spotWeld)              --写入点焊参数\n";
-
-    scriptBody = script.str();
-    return true;
+    // 参数语义、编码及地址均交由设备参数流水线；本接口保留旧自由通讯输出方式。
+    // 这里只返回参数调用体，初始化工具由外层加载，起收弧动作不得随工艺下发执行。
+    return laser_parameters::BuildDeviceCraftScript(machineResource, craftInfo, nullptr,
+            scriptBody) == SUCCESS_LASER_SDK;
 }
 
 void SupProtocolAdapter::BeginNewSession()
@@ -314,10 +302,9 @@ void SupProtocolAdapter::BeginNewSession()
 
 bool SupProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType weldingType) const
 {
-    // 【修改理由】超强品牌在 buildConfigureMachineBodyScript 中仅生成激光器批量写脚本，
-    //   送丝机参数需要通讯层通过 write_value_port 逐寄存器追加。
-    // 【逻辑】填丝焊返回 true 触发通讯层生成送丝机配置脚本，自熔焊无需送丝机参数。
-    return weldingType == WeldingProcessType::WIRE_WELDING_LASERSDK;
+    // 设备参数流水线已包含该焊接类型需要的送丝参数，避免再次下发。
+    (void)weldingType;
+    return false;
 }
 
 std::string SupProtocolAdapter::buildInitLuaFunc() const
@@ -326,69 +313,7 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
     //   数据表属于超强品牌地址规则, 不应硬编码在通讯层 initData() 中.
     // 逻辑: 返回超强品牌的 Lua 数据表定义, 通讯层拼接通用工具函数后输出完整初始化脚本.
     std::ostringstream script;
-//    // ---- 激光器寄存器数据表 ----
-//    script << "laserRegisterMap = {\n"
-//           << "    {0x0001, 0, 0x0001},\n"
-//           << "    {0x0002, 0, 0x0002},\n"
-//           << "    {0x0003, 0, 0x0003},\n"
-//           << "    {0x0004, 0, 0x0004},\n"
-//           << "    {0x0005, 0, 0x0005},\n"
-//           << "    {0x0006, 0, 0x0006},\n"
-//           << "    {0x0007, 0, 0x0007},\n"
-//           << "    {0x0008, 0, 0x0008},\n"
-//           << "    {0x0009, 0, 0x0009},\n"
-//           << "    {0x000A, 0, 0x000A},\n"
-//           << "    {0x000B, 0, 0x000B},\n"
-//           << "    {0x000C, 0, 0x000C},\n"
-//           << "}\n\n";
 
-//    // ---- 送丝机寄存器数据表 ----
-//    script << "wireRegisterMap = {\n"
-//           << "    {0x0100, 0, 0x0100},\n"
-//           << "    {0x0101, 0, 0x0101},\n"
-//           << "    {0x0102, 0, 0x0102},\n"
-//           << "    {0x0103, 0, 0x0103},\n"
-//           << "    {0x0104, 0, 0x0104},\n"
-//           << "    {0x0105, 0, 0x0105},\n"
-//           << "    {0x0106, 0, 0x0106},\n"
-//           << "    {0x0107, 0, 0x0107},\n"
-//           << "    {0x0108, 0, 0x0108},\n"
-//           << "    {0x0109, 0, 0x0109},\n"
-//           << "    {0x010A, 0, 0x010A},\n"
-//           << "    {0x010B, 0, 0x010B},\n"
-//           << "    {0x010C, 0, 0x010C},\n"
-//           << "    {0x010D, 0, 0x010D},\n"
-//           << "    {0x010E, 0, 0x010E},\n"
-//           << "    {0x010F, 0, 0x010F},\n"
-//           << "    {0x0110, 0, 0x0110},\n"
-//           << "    {0x0111, 0, 0x0111},\n"
-//           << "    {0x0112, 0, 0x0112},\n"
-//           << "    {0x0113, 0, 0x0113},\n"
-//           << "    {0x0114, 0, 0x0114},\n"
-//           << "    {0x0115, 0, 0x0115},\n"
-//           << "}\n\n";
-
-//    // ---- 点焊参数数据表 ----
-//    script << "spotWeld = {\n"
-//           << "    {0x0020, 0, 0x0020},\n"
-//           << "    {0x0021, 0, 0x0021},\n"
-//           << "    {0x0022, 0, 0x0022},\n"
-//           << "}\n\n";
-
-//    // ---- 激光头寄存器数据表 ----
-//    script << "laserHeadRegisterMap = {\n"
-//           << "    {0x0030, 0, 0x0030},\n"
-//           << "    {0x0031, 0, 0x0031},\n"
-//           << "    {0x0032, 0, 0x0032},\n"
-//           << "    {0x0033, 0, 0x0033},\n"
-//           << "    {0x0034, 0, 0x0034},\n"
-//           << "    {0x0035, 0, 0x0035},\n"
-//           << "    {0x0036, 0, 0x0036},\n"
-//           << "    {0x0037, 0, 0x0037},\n"
-//           << "}\n";
-
-
-    //组装最终要下发执行的脚本
     std::string commandListStartData =
     R"(--激光器工艺
     local laserRegisterMap = {
@@ -413,7 +338,7 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
         [4] = {0x0106, 0},    --补丝延时
 
         [100] = {0x0100, 123},  --自动送丝速度
-        [115] = {)" + std::to_string(GetBrandProtocolAdapter(LaserHeadBrandSdk::CQLASERPOWER_SDK).registerInfo(BrandRegisterRole::WireFeederRunStatus).writeAddr) + R"(, 0},    --送丝机运行状态
+        [115] = {)" + std::to_string(registerInfo(BrandRegisterRole::WireFeederRunStatus).writeAddr) + R"(, 0},    --送丝机运行状态
     }
     --点焊工艺
     local spotWeld = {
@@ -512,9 +437,9 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
                 local hex_value = to_hex_string(value)
                 result = result .. hex_value
             elseif type(value) == "table" then
-                local high, low = split_to_bytes(value[1])
-                local high_hex = to_hex_string(high)
-                local low_hex = to_hex_string(low)
+                local byte_pair = Lua_split(value[1])
+                local high_hex = to_hex_string(byte_pair[1])
+                local low_hex = to_hex_string(byte_pair[2])
                 result = result .. high_hex .. low_hex
             end
         end
@@ -598,7 +523,7 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
         end
 
     end
-    function write_multi_value_port(addr_value_map)
+    function write_multi_value_port(addr_value_map, slave_addr, comNo)
         -- 报文格式 {功能码-寄存器首地址-寄存器数量-字节数量-DATAX.-.CRC16}
         bool_register_clear(0, #addr_value_map * 4 + 18) -- 清空通讯变量
         register_clear(RecvCommuRegAddr, RecvCommuReg_n)
@@ -687,10 +612,158 @@ std::string SupProtocolAdapter::buildInitLuaFunc() const
 
     // 【修改理由】移除了 lua_data_get（零引用僵尸函数）和 alarm_bits_list（状态监控已注释）
     // 【逻辑】其余函数按依赖顺序拼接：基础工具 → 数据表 → 变量 → CRC → 拆分 → 清空 → 串口读写
-    script <<  commandListStartData + startData + swap_bytes + modbus_crc16 + lua_split + register_clear
-     + concatenate_crc + parse_little_endian_bytes + writeHex2Commu_reg + task_write_port;
+    // 保留原 0336fec 的流追加修复；不能对 script.str() 返回的临时副本追加函数。
+    script << commandListStartData << startData << swap_bytes << modbus_crc16
+           << lua_split << register_clear << concatenate_crc
+           << parse_little_endian_bytes << writeHex2Commu_reg << task_write_port;
 
     return script.str();
+}
+
+//----------------------------------------------------------------
+// 超强 SUP26AD 品牌适配器
+
+LaserHeadBrandSdk Sup26AdProtocolAdapter::brand() const
+{
+    return LaserHeadBrandSdk::CQ_SUP26AD_LASERPOWER_SDK;
+}
+
+BrandProtocolProfile Sup26AdProtocolAdapter::profile() const
+{
+    // 为旧接口保留协议元数据；默认工艺只写本地映射槽，不用这里拼自由通讯报文。
+    BrandProtocolProfile result;
+    result.slaveAddr = 0x09;
+    result.readFuncCode = 0x03;
+    result.writeSingleFuncCode = 0x06;
+    result.writeMultiFuncCode = 0x10;
+    result.laserWriteSingleScriptCode = 0x0906;
+    result.wireFeederWriteSingleScriptCode = 0x0906;
+    result.writeMultiScriptCode = 0x0910;
+    result.baudRate = 115200;
+    result.dataBits = 8;
+    result.stopBits = 1;
+    return result;
+}
+
+LaserSdkResult Sup26AdProtocolAdapter::checkCraft(const CraftInfoLaserSdk& craftInfo) const
+{
+    // 本表仅约束默认型号。显式参数配置使用描述中的范围，不进入本方法。
+    const int peakPower = craftInfo.laserHeadPeakPower;
+    if (peakPower <= 0
+            || craftInfo.craftLaserPower <= 0
+            || craftInfo.craftLaserPower > peakPower
+            || craftInfo.craftLeadInPower < 0
+            || craftInfo.craftLeadInPower > craftInfo.craftLaserPower
+            || craftInfo.craftLeadOutPower < 0
+            || craftInfo.craftLeadOutPower > craftInfo.craftLaserPower)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    if (!std::isfinite(craftInfo.craftScanWidth)
+            || !std::isfinite(craftInfo.craftScanHeight)
+            || craftInfo.craftScanWidth < 0.1 || craftInfo.craftScanWidth > 5.0
+            || craftInfo.craftScanHeight < 0.1 || craftInfo.craftScanHeight > 5.0)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    const int pattern = static_cast<int>(craftInfo.graphicsSwitching);
+    if (pattern < static_cast<int>(SpotPatternLaserSdk::CIR_LASERSDK)
+            || pattern > static_cast<int>(SpotPatternLaserSdk::DOUBLE_CIRCLE_LASERSDK))
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    // 先检查图形编号与有限尺寸，再访问图形能力表，避免数组下标与换算前提错误。
+    const int frequency = sup26AdScanFrequency(craftInfo);
+    if (frequency < 10 || frequency > sup26AdMaxScanFrequency(craftInfo))
+        return LaserSdkResult::PARAM_SCAN_FREQUENCY_ERROR_LASER_SDK;
+
+    if (craftInfo.craftYAxisZoom < 0.01 || craftInfo.craftYAxisZoom > 4.0
+            || craftInfo.craftXAxisZoom < 0.01 || craftInfo.craftXAxisZoom > 4.0
+            || craftInfo.craftYAxisOffset < -3.0 || craftInfo.craftYAxisOffset > 3.0
+            || craftInfo.craftXAxisOffset < -3.0 || craftInfo.craftXAxisOffset > 3.0
+            || craftInfo.craftRotationAngle < 0 || craftInfo.craftRotationAngle > 360
+            || craftInfo.craftPreGasTime < 0 || craftInfo.craftPreGasTime > 3000
+            || craftInfo.craftPostGasTime < 0 || craftInfo.craftPostGasTime > 3000
+            || craftInfo.craftLeadInRampTime < 0 || craftInfo.craftLeadInRampTime > 2000
+            || craftInfo.craftLeadOutRampDistance < 0
+            || craftInfo.craftWeldingWireFeed < 0 || craftInfo.craftWeldingWireFeed > 600
+            || craftInfo.craftRetractionLength < 0 || craftInfo.craftRetractionLength > 200
+            || craftInfo.craftEndLoopbackLength < 0 || craftInfo.craftEndLoopbackLength > 200
+            || !std::isfinite(craftInfo.craftWeldingSpeed)
+            || craftInfo.craftWeldingSpeed <= 0.0)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+
+    const double rampDownTime = craftInfo.craftLeadOutRampDistance * 1000.0
+            / craftInfo.craftWeldingSpeed;
+    if (!std::isfinite(rampDownTime) || rampDownTime > 2000.0)
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    return LaserSdkResult::SUCCESS_LASER_SDK;
+}
+
+bool Sup26AdProtocolAdapter::hasRegister(BrandRegisterRole role) const
+{
+    return registerInfo(role).writeAddr != INVALID_REGISTER_ADDR;
+}
+
+BrandRegisterInfo Sup26AdProtocolAdapter::registerInfo(BrandRegisterRole role) const
+{
+    switch (role)
+    {
+    case BrandRegisterRole::GasValveSignal:
+        return makeRegister(0x1061, 0x1061);
+    case BrandRegisterRole::LaserOnOff:
+        return makeRegister(0x1060, 0x1060);
+    default:
+        return makeRegister(INVALID_REGISTER_ADDR, INVALID_REGISTER_ADDR,
+                            int16Reg, 1.0, false);
+    }
+}
+
+bool Sup26AdProtocolAdapter::allowWireFeederWrite(
+        WeldingProcessType weldingType, BrandRegisterRole role) const
+{
+    (void)weldingType;
+    (void)role;
+    return false;
+}
+
+int Sup26AdProtocolAdapter::wireFeederRunStatusValue(
+        WeldingProcessType weldingType) const
+{
+    (void)weldingType;
+    return 0;
+}
+
+std::vector<BrandRegisterRole> Sup26AdProtocolAdapter::craftWireFeederRoles(
+        WeldingProcessType weldingType) const
+{
+    (void)weldingType;
+    return std::vector<BrandRegisterRole>();
+}
+
+bool Sup26AdProtocolAdapter::buildConfigureMachineBodyScript(
+        const MachineResource& machineResource,
+        const CraftInfoLaserSdk& craftInfo,
+        std::string& scriptBody) const
+{
+    // 直接读取不可变工艺，原始回抽长度不经过公共二十毫米限幅。
+    return laser_parameters::BuildDeviceCraftScript(machineResource, craftInfo, nullptr,
+            scriptBody) == SUCCESS_LASER_SDK;
+}
+
+bool Sup26AdProtocolAdapter::shouldGenerateWireFeederScript(
+        WeldingProcessType weldingType) const
+{
+    (void)weldingType;
+    return false;
+}
+
+void Sup26AdProtocolAdapter::BeginNewSession()
+{
+    // SUP26AD 仅写本地映射寄存器，不复用 SUP25A 的自由通讯会话状态。
+}
+
+std::string Sup26AdProtocolAdapter::buildInitLuaFunc() const
+{
+    // 映射工艺不发送原始字节，初始化脚本无需 CRC、串口或回执工具。
+    return std::string();
 }
 
 //----------------------------------------------------------------
@@ -704,6 +777,7 @@ LaserHeadBrandSdk BcxOmniProtocolAdapter::brand() const
 BrandProtocolProfile BcxOmniProtocolAdapter::profile() const
 {
     //脚本功能码按板卡协议使用 0x5A06 单写和 0x5A09 批量写, 串口为 115200/8N1.
+    // 元数据仅服务原兼容调用；新本地映射参数计划不配置串口或板卡站号。
     BrandProtocolProfile profile;
     profile.slaveAddr = 0x5A;
     profile.readFuncCode = 0x03;
@@ -824,96 +898,19 @@ std::vector<BrandRegisterRole> BcxOmniProtocolAdapter::craftWireFeederRoles(Weld
     return roles;
 }
 
-std::string BcxOmniProtocolAdapter::writeLuaScript(const std::string& functionCode,
-                                                    const std::string& portAddress,
-                                                    const std::string& paramValue,
-                                                    const std::string& portNum,
-                                                    const std::string& firstRegisterNum,
-                                                    const std::string& receiptNeed) const
-{
-    std::ostringstream writeScript;
-    writeScript << "    write_value_port(" << functionCode << "," << portAddress << ","
-                << paramValue << "," << portNum << "," << firstRegisterNum << ","
-                << receiptNeed << ")\n";
-    return writeScript.str();
-}
-
 bool BcxOmniProtocolAdapter::buildConfigureMachineBodyScript(
     const MachineResource& machineResource,
     const CraftInfoLaserSdk& craftInfo,
     std::string& scriptBody) const
 {
-    const BrandProtocolProfile p = this->profile();
-    const std::string funcCode = decimalToHexStringStream(p.laserWriteSingleScriptCode);
-    const CgxiLaserPowerLaserSdk& pw = machineResource.laserPowerParams;
-    const CgxiLaserHeadLaserSdk&  hd = machineResource.laserHeadParams;
-    const CgxiWireFeederLaserSdk& wf = machineResource.wireFeederParams;
-
-    ParamMap currentParameters;
-    currentParameters[LaserParam::RatedPower] = static_cast<uint16_t>(hd.laserHeadPeakPower);
-    currentParameters[LaserParam::CenterOffsetX] =
-            static_cast<uint16_t>(scaleBcxCenterOffset(pw.laserHeadXOffset));
-    currentParameters[LaserParam::CenterOffsetY] =
-            static_cast<uint16_t>(scaleBcxCenterOffset(pw.laserHeadYOffset));
-    currentParameters[LaserParam::LaserPower] = static_cast<uint16_t>(pw.laserPower);
-    currentParameters[LaserParam::LaserFrequency] = static_cast<uint16_t>(hd.laserHeadLowPulseFrequency);
-    currentParameters[LaserParam::DutyCycle] = static_cast<uint16_t>(hd.laserHeadDutyCycle);
-    currentParameters[LaserParam::LaserOnPower] = static_cast<uint16_t>(pw.laserPowerOpen);
-    currentParameters[LaserParam::LaserOffPower] = static_cast<uint16_t>(pw.laserPowerClose);
-    currentParameters[LaserParam::RampUpTime] = static_cast<uint16_t>(pw.laserRampUpTime);
-    currentParameters[LaserParam::RampDownTime] = static_cast<uint16_t>(pw.laserRampDownTime);
-    currentParameters[LaserParam::GasOnAdvanceTime] = static_cast<uint16_t>(pw.gasStartupAdvanceTime);
-    currentParameters[LaserParam::GasOffDelayTime] = static_cast<uint16_t>(pw.gasShutoffDelayTime);
-    currentParameters[LaserParam::StepEquivalent] =
-            static_cast<uint16_t>(craftInfo.craftStepEquivalent);
-    currentParameters[LaserParam::RunningSpeed] = static_cast<uint16_t>(wf.wireFeederMotorSpeed);    //送丝速度
-    currentParameters[LaserParam::WireCompensationDelay] = static_cast<uint16_t>(wf.wireFeederWaitTime);  //设定抽丝后延时补丝的时间
-    currentParameters[LaserParam::WireFeedRetractSpeed] = static_cast<uint16_t>(wf.wireFeederMotorSpeed);    //设定抽丝后延时补丝的时间
-    currentParameters[LaserParam::WireRetractDistance] = static_cast<uint16_t>(wf.wireFeederBackLength);
-    currentParameters[LaserParam::WireFeedDistance] = static_cast<uint16_t>(wf.wireFeederFeedLength);
-    currentParameters[LaserParam::SingleStepDistance] = static_cast<uint16_t>(0);   //步进暂不支持
-    currentParameters[LaserParam::SwingAmplitude] = static_cast<uint16_t>(hd.laserHeadScanWidth * 100);
-    currentParameters[LaserParam::SwingShape] = static_cast<uint16_t>(hd.laserSpotPattern);
-    currentParameters[LaserParam::SwingFrequency] = static_cast<uint16_t>(hd.laserHeadScanSpeed);//摆动频率
-    currentParameters[LaserParam::ScaleFactorX] = static_cast<uint16_t>(pw.laserHeadXEnlarge * 100);
-    currentParameters[LaserParam::ScaleFactorY] = static_cast<uint16_t>(pw.laserHeadYEnlarge * 100);
-
-    // ModbusBuildResult builderResult =
-    //     LaserModbusRtuBuilder::BuildChangedWriteFrames(currentParameters, m_lastAppliedParameters, 0x5A);
-
-    // if (!builderResult.success )
-    // {
-    //     scriptBody = builderResult.errorMessage;
-    //     return false;
-    // }
-    //const ModbusWriteFrame &frame = builderResult.frames.front();
-
-    std::ostringstream script;
-    // 生成脚本：遍历变化的帧
-    // 替换为 C++11 兼容的迭代器遍历
-    for (auto it = currentParameters.begin(); it != currentParameters.end(); ++it) {
-        script << "    write_int16_register(0x"
-               << std::hex << std::setw(4) << std::setfill('0')
-               << static_cast<uint16_t>(it->first)  // 获取枚举地址
-               << ", " << std::dec
-               << bcxScriptRegisterValue(it->first, it->second) // 获取参数值
-               << ")\n";
-    }
-
-
-    scriptBody = script.str();
-    return true;
+    // 瓦特、有符号偏移和物理缩放均由描述校验后统一编码。
+    return laser_parameters::BuildDeviceCraftScript(machineResource, craftInfo, nullptr,
+            scriptBody) == SUCCESS_LASER_SDK;
 }
 
 void BcxOmniProtocolAdapter::BeginNewSession()
 {
-//    /*
-//     * 新连接建立后，不能继续使用旧连接的成功下发记录。
-//     *
-//     * 因为无法确定板卡是否重启、掉电或恢复默认参数。
-//     */
-//    m_lastAppliedParameters.clear();
-//    m_firstSynchronization = true;
+    // 宝辰鑫采用全量寄存器写入, 不维护跨会话增量同步状态, 此处无需清理.
 }
 
 bool BcxOmniProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType weldingType) const
@@ -927,12 +924,11 @@ bool BcxOmniProtocolAdapter::shouldGenerateWireFeederScript(WeldingProcessType w
 
 std::string BcxOmniProtocolAdapter::buildInitLuaFunc() const
 {
-    // 修改理由: 宝辰鑫 X-Weld Omni Controller 1 使用 0x1000 写地址段和 0x2000 读地址段,
-    //   数据表定义属于品牌地址规则, 不应硬编码在通讯层 initData() 中.
-    // 逻辑: 返回宝辰鑫品牌的 Lua 数据表定义, 通讯层拼接通用工具函数后输出完整初始化脚本.
+    // 保留旧接口的初始化标记；实际工艺使用设备参数工厂提供的本地写槽和回读槽。
+    // 设备远端 0x1000/0x2000 地址段由上位机映射，不能在这里当作本地地址输出。
     std::ostringstream script;
 
-    // ---- 激光器/激光头寄存器数据表 (写地址 0x1000 段) ----
+    // 只返回兼容标记，不在映射工艺中加载自由通讯工具函数。
     script << "--BcxOmniProtocolAdapter::buildInitLuaFunc--\n";
 
     return script.str();
@@ -940,8 +936,10 @@ std::string BcxOmniProtocolAdapter::buildInitLuaFunc() const
 
 namespace {
 
-// 修改理由: 欧斯睿普暂未提供独立地址表, 先保持与超强兼容的地址和策略.
-// 逻辑: 继承超强适配器, 仅覆盖品牌枚举, 便于后续替换为独立协议.
+/**
+ * @brief 原 SDK 已有的欧斯睿普兼容别名，仅沿用超强地址和工艺策略。
+ * 保留已有调用行为，不代表欧斯睿普独立协议或新增设备已完成验证。
+ */
 class OsrpProtocolAdapter : public SupProtocolAdapter
 {
 public:
@@ -951,7 +949,7 @@ public:
     }
 };
 
-} // namespace
+} // 匿名命名空间
 
 const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand)
 {
@@ -959,7 +957,9 @@ const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand)
     // 逻辑:
     // 1. 已知品牌返回对应静态适配器.
     // 2. 未知品牌默认返回超强适配器, 保持历史默认行为.
+    // 新参数流水线会先拒绝未知品牌，本回退只保留原接口行为，不用于猜测新设备协议。
     static const SupProtocolAdapter supAdapter;
+    static const Sup26AdProtocolAdapter sup26AdAdapter;
     static const OsrpProtocolAdapter osrpAdapter;
     static const BcxOmniProtocolAdapter bcxAdapter;
     switch (brand)
@@ -970,6 +970,8 @@ const BrandProtocolAdapter& GetBrandProtocolAdapter(LaserHeadBrandSdk brand)
         return osrpAdapter;
     case LaserHeadBrandSdk::BCXLASERPOWER_SDK:
         return bcxAdapter;
+    case LaserHeadBrandSdk::CQ_SUP26AD_LASERPOWER_SDK:
+        return sup26AdAdapter;
     default:
         return supAdapter;
     }

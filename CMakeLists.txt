@@ -63,6 +63,7 @@ set(SOURCES
     src/common/rs485_commu.cpp
     src/common/parametercompiler.cpp
     src/common/parameterscript.cpp
+    src/brand/deviceparameters.cpp
 )
 
 # ============================================================
