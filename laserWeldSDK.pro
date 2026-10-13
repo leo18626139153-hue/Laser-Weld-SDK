@@ -98,6 +98,7 @@ UI_DIR      = $$BUILD_ROOT/ui/$$SDK_ARCH    #指定 Qt 的 UIC（UI 编译器）
 # 源.文.件
 # ============================================================ 
 SOURCES += \
+    include/laserWeldSDK/brand/lasermodbusrtubuilder.cpp \
     src/brand/brandadapter.cpp \
     src/cl_api.cpp \
     src/clmath.cpp \
