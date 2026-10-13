@@ -105,7 +105,9 @@ SOURCES += \
     src/common/rs485_commu.cpp \
     src/craftscript.cpp \
     src/messageprase.cpp \
-    src/utils.cpp
+    src/utils.cpp \
+    src/common/parametercompiler.cpp \
+    src/common/parameterscript.cpp
 # 头.文.件
 HEADERS += \
     include/laserWeldSDK/brand/brandadapter.h \
@@ -117,7 +119,10 @@ HEADERS += \
     include/laserWeldSDK/craftscript.h \
     include/laserWeldSDK/internaldatadefine.h \
     include/laserWeldSDK/messageprase.h \
-    include/laserWeldSDK/utils.h
+    include/laserWeldSDK/utils.h \
+    include/laserWeldSDK/parameterdefine.h \
+    include/laserWeldSDK/common/parametercompiler.h \
+    include/laserWeldSDK/common/parameterscript.h
 
 # cr_sdk 头文件（不参与编译，仅用于 IDE 索引）
 HEADERS += \

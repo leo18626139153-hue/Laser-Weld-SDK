@@ -38,7 +38,7 @@ project(laserWeldSDK VERSION 1.0.0 LANGUAGES CXX)
 # C++ 标准
 # ============================================================
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -59,7 +59,10 @@ set(SOURCES
     src/messageprase.cpp
     src/utils.cpp
     src/brand/brandadapter.cpp
-    src/common/rs485_communicater.cpp
+    src/common/base_commu.cpp
+    src/common/rs485_commu.cpp
+    src/common/parametercompiler.cpp
+    src/common/parameterscript.cpp
 )
 
 # ============================================================
