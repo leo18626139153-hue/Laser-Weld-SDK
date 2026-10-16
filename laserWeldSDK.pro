@@ -38,9 +38,13 @@ CONFIG += utf8_source
 # ============================================================
 
 SRC_ROOT     = $$PWD
-OUT_ROOT     = $$PWD/libs
-BUILD_ROOT   = $$PWD/build
-CRSDK_ROOT   = $$PWD/third_party/cr_sdk
+# 独立构建保留默认目录；组合工作区可指定隔离产物和同套机器人SDK。
+isEmpty(SDK_OUTPUT_ROOT): SDK_OUTPUT_ROOT = $$PWD/libs
+isEmpty(SDK_BUILD_ROOT): SDK_BUILD_ROOT = $$PWD/build
+isEmpty(SDK_CRSDK_ROOT): SDK_CRSDK_ROOT = $$PWD/third_party/cr_sdk
+OUT_ROOT     = $$SDK_OUTPUT_ROOT
+BUILD_ROOT   = $$SDK_BUILD_ROOT
+CRSDK_ROOT   = $$SDK_CRSDK_ROOT
 
 message("========== laserWeldSDK path ==========")
 message("SRC_ROOT     = $$SRC_ROOT")
