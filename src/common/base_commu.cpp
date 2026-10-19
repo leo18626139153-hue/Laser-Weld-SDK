@@ -32,7 +32,7 @@ LaserSdkResult CommuBase::craft_script_judge_break_point_script_get(int instLoc,
     std::string scriptText = R"(
     if(breakPointLocListLookUp[%1] == 1)
     then
-        write_bool_register(%2, 1)
+        write_integer_register(%2, 1)
         pause()
     end
     )";
