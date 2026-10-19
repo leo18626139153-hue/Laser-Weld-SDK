@@ -471,7 +471,8 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
                                      const CraftInfoLaserSdk& craft,
                                      const Configuration* overrideConfiguration,
                                      std::string& script,
-                                     LaserParameterDiagnosticSdk* diagnostic)
+                                     LaserParameterDiagnosticSdk* diagnostic,
+                                     bool devicePowerManaged)
 {
     Configuration defaults;
     const Configuration* active = overrideConfiguration;
@@ -500,6 +501,9 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
     for (std::size_t i = 0; i < converted.size(); ++i)
     {
         LaserParameterValueSdk parameter = converted[i];
+        // 设备功率由设置页维护；保留峰值功率及开关光百分比的既有换算和校验。
+        if (devicePowerManaged && resource.laserHeadBrand == CQLASERPOWER_SDK
+                && parameter.parameterId == LASER_PARAM_WELD_POWER_SDK) continue;
         if (!writable(*active, parameter.parameterId)) continue;
         if (!overrideConfiguration && isLegacySupBrand(resource.laserHeadBrand))
         {

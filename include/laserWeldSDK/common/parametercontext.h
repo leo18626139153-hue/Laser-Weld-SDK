@@ -44,6 +44,15 @@ LaserSdkResult ResetMachineConfiguration(LaserMachineHandle handle);
  */
 void ReleaseMachineConfiguration(LaserMachineHandle handle);
 
+/** @brief 设置句柄的设备功率维护策略；默认false，不修改资源结构或执行通信。 */
+LaserSdkResult SetMachineDevicePowerManaged(LaserMachineHandle handle, bool managed);
+
+/** @brief 查询句柄功率维护策略；只有旧超强品牌在工艺与起弧准备阶段使用。 */
+bool IsMachineDevicePowerManaged(LaserMachineHandle handle);
+
+/** @brief 释放句柄时清理功率维护策略，不影响其它句柄。 */
+void ReleaseMachineDevicePowerPolicy(LaserMachineHandle handle);
+
 /**
  * @brief 判断当前句柄是否采用由上位机配置的本地映射寄存器通道。
  * @param[in] handle 待判断的焊机句柄。

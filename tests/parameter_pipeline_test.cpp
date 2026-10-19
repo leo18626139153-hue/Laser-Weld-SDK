@@ -2,6 +2,7 @@
 #include "parameterdefine.h"
 #include "common/parametercompiler.h"
 #include "common/parameterscript.h"
+#include "common/parametercontext.h"
 #include "common/rs485_commu.h"
 #include "brand/deviceparameters.h"
 #include "craftscript.h"
@@ -916,6 +917,90 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
     CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, aliasScript) == SUCCESS_LASER_SDK);
     CHECK(supScript == aliasScript);
 }
+/** @brief 设备维护模式只移除旧超强额定参数，覆盖单工艺、正式程序、准备和设置入口。 */
+void TestDeviceManagedPowerPolicy()
+{
+    MachineResource resource = Resource(CQLASERPOWER_SDK);
+    resource.robotParams.emptyRunTCPSpeed = 100;
+    resource.robotParams.emptyRunTCPAcc = 1000;
+    resource.robotParams.weldTCPAcc = 1000;
+    CraftInfoLaserSdk craft = Craft();
+    LaserMachineHandle handle = -1, other = -1;
+    CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
+    CHECK(cl_machine_resource_init(&resource, &other) == SUCCESS_LASER_SDK);
+    const std::regex ratedWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*560\\s*,");
+    const std::regex peakWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*2\\s*,\\s*1000\\s*,");
+    const std::regex onWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*561\\s*,\\s*50\\s*,");
+    const std::regex offWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*563\\s*,\\s*75\\s*,");
+    CHECK(std::regex_search(OldCraftScript(handle, craft), ratedWrite));
+    CHECK(cl_machine_device_power_managed_set(-1, true) == HANDLE_ERROR_LASER_SDK);
+    CHECK(cl_machine_device_power_managed_set(handle, true) == SUCCESS_LASER_SDK);
+    const std::string managed = OldCraftScript(handle, craft);
+    CHECK(!std::regex_search(managed, ratedWrite));
+    CHECK(std::regex_search(managed, peakWrite));
+    CHECK(std::regex_search(managed, onWrite));
+    CHECK(std::regex_search(managed, offWrite));
+    CHECK(std::regex_search(OldCraftScript(other, craft), ratedWrite));
+    CHECK(cl_machine_resource_update(handle, &resource) == SUCCESS_LASER_SDK);
+    CHECK(cl_parameters_configuration_reset(handle) == SUCCESS_LASER_SDK);
+    CHECK(!std::regex_search(OldCraftScript(handle, craft), ratedWrite));
+
+    // 完整程序的首次工艺、缓升缓降与焊接中工艺切换共用此策略。
+    PointDataLaserSdk points[2] = {};
+    points[0].pointType = LINE_POINT_WELD_SDK;
+    points[1].pointType = LINE_POINT_WELD_SDK;
+    points[1].pose[0] = 100;
+    int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0,
+                          LINE_POINT_INST_LASER_WELD_SDK, 0,
+                          ARC_START_INST_LASER_WELD_SDK, 0,
+                          LINE_POINT_INST_LASER_WELD_SDK, 1,
+                          SLOW_DOWN_LASER_WELD_SDK, 0,
+                          ARC_END_INST_LASER_WELD_SDK, 0};
+    LaserWeldStartData start = {};
+    start.instList = instructions;
+    start.instNum = 6;
+    start.craftInfoList = &craft;
+    start.craftNum = 1;
+    start.pointList = points;
+    start.pointsNum = 2;
+    std::vector<char> output(1024 * 1024, '\0');
+    int size = static_cast<int>(output.size());
+    CHECK(cl_craft_inst_list_script_get(handle, start, true, output.data(), &size) == SUCCESS_LASER_SDK);
+    CHECK(!std::regex_search(std::string(output.data()), ratedWrite));
+    CHECK(std::regex_search(std::string(output.data()), peakWrite));
+    InstListData changing;
+    changing.listLocToTypeID[0] = std::make_pair(CRAFT_SELECT_INST_LASER_WELD_SDK, 0);
+    changing.listLocToTypeID[1] = std::make_pair(ARC_END_INST_LASER_WELD_SDK, 0);
+    changing.craftsMap[0] = craft;
+    InstListTransEnvironmentData environment = {};
+    environment.craftID = 0;
+    environment.isWelding = true;
+    environment.policy.emitDeviceParameters = true;
+    std::string changed;
+    CHECK(GetBasicCraftScript(handle, changing, environment, changed) == SUCCESS_LASER_SDK);
+    CHECK(!std::regex_search(changed, ratedWrite));
+    CHECK(std::regex_search(changed, onWrite));
+
+    // 当前手动准备复用上述单工艺入口；设备设置接口仍明确允许下发额定参数。
+    size = static_cast<int>(output.size());
+    CHECK(cl_craft_device_status_modify(handle, output.data(), &size) == SUCCESS_LASER_SDK);
+    CHECK(std::regex_search(std::string(output.data()), ratedWrite));
+    CHECK(cl_machine_device_power_managed_set(handle, false) == SUCCESS_LASER_SDK);
+    CHECK(std::regex_search(OldCraftScript(handle, craft), ratedWrite));
+    CHECK(cl_machine_device_power_managed_set(handle, true) == SUCCESS_LASER_SDK);
+    CHECK(cl_machine_resource_release(handle) == SUCCESS_LASER_SDK);
+    CHECK(!lp::IsMachineDevicePowerManaged(handle));
+    CHECK(cl_machine_resource_release(other) == SUCCESS_LASER_SDK);
+
+    // SUP26AD的实际工艺功率本来就必须写，策略不能把其本地75槽一起删掉。
+    resource = Resource(CQ_SUP26AD_LASERPOWER_SDK);
+    CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
+    const std::string sup26Before = OldCraftScript(handle, craft);
+    CHECK(cl_machine_device_power_managed_set(handle, true) == SUCCESS_LASER_SDK);
+    CHECK(OldCraftScript(handle, craft) == sup26Before);
+    CHECK(ParseWrites(sup26Before).at(75) == 2000);
+    CHECK(cl_machine_resource_release(handle) == SUCCESS_LASER_SDK);
+}
 } // namespace
 
 int main()
@@ -931,9 +1016,10 @@ int main()
         TestOldCraftFailureDoesNotMutateResource();
         TestFullInstructionAndControlPaths();
         TestLegacyFullProgramPowerAndTimeoutReset();
+        TestDeviceManagedPowerPolicy();
         CHECK(parameter_test_robot_calls == 0);
         std::cout << "PASS parameter pipeline: " << checks
-                  << " checks, 9 scenario groups, zero robot SDK calls" << std::endl;
+                  << " checks, 10 scenario groups, zero robot SDK calls" << std::endl;
         return 0;
     }
     catch (const std::exception& error)

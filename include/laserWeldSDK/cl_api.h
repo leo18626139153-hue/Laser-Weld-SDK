@@ -71,6 +71,16 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_get(const LaserMachineHan
 LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachineHandle);
 
 /**
+ * @brief 声明激光器功率由设备设置维护，工艺和起弧准备不得覆盖旧超强激光器功率。
+ * @param[in] laserMachineHandle 已初始化的焊机句柄。
+ * @param[in] managed true时旧超强工艺及起弧准备不写laserPowerLoc；设备设置接口仍可写入。
+ * @return 成功、无效句柄或内存错误；仅改变脚本编译策略，不执行设备通信。
+ * @note 新句柄默认false以兼容既有调用方；普通资源更新和参数配置重置保留此策略，释放句柄时清理。
+ *       不改变工艺峰值功率、开关光百分比及其校验，也不改变MachineResource结构布局。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_machine_device_power_managed_set(const LaserMachineHandle laserMachineHandle, bool managed);
+
+/**
  * @brief 设置参数描述和控制器本地地址绑定，SDK深复制配置并按句柄独立保存。
  * @param[in] laserMachineHandle 已注册的焊机句柄。
  * @param[in] descriptors 参数描述数组，物理值编码为value*scale+offset。

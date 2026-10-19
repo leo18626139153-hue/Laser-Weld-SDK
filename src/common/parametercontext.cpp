@@ -3,11 +3,13 @@
 #include "internaldatadefine.h"
 #include <map>
 #include <mutex>
+#include <set>
 
 namespace laser_parameters {
 namespace {
 
 std::map<LaserMachineHandle, Configuration> configurations;
+std::set<LaserMachineHandle> devicePowerManaged;
 std::mutex configurationMutex;
 
 /** @brief 在配置锁内生成独立副本，编译过程不持有内部容器引用或长时间占锁。 */
@@ -78,6 +80,28 @@ void ReleaseMachineConfiguration(LaserMachineHandle handle)
     configurations.erase(handle);
 }
 
+LaserSdkResult SetMachineDevicePowerManaged(LaserMachineHandle handle, bool managed)
+{
+    if (machineResourcesMap.find(handle) == machineResourcesMap.end())
+        return HANDLE_ERROR_LASER_SDK;
+    std::lock_guard<std::mutex> lock(configurationMutex);
+    if (managed) devicePowerManaged.insert(handle);
+    else devicePowerManaged.erase(handle);
+    return SUCCESS_LASER_SDK;
+}
+
+bool IsMachineDevicePowerManaged(LaserMachineHandle handle)
+{
+    std::lock_guard<std::mutex> lock(configurationMutex);
+    return devicePowerManaged.find(handle) != devicePowerManaged.end();
+}
+
+void ReleaseMachineDevicePowerPolicy(LaserMachineHandle handle)
+{
+    std::lock_guard<std::mutex> lock(configurationMutex);
+    devicePowerManaged.erase(handle);
+}
+
 bool UsesMappedParameters(LaserMachineHandle handle, LaserHeadBrandSdk brand)
 {
     {
@@ -98,7 +122,8 @@ LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle,
     Configuration configured;
     const bool hasOverride = copyOverride(handle, configured);
     // 品牌换算、参数编码和脚本输出均只使用本次局部副本。
-    return BuildDeviceCraftScript(resource, craft, hasOverride ? &configured : nullptr, script, diagnostic);
+    return BuildDeviceCraftScript(resource, craft, hasOverride ? &configured : nullptr, script, diagnostic,
+                                  IsMachineDevicePowerManaged(handle));
 }
 
 LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle,

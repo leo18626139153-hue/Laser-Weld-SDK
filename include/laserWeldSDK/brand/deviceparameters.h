@@ -80,13 +80,15 @@ LaserSdkResult BuildDeviceParametersScript(const MachineResource& resource,
  * @param[in] overrideConfiguration 可选上位机配置，允许调整地址和增减可选参数。
  * @param[out] script 成功时整体替换脚本体；失败时保持原值。
  * @param[out] diagnostic 可选错误诊断，非空时须提供有效 structSize。
+ * @param[in] devicePowerManaged 旧超强设备功率由设置维护时，不从工艺下发焊接参考功率。
  * @return 成功或工艺编译错误；工艺配置和起收弧控制分别生成。
  */
 LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
                                      const CraftInfoLaserSdk& craft,
                                      const Configuration* overrideConfiguration,
                                      std::string& script,
-                                     LaserParameterDiagnosticSdk* diagnostic = nullptr);
+                                     LaserParameterDiagnosticSdk* diagnostic = nullptr,
+                                     bool devicePowerManaged = false);
 
 } // 参数编译命名空间 laser_parameters
 

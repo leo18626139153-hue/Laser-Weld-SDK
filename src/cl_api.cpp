@@ -148,8 +148,19 @@ LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachine
         return HANDLE_ERROR_LASER_SDK;
     }
     laser_parameters::ReleaseMachineConfiguration(laserMachineHandle);
+    laser_parameters::ReleaseMachineDevicePowerPolicy(laserMachineHandle);
     machineResourcesMap.erase(laserMachineHandle);
     return SUCCESS_LASER_SDK;
+}
+
+LaserSdkResult cl_machine_device_power_managed_set(const LaserMachineHandle laserMachineHandle, bool managed)
+{
+    try
+    {
+        return laser_parameters::SetMachineDevicePowerManaged(laserMachineHandle, managed);
+    }
+    catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+    catch (...) { return OTHER_ERROR_LASER_SDK; }
 }
 
 //起弧！！！
@@ -193,7 +204,9 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
     std::vector<unsigned int> wireFeedVec;
     //需要设置的激光器地址参数 - 激光器功率 - 开光功率 - 开光渐进时间 -
     laserPowerVec.push_back(machineResource.gasONDelayLoc);           ///<  开气延时地址 0x0235  先等送气结束
-    laserPowerVec.push_back(machineResource.laserPowerLoc);           ///<  激光器功率地址 0x0230 560
+    if (machineResource.laserHeadBrand != CQLASERPOWER_SDK
+            || !laser_parameters::IsMachineDevicePowerManaged(laserMachineHandle))
+        laserPowerVec.push_back(machineResource.laserPowerLoc);       ///<  旧调用方保留激光器功率写入
     laserPowerVec.push_back(machineResource.laserOnPowerLoc);         ///<  开光功率地址 0x0231 561
     laserPowerVec.push_back(machineResource.laserOnRampTimeLoc);      ///<  开光渐进时间地址 0x0232 562
     laserPowerVec.push_back(machineResource.laserHeadYOffsetLoc);     ///<  Y轴偏移地址 0x0239 569
@@ -759,7 +772,9 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
     std::vector<unsigned int> laserPowerVec;
     laserPowerVec.push_back(machineResource.gasONDelayLoc);       ///<  开气延时地址 0x0235  先等送气结束
     laserPowerVec.push_back(machineResource.laserOnPowerLoc);     ///<  开光功率百分比地址 0x0231 561
-    laserPowerVec.push_back(machineResource.laserPowerLoc);       ///<  激光器功率地址 0x0230 569
+    if (machineResource.laserHeadBrand != CQLASERPOWER_SDK
+            || !laser_parameters::IsMachineDevicePowerManaged(laserMachineHandle))
+        laserPowerVec.push_back(machineResource.laserPowerLoc);   ///<  旧调用方保留激光器功率写入
     laserPowerVec.push_back(machineResource.laserHeadXOffsetLoc); ///<  X轴偏移地址 0x023b 571
     laserPowerVec.push_back(machineResource.laserHeadYScaleLoc);  ///<  Y轴放大地址 0x0238 568
     laserPowerVec.push_back(machineResource.laserHeadXScaleLoc);  ///<  X轴放大地址 0x023a 570
