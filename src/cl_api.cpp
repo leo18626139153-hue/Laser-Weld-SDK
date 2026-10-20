@@ -128,8 +128,11 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
     laserHeadVec.push_back(machineResource.laserHeadFrequencyHighLoc);  ///<  脉冲频率 : 31~16位地址 0x0004  4
     laserHeadVec.push_back(machineResource.laserHeadScanHeightLoc);     ///<  扫描高度地址 0x0006 6
     laserHeadVec.push_back(machineResource.laserHeadRotationAngleLoc);  ///<  旋转角度地址 0x0007 7
-    laserHeadVec.push_back(machineResource.gasValveSignalLoc);          ///<  送气信号开关地址 0x0031 → ​​49​
-    laserHeadVec.push_back(machineResource.wireFeedSignalLoc);          ///<  送丝信号开关地址 0x0032 → ​​50
+    if (machineResource.laserHeadBrand != CQLASERPOWER_SDK)
+    {
+        laserHeadVec.push_back(machineResource.gasValveSignalLoc);      ///< 送气信号开关
+        laserHeadVec.push_back(machineResource.wireFeedSignalLoc);      ///< 送丝信号开关
+    }
 
     //送丝机地址参数 - 自动送丝速度
     wireFeedVec.push_back(machineResource.autoWireFeedSpeedLoc); ///<  自动送丝速度地址 0x0100 256
@@ -196,9 +199,8 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         wireFeedVec.push_back(machineResource.wireFeedLengthLoc);    //261 补丝长度地址
 
         //需要设置的激光头地址参数  关气 关送丝信号
-        laserHeadVec.push_back(machineResource.gasValveSignalLoc); ///<  送气信号开关地址 0x0031 → ​​49​
-        laserHeadVec.push_back(machineResource.wireFeedSignalLoc); ///<  送丝信号开关地址 0x0032 → ​​50
-        laserHeadVec.push_back(machineResource.gasOffDelayLoc);    ///< 关气延时
+        // 普通超强的开关由 CO 控制，关气延时属于激光器参数。
+        laserPowerVec.push_back(machineResource.gasOffDelayLoc);
     }
     else if(machineResource.laserHeadBrand == BCXLASERPOWER_SDK)
     {
@@ -233,6 +235,10 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
     try
     {
         //送丝机
+        if (machineResource.laserHeadBrand == CQLASERPOWER_SDK)
+        {
+            scriptGet += "if sup_cancel_ramp ~= nil then sup_cancel_ramp() end\n";
+        }
         checkLaserSdkResult(curCommuFunction->craft_wire_feeder_param_set_script_get(laserMachineHandle, wireFeedVec, scriptGet));
         //激光器
         checkLaserSdkResult(curCommuFunction->craft_laser_param_set_script_get(laserMachineHandle, laserPowerVec, scriptGet));
@@ -604,6 +610,28 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
     end
     sysEvent_resume_func_3_Result = sys_event_register(3, resume_func)
     )";
+    if (machineResource.laserHeadBrand == CQLASERPOWER_SDK)
+    {
+        // 暂停和停止先取消旧缓升；恢复焊接前重新写入本段峰值。
+        const std::string cancelRamp = "        if sup_cancel_ramp ~= nil then sup_cancel_ramp() end\n";
+        const std::string endMarker = "function endArcing()\n";
+        endArcProtectionScript.insert(endArcProtectionScript.find(endMarker) + endMarker.size(), cancelRamp);
+        const std::string stopMarker = "function stop_func()\n";
+        endArcProtectionScript.insert(endArcProtectionScript.find(stopMarker) + stopMarker.size(), cancelRamp);
+        const std::string resumeMarker = "if read_boolean_register(611) then\n";
+        const std::string resumeFunctionMarker = "function resume_func()\n";
+        endArcProtectionScript.insert(endArcProtectionScript.find(resumeFunctionMarker) + resumeFunctionMarker.size(),
+                    "        local supResumePowerApplied = false\n");
+        endArcProtectionScript.insert(endArcProtectionScript.find(resumeMarker) + resumeMarker.size(),
+                    "                if not supResumePowerApplied then\n"
+                    "                    supResumePowerApplied = true\n"
+                    "                    if sup_resume_power ~= nil and not sup_resume_power() then\n"
+                    "                        set_configurable_digital_out(1, false)\n"
+                    "                        write_integer_register(673, 1)\n"
+                    "                        halt()\n"
+                    "                    end\n"
+                    "                end\n");
+    }
     if(machineResource.laserPowerParams.gasStartupAdvanceTime < 0 || machineResource.laserPowerParams.gasStartupAdvanceTime > 3000)
         return PARAMETER_OUT_OF_RANGE_LASER_SDK;
 
@@ -651,6 +679,12 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+
+    // 普通超强的独立缓升入口与正式起弧共用同一实现，避免短时间除零和参数串值。
+    if (machineResource.laserHeadBrand == CQLASERPOWER_SDK)
+    {
+        return cl_get_arc_start_script(laserMachineHandle, scripts, scriptLen);
+    }
 
     // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
@@ -878,7 +912,9 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         )";
         std::string arcStartProgram2 = "end\n"
                                        "arcStartProgram_Result=task_create(arcStartProgram)\n";
-        scriptGet = arcStartProgram1 + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
+        const std::string cancelRise = machineResource.laserHeadBrand == CQLASERPOWER_SDK
+                ? "if sup_cancel_ramp ~= nil then sup_cancel_ramp() end\n" : "";
+        scriptGet = arcStartProgram1 + cancelRise + scriptGet + arcStartParam + arcStartProgram + arcStartProgram2;
         std::string funcScript = curCommuFunction->loadLuaFunctionScriptOut(machineResource.laserHeadBrand);  //功能函数
         scriptGet = funcScript + scriptGet;
         //scriptGet = funcScript + scriptGet;
