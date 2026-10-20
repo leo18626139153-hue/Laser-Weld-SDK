@@ -3,6 +3,7 @@
 
 #include "cl_basedefine.h"
 #include "parameterdefine.h"
+#include "rampcontroldefine.h"
 #include "robotapi.h"
 #include <stdint.h>
 
@@ -79,6 +80,47 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_release(const LaserMachin
  *       不改变工艺峰值功率、开关光百分比及其校验，也不改变MachineResource结构布局。
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_machine_device_power_managed_set(const LaserMachineHandle laserMachineHandle, bool managed);
+
+/**
+ * @brief 显式启用或禁用 SDK 功率与送丝阶段外控；不改变既有资源结构及默认行为。
+ * @param[in] laserMachineHandle 已注册的焊机句柄。
+ * @param[in] config 版本化配置，structSize 和 version 必须有效；SDK 深复制配置。
+ * @return 成功、句柄、版本、范围或型号能力错误；失败保留原配置，不执行通讯。
+ * @note 启用后工艺三档自动送丝速度统一为 mm/s；静态和动态写入均在品牌出口换算。
+ *       更改配置后重新生成全部工艺及程序脚本。板卡动态响应及断丝时序需实机验收。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_set(LaserMachineHandle laserMachineHandle,
+                                                            const LaserRampControlConfigSdk* config);
+/**
+ * @brief 获取外控配置；未设置时 enabled=0，默认周期100ms、稳定50ms、超时2000ms。
+ * @param[in] laserMachineHandle 已注册的焊机句柄。
+ * @param[in,out] config 调用前填写 structSize；成功后返回当前版本的完整副本。
+ * @return 成功、无效句柄或缓冲结构错误；失败不写出部分配置。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_get(LaserMachineHandle laserMachineHandle,
+                                                            LaserRampControlConfigSdk* config);
+/**
+ * @brief 清除句柄外控策略并恢复旧默认行为；不影响已经在控制器执行的旧程序。
+ * @param[in] laserMachineHandle 已注册的焊机句柄。
+ * @return 成功或无效句柄；调用后须重新生成脚本。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_reset(LaserMachineHandle laserMachineHandle);
+
+/**
+ * @brief 以显式工艺快照生成同一外控阶段脚本，供手动按下、松开及点焊入口使用。
+ * @param[in] laserMachineHandle 已注册且已经启用外控配置的句柄。
+ * @param[in] craft 当前工艺；只读使用，不临时更新全局 MachineResource。
+ * @param[in] arcSwitch ON生成起弧，OFF按rampDownOnly选择降功率点或正常终点。
+ * @param[in] rampDownOnly OFF且true只启动并行缓降，OFF且false立即正常截止并停丝。
+ * @param[out] scripts 输出包含共同运行时的完整Lua；为空仅查询所需长度。
+ * @param[in,out] scriptLen 输入容量及输出所需字节数，包含结尾空字符。
+ * @return 成功、工艺校验、句柄、容量错误；未显式启用外控时返回参数错误。
+ * @note 起弧同时包含该工艺的参数准备；缓降和终点不会重新下发全部工艺。
+ *       失败不写输出或修改资源；三档送丝输入均为mm/s，自熔焊不访问送丝设备。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_arc_script_get(LaserMachineHandle laserMachineHandle,
+        const CraftInfoLaserSdk* craft, SwitchTypeLaserSdk arcSwitch, bool rampDownOnly,
+        char* scripts, int* scriptLen);
 
 /**
  * @brief 设置参数描述和控制器本地地址绑定，SDK深复制配置并按句柄独立保存。

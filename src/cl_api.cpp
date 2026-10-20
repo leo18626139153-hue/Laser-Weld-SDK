@@ -1,4 +1,5 @@
 #include "cl_api.h"
+#include "rampcontrol.h"
 #include "utils.h"
 #include "craftscript.h"
 #include "rs485_commu.h"
@@ -122,7 +123,10 @@ LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineH
         return HANDLE_ERROR_LASER_SDK;
     }
     if (machineResourcesMap[laserMachineHandle].laserHeadBrand != laserMachineResource->laserHeadBrand)
+    {
         laser_parameters::ReleaseMachineConfiguration(laserMachineHandle);
+        ramp_control::ReleaseConfig(laserMachineHandle);
+    }
     machineResourcesMap[laserMachineHandle] = *laserMachineResource;
     return SUCCESS_LASER_SDK;
 }
@@ -149,6 +153,7 @@ LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachine
     }
     laser_parameters::ReleaseMachineConfiguration(laserMachineHandle);
     laser_parameters::ReleaseMachineDevicePowerPolicy(laserMachineHandle);
+    ramp_control::ReleaseConfig(laserMachineHandle);
     machineResourcesMap.erase(laserMachineHandle);
     return SUCCESS_LASER_SDK;
 }
@@ -163,6 +168,75 @@ LaserSdkResult cl_machine_device_power_managed_set(const LaserMachineHandle lase
     catch (...) { return OTHER_ERROR_LASER_SDK; }
 }
 
+LaserSdkResult cl_ramp_control_config_set(LaserMachineHandle laserMachineHandle, const LaserRampControlConfigSdk* config)
+{
+    try { return ramp_control::SetConfig(laserMachineHandle, config); }
+    catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+    catch (...) { return OTHER_ERROR_LASER_SDK; }
+}
+
+LaserSdkResult cl_ramp_control_config_get(LaserMachineHandle laserMachineHandle, LaserRampControlConfigSdk* config)
+{
+    try { return ramp_control::GetConfig(laserMachineHandle, config); }
+    catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+    catch (...) { return OTHER_ERROR_LASER_SDK; }
+}
+
+LaserSdkResult cl_ramp_control_config_reset(LaserMachineHandle laserMachineHandle)
+{
+    try { return ramp_control::ResetConfig(laserMachineHandle); }
+    catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+    catch (...) { return OTHER_ERROR_LASER_SDK; }
+}
+
+LaserSdkResult cl_craft_arc_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk* craft,
+                                      SwitchTypeLaserSdk arcSwitch, bool rampDownOnly, char* scripts, int* scriptLen)
+{
+    if (craft == nullptr || scriptLen == nullptr) return PARAMETER_ERROR_LASER_SDK;
+    const std::unordered_map<int, MachineResource>::const_iterator it = machineResourcesMap.find(laserMachineHandle);
+    if (it == machineResourcesMap.end()) return HANDLE_ERROR_LASER_SDK;
+    if (!ramp_control::Enabled(laserMachineHandle)) return PARAMETER_ERROR_LASER_SDK;
+    try
+    {
+        // 用同一编译链校验显式工艺，局部快照保证失败和长度查询不改全局资源。
+        MachineResource snapshot = it->second;
+        std::string preparation, runtime, phase;
+        LaserSdkResult result = ramp_control::BuildCraftScript(laserMachineHandle, snapshot, *craft, preparation);
+        if (result != SUCCESS_LASER_SDK) return result;
+        laser_parameters::UpdateCompilationResource(snapshot, *craft);
+        result = ramp_control::BuildRuntimeScript(laserMachineHandle, snapshot, runtime);
+        if (result == SUCCESS_LASER_SDK)
+            result = ramp_control::BuildStageScript(laserMachineHandle, snapshot, arcSwitch, rampDownOnly, phase);
+        if (result != SUCCESS_LASER_SDK) return result;
+        const std::string body = arcSwitch == SWITCH_ON_LASER_SDK
+                ? std::string("do\nlocal function requestedCraftStart()\n") + preparation + phase
+                  + "end\ncl_ramp_submit_start(requestedCraftStart)\nend\n"
+                : phase;
+        return strToChar(scripts, scriptLen, runtime + body);
+    }
+    catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+    catch (...) { return OTHER_ERROR_LASER_SDK; }
+}
+
+namespace
+{
+/** @brief 公开普通及慢速入口复用同一阶段运行时，长度查询不影响资源或设备。 */
+LaserSdkResult externalArcScript(LaserMachineHandle handle, const MachineResource& resource,
+                                 SwitchTypeLaserSdk arcSwitch, bool rampDownOnly, char* scripts, int* scriptLen)
+{
+    try
+    {
+        std::string runtime, phase;
+        LaserSdkResult result = ramp_control::BuildRuntimeScript(handle, resource, runtime);
+        if (result == SUCCESS_LASER_SDK)
+            result = ramp_control::BuildStageScript(handle, resource, arcSwitch, rampDownOnly, phase);
+        return result == SUCCESS_LASER_SDK ? strToChar(scripts, scriptLen, runtime + phase) : result;
+    }
+    catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }
+    catch (...) { return OTHER_ERROR_LASER_SDK; }
+}
+}
+
 //起弧！！！
 LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen)
 {
@@ -171,6 +245,8 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (ramp_control::Enabled(laserMachineHandle))
+        return externalArcScript(laserMachineHandle, machineResource, SWITCH_ON_LASER_SDK, false, scripts, scriptLen);
 
     // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     // 【逻辑】委托 craft_script_commu_class_get 按 commuType 获取对应实例
@@ -270,6 +346,8 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (ramp_control::Enabled(laserMachineHandle))
+        return externalArcScript(laserMachineHandle, machineResource, SWITCH_OFF_LASER_SDK, false, scripts, scriptLen);
 
     // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
@@ -612,7 +690,14 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     std::string script;
-    script += craftCommu->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
+    if (ramp_control::Enabled(laserMachineHandle) && isWeld)
+    {
+        std::string runtime;
+        result = ramp_control::BuildRuntimeScript(laserMachineHandle, machineResource, runtime);
+        if (result != SUCCESS_LASER_SDK) return result;
+        script += runtime + "if not cl_ramp_prepare_arc() then return end\n";
+    }
+    else if (!ramp_control::Enabled(laserMachineHandle)) script += craftCommu->loadLuaFunctionScriptOut(machineResource.laserHeadBrand,
                 laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand));
     script += breakPointListScript;
     script += signalStepPointLocListScript;
@@ -636,6 +721,34 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (ramp_control::Enabled(laserMachineHandle))
+    {
+        // 暂停、停止先取消阶段任务，不能让旧后台任务在关光之后重新写入功率或送丝。
+        const std::string handlers = R"(
+function cl_ramp_emergency_stop()
+    local interrupted = read_boolean_register(611) or read_integer_register(614) == 1
+    if cl_ramp_abort ~= nil then cl_ramp_abort()
+    else
+        set_configurable_digital_out(1, false)
+    end
+    write_boolean_register(611, false)
+    write_integer_register(614, 0)
+    if interrupted then write_integer_register(674, 1) end
+end
+cl_ramp_stop_event = sys_event_register(1, cl_ramp_emergency_stop)
+function cl_ramp_pause_handler()
+    if cl_ramp_pause ~= nil then cl_ramp_pause() end
+    write_integer_register(614, 0)
+end
+function cl_ramp_resume_handler()
+    if cl_ramp_resume ~= nil then cl_ramp_resume() end
+    if read_boolean_register(611) then write_integer_register(614, 1) end
+end
+cl_ramp_pause_event = sys_event_register(2, cl_ramp_pause_handler)
+cl_ramp_resume_event = sys_event_register(3, cl_ramp_resume_handler)
+)";
+        return strToChar(scripts, scriptLen, handlers);
+    }
     // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
     LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
@@ -756,6 +869,8 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (ramp_control::Enabled(laserMachineHandle))
+        return externalArcScript(laserMachineHandle, machineResource, SWITCH_ON_LASER_SDK, false, scripts, scriptLen);
 
     // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
@@ -934,6 +1049,8 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (ramp_control::Enabled(laserMachineHandle))
+        return externalArcScript(laserMachineHandle, machineResource, SWITCH_OFF_LASER_SDK, true, scripts, scriptLen);
 
     // 【修改理由】消除重复的通讯类型判断，统一通过工厂函数获取通讯脚本生成器
     CommuBase* curCommuFunction = NULL;
@@ -1207,9 +1324,14 @@ LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle 
                     laserMachineHandle, resource, craftInfo, body);
         if (result != SUCCESS_LASER_SDK) return result;
         const bool mapped = laser_parameters::UsesMappedParameters(laserMachineHandle, resource.laserHeadBrand);
-        const std::string script = (mapped ? std::string()
-                : GetBrandProtocolAdapter(resource.laserHeadBrand).buildInitLuaFunc())
-                + strWriteInt32RegReplace(INT32_REG_COMMU_TIMEOUT_821, 0) + body;
+        std::string prefix;
+        if (ramp_control::Enabled(laserMachineHandle))
+        {
+            const LaserSdkResult runtimeResult = ramp_control::BuildRuntimeScript(laserMachineHandle, resource, prefix);
+            if (runtimeResult != SUCCESS_LASER_SDK) return runtimeResult;
+        }
+        else if (!mapped) prefix = GetBrandProtocolAdapter(resource.laserHeadBrand).buildInitLuaFunc();
+        const std::string script = prefix + strWriteInt32RegReplace(INT32_REG_COMMU_TIMEOUT_821, 0) + body;
         return strToChar(scripts, scriptLen, script);
     }
     catch (const std::bad_alloc&) { return MEMORY_ERROR_LASER_SDK; }

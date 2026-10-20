@@ -109,6 +109,27 @@ std::map<unsigned, int> ParseWrites(const std::string& script)
     return writes;
 }
 
+std::map<unsigned, unsigned> ParseSup26CraftBank(const std::string& script)
+{
+    const std::string prefix = "-- SUP26AD_CRAFT_BANK_V1:";
+    const std::size_t begin = script.find(prefix);
+    if (begin == std::string::npos) return std::map<unsigned, unsigned>();
+    CHECK(script.find(prefix, begin + prefix.size()) == std::string::npos);
+    const std::size_t end = script.find('\n', begin);
+    CHECK(end != std::string::npos);
+    const std::string line = script.substr(begin + prefix.size(), end - begin - prefix.size());
+    CHECK(line.find_first_not_of("0123456789=,") == std::string::npos);
+    std::map<unsigned, unsigned> values;
+    const std::regex pair("([0-9]+)=([0-9]+)");
+    for (std::sregex_iterator it(line.begin(), line.end(), pair), last; it != last; ++it)
+    {
+        const unsigned address = static_cast<unsigned>(std::stoul((*it)[1].str()));
+        const unsigned value = static_cast<unsigned>(std::stoul((*it)[2].str()));
+        CHECK(value <= 65535 && values.insert(std::make_pair(address, value)).second);
+    }
+    return values;
+}
+
 void CheckMappedTransport(const std::string& script)
 {
     CHECK(script.find("serial_send_receive") == std::string::npos);
@@ -459,14 +480,29 @@ void TestBrandProfilesAndOldEntryPoint()
             CHECK(writes.size() == count);
             for (unsigned slot = 0; slot < count; ++slot)
             {
-                if (writes.at(60 + slot) != expected[slot])
+                const unsigned address = brands[index] == CQ_SUP26AD_LASERPOWER_SDK && slot >= 15
+                        ? 90 + slot - 15 : 60 + slot;
+                if (writes.at(address) != expected[slot])
                 {
                     std::ostringstream mismatch;
-                    mismatch << "brand=" << brands[index] << " address=" << (60 + slot)
-                             << " expected=" << expected[slot] << " actual=" << writes.at(60 + slot);
+                    mismatch << "brand=" << brands[index] << " address=" << address
+                             << " expected=" << expected[slot] << " actual=" << writes.at(address);
                     throw std::runtime_error(mismatch.str());
                 }
-                CHECK(writes.at(60 + slot) == expected[slot]);
+                CHECK(writes.at(address) == expected[slot]);
+            }
+            if (brands[index] == CQ_SUP26AD_LASERPOWER_SDK)
+            {
+                for (const LaserParameterBindingSdk& binding : config.bindings)
+                {
+                    CHECK(binding.readAddress == binding.writeAddress + 15);
+                    CHECK(binding.writeAddress % 30 < 15);
+                    CHECK(binding.readAddress % 30 >= 15);
+                }
+                // 两页之间的回读区及尾部手动命令、事务标记都不属于工艺写入。
+                for (unsigned address = 75; address < 90; ++address)
+                    CHECK(writes.count(address) == 0);
+                CHECK(writes.count(102) == 0 && writes.count(103) == 0 && writes.count(104) == 0);
             }
         }
         else
@@ -505,10 +541,10 @@ void TestBrandProfilesAndOldEntryPoint()
     craft.craftRetractionLength = 100;
     std::string script;
     CHECK(lp::BuildDeviceCraftScript(sup, craft, nullptr, script) == SUCCESS_LASER_SDK);
-    CHECK(ParseWrites(script).at(81) == 100);
+    CHECK(ParseWrites(script).at(96) == 100);
     CHECK(ParseWrites(script).at(61) == -125);
-    CHECK(ParseWrites(script).at(84) == 200);
-    CHECK(ParseWrites(script).at(86) == 1000);
+    CHECK(ParseWrites(script).at(99) == 200);
+    CHECK(ParseWrites(script).at(101) == 1000);
 }
 
 /** @brief 验证公开接口的容量查询、深复制、句柄隔离和失败不改资源。 */
@@ -680,9 +716,9 @@ void TestDefaultRoundingCompatibility()
     craft.craftRetractionLength = 100;
     CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
     const std::map<unsigned, int> sup = ParseWrites(script);
-    CHECK(sup.at(83) == 33);
+    CHECK(sup.at(98) == 33);
     CHECK(sup.at(72) == 13);
-    CHECK(sup.at(81) == 100);
+    CHECK(sup.at(96) == 100);
 
     // 旧接口未使用的设备页/手动地址不应阻塞仅工艺下发的老客户端。
     resource = Resource(CQLASERPOWER_SDK);
@@ -704,6 +740,65 @@ void TestDefaultRoundingCompatibility()
     resource.wireFeederStatusLoc = 0;
     CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
     CHECK(script.find("0x0A06") == std::string::npos);
+}
+
+/** @brief 完整工艺快照使用原始字和分页地址，部分参数与其它品牌不产生快照。 */
+void TestSup26PagedCraftBank()
+{
+    MachineResource resource = Resource(CQ_SUP26AD_LASERPOWER_SDK);
+    CraftInfoLaserSdk craft = Craft();
+    lp::Configuration configuration;
+    CHECK(lp::BuildDefaultConfiguration(resource, configuration) == SUCCESS_LASER_SDK);
+    std::string script;
+    CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
+    const std::map<unsigned, unsigned> bank = ParseSup26CraftBank(script);
+    const std::map<unsigned, int> writes = ParseWrites(script);
+    CHECK(bank.size() == 27 && writes.size() == 27);
+    for (const auto& item : writes)
+        CHECK(bank.at(item.first) == static_cast<unsigned>(item.second & 0xFFFF));
+    CHECK(bank.at(61) == 65411 && bank.at(90) == 2000);
+
+    std::vector<LaserParameterValueSdk> values;
+    CHECK(lp::BuildCraftValues(resource, craft, values) == SUCCESS_LASER_SDK);
+    values = SupportedValues(configuration, values);
+    std::vector<LaserParameterValueSdk> partial(1, Value(LASER_PARAM_WELD_POWER_SDK, 1000));
+    CHECK(lp::BuildDeviceParametersScript(resource, nullptr, partial, script) == SUCCESS_LASER_SDK);
+    CHECK(ParseSup26CraftBank(script).empty() && ParseWrites(script).size() == 1);
+    std::vector<LaserParameterValueSdk> missing = values;
+    missing.pop_back();
+    CHECK(lp::BuildDeviceParametersScript(resource, nullptr, missing, script) == SUCCESS_LASER_SDK);
+    CHECK(ParseSup26CraftBank(script).empty());
+
+    lp::Configuration relocated = configuration;
+    FindBinding(relocated, LASER_PARAM_Y_SCALE_SDK).writeAddress = 102;
+    FindBinding(relocated, LASER_PARAM_Y_SCALE_SDK).readAddress = 117;
+    CHECK(lp::BuildDeviceParametersScript(resource, &relocated, values, script) == SUCCESS_LASER_SDK);
+    CHECK(ParseWrites(script).size() == 27 && ParseSup26CraftBank(script).empty());
+
+    resource.weldingProcessType = SELF_WELDING_LASERSDK;
+    std::vector<LaserParameterValueSdk> noWire;
+    for (const LaserParameterValueSdk& parameter : values)
+        if (parameter.parameterId != LASER_PARAM_WIRE_FEED_SPEED_SDK
+                && parameter.parameterId != LASER_PARAM_WIRE_FEED_SWITCH_SDK
+                && parameter.parameterId != LASER_PARAM_WIRE_RETRACT_LENGTH_SDK
+                && parameter.parameterId != LASER_PARAM_WIRE_FEED_LENGTH_SDK) noWire.push_back(parameter);
+    CHECK(noWire.size() == 23);
+    CHECK(lp::BuildDeviceParametersScript(resource, nullptr, noWire, script) == SUCCESS_LASER_SDK);
+    CHECK(ParseWrites(script).size() == 23 && ParseSup26CraftBank(script).empty());
+    craft.craftWeldingWireFeed = 999999;
+    craft.craftRetractionLength = 999999;
+    craft.craftEndLoopbackLength = 999999;
+    CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
+    const std::map<unsigned, unsigned> selfBank = ParseSup26CraftBank(script);
+    CHECK(selfBank.size() == 27);
+    for (unsigned address = 94; address <= 97; ++address) CHECK(selfBank.at(address) == 0);
+    std::vector<LaserParameterValueSdk> existing(1, Value(LASER_PARAM_WIRE_FEED_SPEED_SDK, 20));
+    lp::CompleteSup26SelfWeldCraftValues(resource, existing);
+    CHECK(existing.size() == 1 && existing[0].value == 20);
+
+    resource = Resource(BCXLASERPOWER_SDK);
+    CHECK(lp::BuildDeviceCraftScript(resource, Craft(), nullptr, script) == SUCCESS_LASER_SDK);
+    CHECK(ParseSup26CraftBank(script).empty());
 }
 
 /** @brief 原工艺下发入口成功、失败或重试均不得改变持久机器资源。 */
@@ -992,13 +1087,13 @@ void TestDeviceManagedPowerPolicy()
     CHECK(!lp::IsMachineDevicePowerManaged(handle));
     CHECK(cl_machine_resource_release(other) == SUCCESS_LASER_SDK);
 
-    // SUP26AD的实际工艺功率本来就必须写，策略不能把其本地75槽一起删掉。
+    // SUP26AD的实际工艺功率本来就必须写，策略不能把其本地90槽一起删掉。
     resource = Resource(CQ_SUP26AD_LASERPOWER_SDK);
     CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
     const std::string sup26Before = OldCraftScript(handle, craft);
     CHECK(cl_machine_device_power_managed_set(handle, true) == SUCCESS_LASER_SDK);
     CHECK(OldCraftScript(handle, craft) == sup26Before);
-    CHECK(ParseWrites(sup26Before).at(75) == 2000);
+    CHECK(ParseWrites(sup26Before).at(90) == 2000);
     CHECK(cl_machine_resource_release(handle) == SUCCESS_LASER_SDK);
 }
 } // namespace
@@ -1013,6 +1108,7 @@ int main()
         TestPublicApiBuffersIsolationAndPurity();
         TestOptionalCapabilitiesAndCustomRanges();
         TestDefaultRoundingCompatibility();
+        TestSup26PagedCraftBank();
         TestOldCraftFailureDoesNotMutateResource();
         TestFullInstructionAndControlPaths();
         TestLegacyFullProgramPowerAndTimeoutReset();

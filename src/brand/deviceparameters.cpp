@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iomanip>
 #include <locale>
+#include <map>
 #include <sstream>
 
 namespace laser_parameters
@@ -174,23 +175,24 @@ void buildSup26Ad(Configuration& configuration)
     add(configuration, LASER_PARAM_SCAN_WIDTH_SDK, "扫描宽度", "mm", 72, 0.1, 5, 10);
     add(configuration, LASER_PARAM_SCAN_HEIGHT_SDK, "扫描高度", "mm", 73, 0.1, 5, 10);
     add(configuration, LASER_PARAM_ROTATION_ANGLE_SDK, "旋转角度", "deg", 74, 0, 360);
-    add(configuration, LASER_PARAM_WELD_POWER_SDK, "焊接功率", "W", 75, 1, 65535);
-    add(configuration, LASER_PARAM_DUTY_CYCLE_SDK, "占空比", "%", 76, 0, 100);
-    add(configuration, LASER_PARAM_PWM_HIGH_WORD_SDK, "脉冲频率高字", "", 77, 0, 65535);
-    add(configuration, LASER_PARAM_PWM_LOW_WORD_SDK, "脉冲频率低字", "", 78, 0, 65535);
-    add(configuration, LASER_PARAM_WIRE_FEED_SPEED_SDK, "送丝速度", "cm/min", 79, 0, 600);
-    add(configuration, LASER_PARAM_WIRE_FEED_SWITCH_SDK, "送丝开关", "", 80, 0, 1);
-    add(configuration, LASER_PARAM_WIRE_RETRACT_LENGTH_SDK, "回抽长度", "mm", 81, 0, 200);
-    add(configuration, LASER_PARAM_WIRE_FEED_LENGTH_SDK, "补丝长度", "mm", 82, 0, 200);
-    add(configuration, LASER_PARAM_LASER_ON_POWER_SDK, "开光百分比", "%", 83, 0, 100, 1,
+    // 每页三十槽，前十五槽写入、后十五槽回读；第十六项从下一页开始。
+    add(configuration, LASER_PARAM_WELD_POWER_SDK, "焊接功率", "W", 90, 1, 65535);
+    add(configuration, LASER_PARAM_DUTY_CYCLE_SDK, "占空比", "%", 91, 0, 100);
+    add(configuration, LASER_PARAM_PWM_HIGH_WORD_SDK, "脉冲频率高字", "", 92, 0, 65535);
+    add(configuration, LASER_PARAM_PWM_LOW_WORD_SDK, "脉冲频率低字", "", 93, 0, 65535);
+    add(configuration, LASER_PARAM_WIRE_FEED_SPEED_SDK, "送丝速度", "cm/min", 94, 0, 600);
+    add(configuration, LASER_PARAM_WIRE_FEED_SWITCH_SDK, "送丝开关", "", 95, 0, 1);
+    add(configuration, LASER_PARAM_WIRE_RETRACT_LENGTH_SDK, "回抽长度", "mm", 96, 0, 200);
+    add(configuration, LASER_PARAM_WIRE_FEED_LENGTH_SDK, "补丝长度", "mm", 97, 0, 200);
+    add(configuration, LASER_PARAM_LASER_ON_POWER_SDK, "开光百分比", "%", 98, 0, 100, 1,
         LASER_PARAMETER_U16_SDK, LASER_PARAMETER_TRUNCATE_SDK);
-    add(configuration, LASER_PARAM_RAMP_UP_TIME_SDK, "缓升时间", "ms", 84, 0, 2000);
-    add(configuration, LASER_PARAM_LASER_OFF_POWER_SDK, "关光百分比", "%", 85, 0, 100, 1,
+    add(configuration, LASER_PARAM_RAMP_UP_TIME_SDK, "缓升时间", "ms", 99, 0, 2000);
+    add(configuration, LASER_PARAM_LASER_OFF_POWER_SDK, "关光百分比", "%", 100, 0, 100, 1,
         LASER_PARAMETER_U16_SDK, LASER_PARAMETER_TRUNCATE_SDK);
-    add(configuration, LASER_PARAM_RAMP_DOWN_TIME_SDK, "缓降时间", "ms", 86, 0, 2000);
+    add(configuration, LASER_PARAM_RAMP_DOWN_TIME_SDK, "缓降时间", "ms", 101, 0, 2000);
     for (std::size_t i = 0; i < configuration.bindings.size(); ++i)
     {
-        configuration.bindings[i].readAddress = configuration.bindings[i].writeAddress + 90;
+        configuration.bindings[i].readAddress = configuration.bindings[i].writeAddress + 15;
         configuration.descriptors[i].flags |= LASER_PARAMETER_READABLE_SDK;
     }
     // 手动气、光属于命令枚举，未提供已验证的统一布尔语义，不纳入默认工艺配置。
@@ -303,7 +305,48 @@ double scanFrequency(const CraftInfoLaserSdk& craft)
     }
 }
 
+/** @brief 仅完整覆盖两页工艺写槽时输出原始字快照，不把部分参数冒充完整工艺。 */
+std::string sup26CraftBank(const WritePlan& plan)
+{
+    if (plan.operations.size() != 27) return std::string();
+    std::map<unsigned, uint16_t> words;
+    for (const WriteOperation& operation : plan.operations)
+    {
+        const unsigned address = operation.address;
+        if (operation.words.size() != 1
+                || !((address >= 60 && address <= 74) || (address >= 90 && address <= 101))
+                || !words.insert(std::make_pair(address, operation.words[0])).second)
+            return std::string();
+    }
+    std::ostringstream output;
+    output.imbue(std::locale::classic());
+    output << "-- SUP26AD_CRAFT_BANK_V1:";
+    bool first = true;
+    for (const auto& word : words)
+    {
+        if (!first) output << ',';
+        first = false;
+        output << word.first << '=' << word.second;
+    }
+    output << '\n';
+    return output.str();
+}
+
 } // 匿名命名空间
+
+void CompleteSup26SelfWeldCraftValues(const MachineResource& resource,
+                                    std::vector<LaserParameterValueSdk>& values)
+{
+    if (resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK
+            || resource.weldingProcessType != SELF_WELDING_LASERSDK) return;
+    const unsigned wireIds[] = {LASER_PARAM_WIRE_FEED_SPEED_SDK, LASER_PARAM_WIRE_FEED_SWITCH_SDK,
+                               LASER_PARAM_WIRE_RETRACT_LENGTH_SDK, LASER_PARAM_WIRE_FEED_LENGTH_SDK};
+    for (const LaserParameterValueSdk& parameter : values)
+        for (unsigned id : wireIds)
+            if (parameter.parameterId == id) return;
+    // 首站仍发送全部映射；自熔完整工艺必须显式清零四项，禁止复用旧送丝值。
+    for (unsigned id : wireIds) value(values, id, 0);
+}
 
 LaserSdkResult BuildDefaultConfiguration(const MachineResource& resource,
                                         Configuration& configuration,
@@ -461,9 +504,20 @@ LaserSdkResult BuildDeviceParametersScript(const MachineResource& resource,
     // 显式配置表示上位机已建立有效的本地映射，禁止再落入旧自由通讯分支。
     if (!overrideConfiguration && isLegacySupBrand(resource.laserHeadBrand))
         return EmitLegacySupLua(plan, resource, script, diagnostic);
-    const LaserSdkResult emitted = EmitMappedLua(plan, script);
+    std::string pendingScript;
+    const LaserSdkResult emitted = EmitMappedLua(plan, pendingScript);
     if (emitted != SUCCESS_LASER_SDK)
         return fail(diagnostic, 0, "参数映射脚本输出失败", emitted);
+    try
+    {
+        if (resource.laserHeadBrand == CQ_SUP26AD_LASERPOWER_SDK)
+            pendingScript.insert(0, sup26CraftBank(plan));
+        script.swap(pendingScript);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return fail(diagnostic, 0, "完整工艺快照生成内存不足", MEMORY_ERROR_LASER_SDK);
+    }
     return emitted;
 }
 
@@ -474,6 +528,21 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
                                      LaserParameterDiagnosticSdk* diagnostic,
                                      bool devicePowerManaged)
 {
+    CraftInfoLaserSdk prepared = craft;
+    const bool sup26SelfWeld = resource.laserHeadBrand == CQ_SUP26AD_LASERPOWER_SDK
+            && resource.weldingProcessType == SELF_WELDING_LASERSDK;
+    if (sup26SelfWeld)
+    {
+        prepared.craftWeldingWireFeed = 0;
+        prepared.craftLeadInWireFeed = 0;
+        prepared.craftLeadOutWireFeed = 0;
+        prepared.craftEndingWireRetraction = 0;
+        prepared.craftRetractionLength = 0;
+        prepared.craftEndLoopbackLength = 0;
+        prepared.wireDelayTime = 0;
+        prepared.craftWireCutMode = NORMAL;
+        prepared.craftStepEquivalent = 0;
+    }
     Configuration defaults;
     const Configuration* active = overrideConfiguration;
     if (!active)
@@ -490,12 +559,12 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
     if (!overrideConfiguration)
     {
         // 默认型号保留原校验；显式配置允许调用方以描述定义新的地址、范围和编码。
-        const LaserSdkResult result = GetBrandProtocolAdapter(resource.laserHeadBrand).checkCraft(craft);
+        const LaserSdkResult result = GetBrandProtocolAdapter(resource.laserHeadBrand).checkCraft(prepared);
         if (result != SUCCESS_LASER_SDK)
             return fail(diagnostic, 0, "工艺超出默认设备型号的能力范围", result);
     }
     std::vector<LaserParameterValueSdk> converted;
-    LaserSdkResult result = BuildCraftValues(resource, craft, converted, diagnostic);
+    LaserSdkResult result = BuildCraftValues(resource, prepared, converted, diagnostic);
     if (result != SUCCESS_LASER_SDK) return result;
     std::vector<LaserParameterValueSdk> selected;
     for (std::size_t i = 0; i < converted.size(); ++i)
@@ -505,6 +574,10 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
         if (devicePowerManaged && resource.laserHeadBrand == CQLASERPOWER_SDK
                 && parameter.parameterId == LASER_PARAM_WELD_POWER_SDK) continue;
         if (!writable(*active, parameter.parameterId)) continue;
+        if (sup26SelfWeld && (parameter.parameterId == LASER_PARAM_WIRE_FEED_SPEED_SDK
+                || parameter.parameterId == LASER_PARAM_WIRE_FEED_SWITCH_SDK
+                || parameter.parameterId == LASER_PARAM_WIRE_RETRACT_LENGTH_SDK
+                || parameter.parameterId == LASER_PARAM_WIRE_FEED_LENGTH_SDK)) continue;
         if (!overrideConfiguration && isLegacySupBrand(resource.laserHeadBrand))
         {
             // 旧超强缓升降由 SDK 轨迹执行，禁止同时启用板卡渐进时间。
@@ -518,6 +591,7 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
         }
         selected.push_back(parameter);
     }
+    CompleteSup26SelfWeldCraftValues(resource, selected);
     return BuildDeviceParametersScript(resource, overrideConfiguration, selected, script, diagnostic);
 }
 

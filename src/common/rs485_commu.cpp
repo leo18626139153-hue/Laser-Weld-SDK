@@ -1,4 +1,5 @@
 #include "rs485_commu.h"
+#include "rampcontrol.h"
 #include "parametercontext.h"
 #include "cl_basedefine.h"
 #include "utils.h"
@@ -419,6 +420,8 @@ std::string CommuRS485::get_laser_param_set_script(std::map<unsigned int, int> l
 // 485- 起弧/收弧功能脚本
 LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch)
 {
+    // 新外控公共运行时在程序头一次加载，普通和慢速入口不再缓存另一套状态机。
+    if (ramp_control::Enabled(laserMachineHandle)) return SUCCESS_LASER_SDK;
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
     {
@@ -550,6 +553,14 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (ramp_control::Enabled(laserMachineHandle))
+    {
+        std::string phase;
+        const LaserSdkResult result = ramp_control::BuildStageScript(laserMachineHandle, machineResource,
+                                                                     startSwitch, false, phase);
+        if (result == SUCCESS_LASER_SDK) script += phase;
+        return result;
+    }
     //获取脚本
     craft_script_arc_function_switch_script_get(laserMachineHandle, startSwitch);
     if (startSwitch == SWITCH_ON_LASER_SDK)
@@ -834,6 +845,7 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
 //缓升缓降 起弧/收弧功能脚本
 LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(LaserMachineHandle laserMachineHandle, SwitchTypeLaserSdk laserSwitch)
 {
+    if (ramp_control::Enabled(laserMachineHandle)) return SUCCESS_LASER_SDK;
     //获取句柄对应的焊机资源对象
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
     {
@@ -867,6 +879,14 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_program_run_script_get(LaserMac
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end())
     {
         return HANDLE_ERROR_LASER_SDK;
+    }
+    if (ramp_control::Enabled(laserMachineHandle))
+    {
+        std::string phase;
+        const LaserSdkResult result = ramp_control::BuildStageScript(laserMachineHandle,
+                    machineResourcesMap[laserMachineHandle], startSwitch, startSwitch == SWITCH_OFF_LASER_SDK, phase);
+        if (result == SUCCESS_LASER_SDK) script += phase;
+        return result;
     }
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)

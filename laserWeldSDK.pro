@@ -144,6 +144,7 @@ SOURCES += \
     src/common/parameterscript.cpp \
     src/brand/deviceparameters.cpp \
     src/common/parametercontext.cpp \
+    src/common/rampcontrol.cpp \
     src/parameters_api.cpp
 # 头.文.件
 HEADERS += \
@@ -161,7 +162,9 @@ HEADERS += \
     include/laserWeldSDK/common/parametercompiler.h \
     include/laserWeldSDK/common/parameterscript.h \
     include/laserWeldSDK/brand/deviceparameters.h \
-    include/laserWeldSDK/common/parametercontext.h
+    include/laserWeldSDK/common/parametercontext.h \
+    include/laserWeldSDK/common/rampcontrol.h \
+    include/laserWeldSDK/rampcontroldefine.h
 
 # cr_sdk 头文件（不参与编译，仅用于 IDE 索引）
 HEADERS += \

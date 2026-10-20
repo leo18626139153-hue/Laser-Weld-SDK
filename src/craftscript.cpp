@@ -6,6 +6,7 @@
 #include "rs485_commu.h"
 #include "parametercontext.h"
 #include "brand/brandadapter.h"
+#include "rampcontrol.h"
 #include <sstream>
 #include <mutex>
 #include <random>
@@ -113,6 +114,16 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle,
     }
 
     bodyScriptText += " --SLOW_DOWN--\n";
+
+    // 降功率点只启动并行渐变，光和丝保留到真实轨迹终点，不在此触发回抽。
+    if (ramp_control::Enabled(laserMachineHandle))
+    {
+        std::string phase;
+        const LaserSdkResult result = ramp_control::BuildStageScript(laserMachineHandle, machineResource,
+                                                                     SWITCH_OFF_LASER_SDK, true, phase);
+        if (result == SUCCESS_LASER_SDK) bodyScriptText += phase;
+        return result;
+    }
 
     // 映射通道的板卡在使能下降沿执行内控缓降，SDK 在降功率点关闭外部使能。
     // 送丝焊同时关闭 CO2，避免降功率阶段继续送丝；自融焊不输出 CO2。
@@ -336,7 +347,9 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
             }
             if (environment.policy.emitArcControl)
             {
-                bodyScriptText += " --ARC_STOP_LIST--\nwait(1) \nwrite_boolean_register(611,false)\n";
+                bodyScriptText += ramp_control::Enabled(laserMachineHandle)
+                        ? " --ARC_STOP_LIST--\nwrite_boolean_register(611,false)\n"
+                        : " --ARC_STOP_LIST--\nwait(1) \nwrite_boolean_register(611,false)\n";
                 std::string arcScript;
                 result = craftCommu->craft_script_arc_program_run_script_get(
                             laserMachineHandle, SwitchTypeLaserSdk::SWITCH_OFF_LASER_SDK, arcScript);
@@ -417,7 +430,8 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   std::to_string(transitionRadius));
                 // 映射通道缓降距离为零时不拆轨迹，在焊接终点触发板卡内控缓降。
                 if (splitRampDown
-                        && laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+                        && (ramp_control::Enabled(laserMachineHandle)
+                            || laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand)))
                 {
                     result = appendRampDownControl(laserMachineHandle, machineResource,
                                                    *craftCommu, environment.policy, bodyScriptText);
@@ -516,7 +530,8 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                                                   std::to_string(transitionRadius), "0");
                 // 映射通道缓降距离为零时不拆轨迹，在焊接终点触发板卡内控缓降。
                 if (splitRampDown
-                        && laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+                        && (ramp_control::Enabled(laserMachineHandle)
+                            || laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand)))
                 {
                     result = appendRampDownControl(laserMachineHandle, machineResource,
                                                    *craftCommu, environment.policy, bodyScriptText);

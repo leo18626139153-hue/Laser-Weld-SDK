@@ -1,6 +1,7 @@
 #include "parametercontext.h"
 #include "deviceparameters.h"
 #include "internaldatadefine.h"
+#include "rampcontrol.h"
 #include <map>
 #include <mutex>
 #include <set>
@@ -119,6 +120,9 @@ LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle,
 {
     if (machineResourcesMap.find(handle) == machineResourcesMap.end())
         return HANDLE_ERROR_LASER_SDK;
+    // 显式外控使用独立单位及包络策略，旧调用方继续沿原编译路径。
+    if (ramp_control::Enabled(handle))
+        return ramp_control::BuildCraftScript(handle, resource, craft, script);
     Configuration configured;
     const bool hasOverride = copyOverride(handle, configured);
     // 品牌换算、参数编码和脚本输出均只使用本次局部副本。
@@ -169,6 +173,8 @@ void UpdateCompilationResource(MachineResource& resource, const CraftInfoLaserSd
     head.laserHeadLowPulseFrequency = craft.laserHeadLowPulseFrequency;
     head.laserHeadHighPulseFrequency = craft.laserHeadHighPulseFrequency;
     head.laserSpotPattern = craft.graphicsSwitching;
+    // 自熔焊不访问未使用的送丝字段，避免断联设备和未初始化输入进入阶段资源。
+    if (resource.weldingProcessType != WIRE_WELDING_LASERSDK) return;
     CgxiWireFeederLaserSdk& wire = resource.wireFeederParams;
     wire.lengthBack = 0.0;
     wire.wireFeederWaitTime = craft.wireDelayTime;

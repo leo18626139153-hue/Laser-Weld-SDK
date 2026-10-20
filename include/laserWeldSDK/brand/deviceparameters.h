@@ -40,6 +40,14 @@ LaserSdkResult BuildCraftValues(const MachineResource& resource,
                                LaserParameterDiagnosticSdk* diagnostic = nullptr);
 
 /**
+ * @brief 为SUP26AD自熔完整工艺补齐四项明确停丝值，不用于普通部分参数写入。
+ * @param[in] resource 设备品牌和焊接方式，仅SUP26AD自熔焊生效。
+ * @param[in,out] values 完整工艺业务值；四项送丝语义全部缺失时才追加零值。
+ */
+void CompleteSup26SelfWeldCraftValues(const MachineResource& resource,
+                                    std::vector<LaserParameterValueSdk>& values);
+
+/**
  * @brief 根据参数写计划生成旧超强自由通讯兼容脚本。
  * 仅输出调用语句，不包含初始化函数定义；调用方负责加载旧通讯函数。
  * 站号、串口和回执策略仅为原自由通讯路径保留，不进入公共参数描述。

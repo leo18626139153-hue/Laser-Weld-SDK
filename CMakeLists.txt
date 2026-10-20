@@ -72,6 +72,7 @@ set(SOURCES
     include/laserWeldSDK/brand/lasermodbusrtubuilder.cpp
     src/common/base_commu.cpp
     src/common/rs485_commu.cpp
+    src/common/rampcontrol.cpp
     src/common/parametercompiler.cpp
     src/common/parameterscript.cpp
     src/brand/deviceparameters.cpp
