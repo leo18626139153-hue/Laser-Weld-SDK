@@ -566,15 +566,16 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
     CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     std::unordered_map<unsigned int, std::string> writeDataHash;
+    const bool isSup = machineResource.laserHeadBrand == CQLASERPOWER_SDK;
 
     // 1. 写入激光器功率 (0-5000W, 整型)
     addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc, 3, 1);
-    // 2. 写入开光功率 (0-5000W, 整型)
-    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc, 3, 1);
+    // 2. 普通超强 0x0231 的单位是百分比，绝对开光功率留给 SDK 起弧调节。
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, isSup ? 100 : laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc, 3, 1);
     // 3. 写入开光渐进时间 (0~1000ms, 整型)
     addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, 0, machineResource.laserOnRampTimeLoc, 3, 1);
-    // 4. 写入关光功率 (0-5000W, 整型)
-    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc, 3, 1);
+    // 4. 普通超强保持板卡满比例，避免把绝对 W 值写入百分比地址。
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, isSup ? 100 : laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc, 3, 1);
     // 5. 写入关光渐进时间 (0~300mm, 整型)
     addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, 0, machineResource.laserOffRampTimeLoc, 3, 1);
     // 6. 写入开气延时函数 提前送气时间	0~3000ms
@@ -864,7 +865,14 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
      * the rated power limit. craftLaserPower is the actual welding power.
      * Keep compatibility when an old caller does not provide a rated limit.
      */
-    const int ratedLaserPower = curCraftInfo.laserHeadPeakPower;
+    const bool isSup = machineResource.laserHeadBrand == CQLASERPOWER_SDK;
+    // 普通超强的额定功率与工艺峰值分别保存，旧调用方缺失额定值时沿用设备配置。
+    const int ratedLaserPower = isSup && curCraftInfo.laserHeadPeakPower <= 0
+            ? machineResource.laserPowerParams.laserPower : curCraftInfo.laserHeadPeakPower;
+    if (isSup && (ratedLaserPower <= 0 || ratedLaserPower > 65535))
+    {
+        return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
     if (ratedLaserPower > 0 && craftLaserPower > ratedLaserPower)
     {
         writeLog("craft_script_configure_machine_param_set_script_get :: craftLaserPower exceeds ratedLaserPower, craftLaserPower="
@@ -872,9 +880,9 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
                  + ", ratedLaserPower=" + std::to_string(ratedLaserPower));
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }
-    machineResource.laserHeadParams.laserHeadPeakPower = ratedLaserPower;
-    // Store the current welding power for script generation only.
-    machineResource.laserPowerParams.laserPower = craftLaserPower;
+    machineResource.laserHeadParams.laserHeadPeakPower = isSup ? craftLaserPower : ratedLaserPower;
+    // 普通超强的 0x0230 仅写额定功率；其它品牌保持原有参数语义。
+    machineResource.laserPowerParams.laserPower = isSup ? ratedLaserPower : craftLaserPower;
     //激光头占空比
     machineResource.laserHeadParams.laserHeadDutyCycle = curCraftInfo.laserHeadDutyCycle;
     //激光的脉冲频率
@@ -1030,6 +1038,11 @@ LaserSdkResult CommuRS485::craft_script_write_craft_resource_script_get(LaserMac
         return LaserSdkResult::HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    // 普通超强的旧资源入口复用同一功率映射，避免两套工艺下发写入不同数值。
+    if (machineResource.laserHeadBrand == CQLASERPOWER_SDK)
+    {
+        return craft_script_configure_machine_param_set_script_get(laserMachineHandle, craftInfo, script);
+    }
     const BrandProtocolAdapter &adapter = GetBrandProtocolAdapter(machineResource.laserHeadBrand);
     const BrandProtocolProfile profile = adapter.profile();
     const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);

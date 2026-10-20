@@ -262,7 +262,10 @@ bool SupProtocolAdapter::buildConfigureMachineBodyScript(
     // ---- 激光头数据表赋值 ----
     script << "    laserHeadRegisterMap[1][2] = " << craftInfo.craftScanSpeed << "\n";
     script << "    laserHeadRegisterMap[2][2] = " << double2str(craftInfo.craftScanWidth, 1)  << "*10 \n";
-    script << "    laserHeadRegisterMap[3][2] = " << craftInfo.craftLeadInPower << "\n";
+    // 普通超强 0x0002 表示工艺峰值，开光功率由起弧阶段单独处理。
+    const int peakPower = machineResource.laserHeadBrand == CQLASERPOWER_SDK
+            ? hd.laserHeadPeakPower : craftInfo.craftLeadInPower;
+    script << "    laserHeadRegisterMap[3][2] = " << peakPower << "\n";
     script << "    laserHeadRegisterMap[4][2] = " << hd.laserHeadDutyCycle << "\n";
     script << "    laserHeadRegisterMap[5][2] = " << hd.laserHeadHighPulseFrequency << "\n";
     script << "    laserHeadRegisterMap[6][2] = " << hd.laserHeadLowPulseFrequency << "\n";
