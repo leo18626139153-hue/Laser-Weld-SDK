@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace laser_parameters
-{
+namespace laser_parameters {
 
 /**
  * @brief 构建指定设备的兼容参数描述与地址绑定。
@@ -20,9 +19,7 @@ namespace laser_parameters
  * @param[out] diagnostic 可选错误诊断，非空时 structSize 至少为当前结构大小。
  * @return 成功、配置错误或范围错误；不修改资源或连接状态。
  */
-LaserSdkResult BuildDefaultConfiguration(const MachineResource& resource,
-                                        Configuration& configuration,
-                                        LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult BuildDefaultConfiguration(const MachineResource &resource, Configuration &configuration, LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 将工艺转换为品牌规定的业务参数值，不参与串口或从站配置。
@@ -34,18 +31,15 @@ LaserSdkResult BuildDefaultConfiguration(const MachineResource& resource,
  * @param[out] diagnostic 可选错误诊断，非空时须提供有效 structSize。
  * @return 成功或换算前提错误；具体参数的可写性、范围和编码由编译器校验。
  */
-LaserSdkResult BuildCraftValues(const MachineResource& resource,
-                               const CraftInfoLaserSdk& craft,
-                               std::vector<LaserParameterValueSdk>& values,
-                               LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult BuildCraftValues(const MachineResource &resource, const CraftInfoLaserSdk &craft, std::vector<LaserParameterValueSdk> &values,
+    LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 为SUP26AD自熔完整工艺补齐四项明确停丝值，不用于普通部分参数写入。
  * @param[in] resource 设备品牌和焊接方式，仅SUP26AD自熔焊生效。
  * @param[in,out] values 完整工艺业务值；四项送丝语义全部缺失时才追加零值。
  */
-void CompleteSup26SelfWeldCraftValues(const MachineResource& resource,
-                                    std::vector<LaserParameterValueSdk>& values);
+void CompleteSup26SelfWeldCraftValues(const MachineResource &resource, std::vector<LaserParameterValueSdk> &values);
 
 /**
  * @brief 根据参数写计划生成旧超强自由通讯兼容脚本。
@@ -57,10 +51,7 @@ void CompleteSup26SelfWeldCraftValues(const MachineResource& resource,
  * @param[out] diagnostic 可选错误诊断，非空时须提供有效 structSize。
  * @return 成功、设备路由错误或输出内存错误；不产生数字输出启停动作。
  */
-LaserSdkResult EmitLegacySupLua(const WritePlan& plan,
-                               const MachineResource& resource,
-                               std::string& script,
-                               LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult EmitLegacySupLua(const WritePlan &plan, const MachineResource &resource, std::string &script, LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 编译业务参数并生成设备脚本，显式配置统一使用本地映射寄存器。
@@ -73,11 +64,8 @@ LaserSdkResult EmitLegacySupLua(const WritePlan& plan,
  * @param[out] diagnostic 可选错误诊断，非空时须提供有效 structSize。
  * @return 成功、配置、范围、能力或编码错误；不改变资源或注册配置。
  */
-LaserSdkResult BuildDeviceParametersScript(const MachineResource& resource,
-                                          const Configuration* overrideConfiguration,
-                                          const std::vector<LaserParameterValueSdk>& values,
-                                          std::string& script,
-                                          LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult BuildDeviceParametersScript(const MachineResource &resource, const Configuration *overrideConfiguration,
+    const std::vector<LaserParameterValueSdk> &values, std::string &script, LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 将工艺转换、能力校验、地址绑定与脚本输出组成无副作用流程。
@@ -91,12 +79,8 @@ LaserSdkResult BuildDeviceParametersScript(const MachineResource& resource,
  * @param[in] devicePowerManaged 旧超强设备功率由设置维护时，不从工艺下发焊接参考功率。
  * @return 成功或工艺编译错误；工艺配置和起收弧控制分别生成。
  */
-LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
-                                     const CraftInfoLaserSdk& craft,
-                                     const Configuration* overrideConfiguration,
-                                     std::string& script,
-                                     LaserParameterDiagnosticSdk* diagnostic = nullptr,
-                                     bool devicePowerManaged = false);
+LaserSdkResult BuildDeviceCraftScript(const MachineResource &resource, const CraftInfoLaserSdk &craft, const Configuration *overrideConfiguration,
+    std::string &script, LaserParameterDiagnosticSdk *diagnostic = nullptr, bool devicePowerManaged = false);
 
 } // 参数编译命名空间 laser_parameters
 

@@ -6,8 +6,7 @@
 
 /** @file parameterscript.h @brief 寄存器写入计划到控制器本地映射 Lua 的渲染接口。 */
 
-namespace laser_parameters
-{
+namespace laser_parameters {
 
 /**
  * @brief 将写入计划渲染为已配置的本地十六位映射寄存器 Lua 写入。
@@ -21,7 +20,7 @@ namespace laser_parameters
  *          十六位有符号参数输出负数表示，其他字输出无符号原始值，不重新缩放或改变字序。
  * @note 只返回脚本文本，不执行通讯、主从站配置或设备动作；多字写入的实际执行不具有事务保证。
  */
-LaserSdkResult EmitMappedLua(const WritePlan& plan, std::string& script);
+LaserSdkResult EmitMappedLua(const WritePlan &plan, std::string &script);
 
 } // namespace laser_parameters
 

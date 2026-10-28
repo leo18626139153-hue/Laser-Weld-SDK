@@ -1,7 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 #include "cl_basedefine.h"
-#include"internaldatadefine.h"
+#include "internaldatadefine.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -11,8 +11,8 @@
 #include <memory>
 #include <cstring>
 #include <tuple>
-#include <sstream>  // 字符串流头文件
-#include <iomanip>  // 用于输出格式控制
+#include <sstream> // 字符串流头文件
+#include <iomanip> // 用于输出格式控制
 
 /**
  * 生成写入参数类型的Lua脚本的函数
@@ -23,7 +23,8 @@
  * coAddr      从机地址：coAddr 默认0x0608
  * comNo        端口号：comNo 默认3
  */
-std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regTypr, unsigned int coAddr = 0x0906,int comNo = 3);
+std::string generateLuaScript(const std::string funcName, const std::string funcParam, const unsigned int addr, const CommuRegType regTypr,
+    unsigned int coAddr = 0x0906, int comNo = 3);
 
 /**
  * @brief 将字符串安全写入调用方缓冲区，或查询所需缓冲区长度。
@@ -32,7 +33,7 @@ std::string generateLuaScript(const std::string funcName, const std::string func
  * @param[in] generatedScript 待输出字符串。
  * @return SUCCESS_LASER_SDK表示写入或长度查询成功；缓冲区不足返回BUFFER_TOO_SMALL_LASER_SDK。
  */
-LaserSdkResult strToChar(char* script, int* scriptLen, const std::string& generatedScript);
+LaserSdkResult strToChar(char *script, int *scriptLen, const std::string &generatedScript);
 
 /**
  * 通过throw抛出问题LaserSdkResult
@@ -42,8 +43,7 @@ void checkLaserSdkResult(LaserSdkResult result);
 /**
  * @brief SDK 日志级别
  */
-enum LogLevelSdk
-{
+enum LogLevelSdk {
     LOG_INFO_LASER_SDK = 0,    ///< 信息级别
     LOG_WARNING_LASER_SDK = 1, ///< 警告级别
     LOG_ERROR_LASER_SDK = 2    ///< 错误级别
@@ -55,12 +55,10 @@ enum LogLevelSdk
  * @param[in] level 日志级别，默认 WARNING
  * @note SDK 为单例单线程设计，本函数不做内部加锁，调用方须串行调用。
  */
-void writeLog(const std::string& recordingLog, LogLevelSdk level = LOG_WARNING_LASER_SDK);
-
-
+void writeLog(const std::string &recordingLog, LogLevelSdk level = LOG_WARNING_LASER_SDK);
 
 //字符替换
-std::string strReplace(std::string srcStr, std::array<double,6> vecDouble);
+std::string strReplace(std::string srcStr, std::array<double, 6> vecDouble);
 std::string strReplace(std::string srcStr, std::vector<double> vecDouble);
 std::string strReplace(std::string srcStr, std::vector<int> vecInt);
 std::string strReplace(std::string srcStr, std::string format, std::string replaceStr);
@@ -71,7 +69,7 @@ std::string strReplace(std::string srcStr, std::string format, float replacefloa
 std::string strReplace(std::string srcStr, std::vector<std::string> vecStr);
 
 //各类数据结构转为字符串
-std::string doubleArray2Str(const double* array, int size);
+std::string doubleArray2Str(const double *array, int size);
 std::string Double2String(double value, int precision = 2, bool scientific = false);
 std::string point2str(std::vector<double> point);
 std::string point2str(std::array<double, 6> point);
@@ -83,102 +81,80 @@ std::string index2str(std::vector<int> index);
 
 //常用的LUA脚本语句组装
 //读取指定pdo地址的值后，给指定位写入值
-std::string PdoReadWriteBit(unsigned addr, int wireBitLoc,int writeValue);
+std::string PdoReadWriteBit(unsigned addr, int wireBitLoc, int writeValue);
 
 //读取指定int16地址的值后，给指定位写入值
-std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc,int writeValue);
+std::string Int16ReadWriteBit(unsigned addr, int wireBitLoc, int writeValue);
 
 //常用的LUA脚本语句组装
 std::string strSetStandardDigitalReplace(int srcStr, bool vecStr);
 
 /* ---   读写寄存器   --- */
 //write_ect_pdo
-template<typename T, typename Y>
-inline std::string strWritePdoReplace(T srcStr, Y vecStr)
-{
+template <typename T, typename Y> inline std::string strWritePdoReplace(T srcStr, Y vecStr) {
     return strReplace(strReplace("%1=write_ect_pdo(%2)\n", "%1", srcStr), "%2", vecStr);
 }
 //read_ect_pdo
-template<typename T, typename Y>
-inline std::string strReadPdoReplace(T returnStr, Y addrStr)
-{
+template <typename T, typename Y> inline std::string strReadPdoReplace(T returnStr, Y addrStr) {
     return strReplace(strReplace("%1=read_ect_pdo(%2)\n", "%1", returnStr), "%2", addrStr);
 }
 //write_int16_register
-template <typename T, typename Y>
-inline std::string strWriteInt16RegReplace(T srcStr, Y vecStr)
-{
+template <typename T, typename Y> inline std::string strWriteInt16RegReplace(T srcStr, Y vecStr) {
     return strReplace(strReplace("write_int16_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
 //read_int16_register
-template<typename T, typename Y>
-inline std::string strReadInt16RegReplace(T returnStr, Y addrStr)
-{
+template <typename T, typename Y> inline std::string strReadInt16RegReplace(T returnStr, Y addrStr) {
     return strReplace(strReplace("%1=read_int16_register(%2)\n", "%1", returnStr), "%2", addrStr);
 }
 //write_int32_register
-template <typename T, typename Y>
-inline std::string strWriteInt32RegReplace(T srcStr, Y vecStr)
-{
+template <typename T, typename Y> inline std::string strWriteInt32RegReplace(T srcStr, Y vecStr) {
     return strReplace(strReplace("write_integer_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
 //read_int32_register
-template <typename T, typename Y>
-inline std::string strReadInt32RegReplace(T returnStr, Y addrStr)
-{
+template <typename T, typename Y> inline std::string strReadInt32RegReplace(T returnStr, Y addrStr) {
     return strReplace(strReplace("%1=read_integer_register(%2)\n", "%1", returnStr), "%2", addrStr);
 }
 //write_float_register
-template<typename T, typename Y>
-inline std::string strWriteFloatRegReplace(T srcStr, Y vecStr)
-{
+template <typename T, typename Y> inline std::string strWriteFloatRegReplace(T srcStr, Y vecStr) {
     return strReplace(strReplace("write_float_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
 //read_float_register
-template<typename T, typename Y>
-std::string strReadFloatRegReplace(T returnStr, Y addrStr)
-{
+template <typename T, typename Y> std::string strReadFloatRegReplace(T returnStr, Y addrStr) {
     return strReplace(strReplace("%1=read_float_register(%2)\n", "%1", returnStr), "%2", addrStr);
 }
 //write_bool_register
-template<typename T, typename Y>
-std::string strWriteBoolRegReplace(T srcStr, Y vecStr)
-{
+template <typename T, typename Y> std::string strWriteBoolRegReplace(T srcStr, Y vecStr) {
     return strReplace(strReplace("write_bool_register(%1,%2)\n", "%1", srcStr), "%2", vecStr);
 }
 
 /* --- 运动脚本 --- */
 //moveL
-template <typename X, typename Y, typename Z, typename N>
-std::string strMoveLReplace(X data1, Y data2, Z data3, N data4)
-{
+template <typename X, typename Y, typename Z, typename N> std::string strMoveLReplace(X data1, Y data2, Z data3, N data4) {
     return strReplace(strReplace(strReplace(strReplace("movel(%1,%2,%3,%4)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4);
 }
 //moveJ
-template <typename X, typename Y, typename Z, typename N>
-std::string strMoveJReplace(X data1, Y data2, Z data3, N data4)
-{
+template <typename X, typename Y, typename Z, typename N> std::string strMoveJReplace(X data1, Y data2, Z data3, N data4) {
     return strReplace(strReplace(strReplace(strReplace("movej(%1,%2,%3,%4)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4);
 }
 //moveC
 template <typename X, typename Y, typename Z, typename N, typename M, typename P>
-std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6)
-{
-    return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6)\n", "%1", data1), "%2", data2), "%3", data3), "%4", data4), "%5", data5), "%6", data6);
+std::string strMoveCReplace(X data1, Y data2, Z data3, N data4, M data5, P data6) {
+    return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6)\n", "%1", data1), "%2", data2), "%3", data3), "%4",
+                                     data4),
+                          "%5", data5),
+        "%6", data6);
 }
 
 template <typename S, typename T, typename X, typename Y, typename Z, typename N, typename M, typename P>
-std::string strMoveCReplace(S points0, T joints0, X points1, Y joints1, Z speed, N acc, M radius, P data6)
-{
-    return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6,%7,%8)\n",
-                                                                                                   "%1", points0),
-                                                                                        "%2", joints0),
-                                                                             "%3", points1),
-                                                                  "%4", joints1),
-                                                       "%5", speed),
-                                            "%6", acc),
-                                 "%7", radius),
-                      "%8", data6);
+std::string strMoveCReplace(S points0, T joints0, X points1, Y joints1, Z speed, N acc, M radius, P data6) {
+    return strReplace(strReplace(strReplace(strReplace(strReplace(strReplace(strReplace(strReplace("movec(%1,%2,%3,%4,%5,%6,%7,%8)\n", "%1", points0), "%2",
+                                                                                 joints0),
+                                                                      "%3", points1),
+                                                           "%4", joints1),
+                                                "%5", speed),
+                                     "%6", acc),
+                          "%7", radius),
+        "%8", data6);
 }
 
 /**
@@ -212,6 +188,3 @@ std::string decimalToHexStringStream(unsigned int value);
 std::string double2str(double value, int precision);
 
 #endif // CWUTILS_H
-
-
-

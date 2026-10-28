@@ -10,15 +10,13 @@
  * @brief 将参数描述、地址绑定和物理值编译成不依赖通讯的寄存器写入计划。
  */
 
-namespace laser_parameters
-{
+namespace laser_parameters {
 
 /**
  * @brief 按参数语义编号关联的描述与寄存器绑定集合。
  * @note 编译器只读使用本配置，不持有其中元素的长期指针，也不修改设备已确认状态。
  */
-struct Configuration
-{
+struct Configuration {
     std::vector<LaserParameterDescriptorSdk> descriptors; ///< 设备支持的参数描述
     std::vector<LaserParameterBindingSdk> bindings;       ///< 参数到寄存器的绑定
 };
@@ -27,17 +25,15 @@ struct Configuration
  * @brief 单个语义参数的已编码寄存器写操作。
  * @note words 保留整数补码或浮点原始位；三十二位参数的两字顺序已在编译时确定。
  */
-struct WriteOperation
-{
-    unsigned parameterId;         ///< 稳定的参数语义编号
-    unsigned address;             ///< 起始寄存器地址
-    std::vector<uint16_t> words;   ///< 按描述字序排列的一或两个十六位原始值
-    bool signedSingleWord;        ///< 仅十六位有符号参数为真，渲染时显示带符号数值
+struct WriteOperation {
+    unsigned parameterId;        ///< 稳定的参数语义编号
+    unsigned address;            ///< 起始寄存器地址
+    std::vector<uint16_t> words; ///< 按描述字序排列的一或两个十六位原始值
+    bool signedSingleWord;       ///< 仅十六位有符号参数为真，渲染时显示带符号数值
 };
 
 /** @brief 保留调用方值列表顺序的写入计划，不持有设备或通讯状态。 */
-struct WritePlan
-{
+struct WritePlan {
     std::vector<WriteOperation> operations; ///< 已完成校验及编码的写操作
 };
 
@@ -53,8 +49,7 @@ struct WritePlan
  * @note 允许描述尚未绑定，也允许读写方向保留无效地址；实际写入时再检查写地址是否存在。
  *       可读和可写方向分别检查重叠，不要求配置中的所有参数都在本次写入。
  */
-LaserSdkResult ValidateConfiguration(const Configuration& configuration,
-                                    LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult ValidateConfiguration(const Configuration &configuration, LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 将物理值列表校验并编码为寄存器写入计划。
@@ -72,10 +67,8 @@ LaserSdkResult ValidateConfiguration(const Configuration& configuration,
  *          三十二位值按描述拆成两字；十六位有符号值保留补码并设置渲染标志。
  * @note 此接口只生成计划，不执行寄存器写入；成功不表示设备已接收参数。
  */
-LaserSdkResult CompileWritePlan(const Configuration& configuration,
-                               const std::vector<LaserParameterValueSdk>& values,
-                               WritePlan& plan,
-                               LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult CompileWritePlan(const Configuration &configuration, const std::vector<LaserParameterValueSdk> &values, WritePlan &plan,
+    LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 } // namespace laser_parameters
 

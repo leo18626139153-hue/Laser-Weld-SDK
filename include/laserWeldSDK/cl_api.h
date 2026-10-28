@@ -9,12 +9,12 @@
 
 #ifdef WIN32
 #if defined(LASERWELDSDK_LIBRARY)
-#  define LASERWELDSDK_EXPORT __declspec(dllexport)
+#define LASERWELDSDK_EXPORT __declspec(dllexport)
 #else
-#  define LASERWELDSDK_EXPORT __declspec(dllimport)
+#define LASERWELDSDK_EXPORT __declspec(dllimport)
 #endif
 #else
-#ifdef  LASERWELDSDK_LIBRARY
+#ifdef LASERWELDSDK_LIBRARY
 #define LASERWELDSDK_EXPORT __attribute__((visibility("default")))
 #else
 #define LASERWELDSDK_EXPORT __attribute__((visibility("default")))
@@ -38,7 +38,7 @@ extern "C" {
  * @param[out] versionLen         焊接SDK版本号字符长度 传入时表示version参数申请的空间大小，传出时表示焊接SDK版本号长度
  * @return WELDSDK_EXPORT    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_sdk_version_get(char* version, int* versionLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_sdk_version_get(char *version, int *versionLen);
 
 /**
  * @brief initMachineResource    注册焊机资源
@@ -46,7 +46,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_sdk_version_get(char* version, int* versio
  * @param[out] laserMachineHandle     焊机资源句柄 传出参数
  * @return LaserSdkResult        处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_init(const MachineResource* laserMachineResource, LaserMachineHandle* laserMachineHandle);
+LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_init(const MachineResource *laserMachineResource, LaserMachineHandle *laserMachineHandle);
 
 /**
  * @brief updateMachineResource  更新焊机资源
@@ -54,7 +54,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_init(const MachineResourc
  * @param[in] laserMachineResource   焊机资源结构体
  * @return LaserSdkResult        处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineHandle, const MachineResource* laserMachineResource);
+LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineHandle, const MachineResource *laserMachineResource);
 
 /**
  * @brief getMachineResource     获取焊机资源句柄对应的数据
@@ -62,7 +62,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_update(const LaserMachine
  * @param[out] laserMachineResource   焊机资源结构体 传出参数
  * @return LaserSdkResult        处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_get(const LaserMachineHandle laserMachineHandle, MachineResource* laserMachineResource);
+LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_get(const LaserMachineHandle laserMachineHandle, MachineResource *laserMachineResource);
 
 /**
  * @brief 释放焊机资源
@@ -89,16 +89,14 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_device_power_managed_set(const Las
  * @note 启用后工艺三档自动送丝速度统一为 mm/s；静态和动态写入均在品牌出口换算。
  *       更改配置后重新生成全部工艺及程序脚本。板卡动态响应及断丝时序需实机验收。
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_set(LaserMachineHandle laserMachineHandle,
-                                                            const LaserRampControlConfigSdk* config);
+LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_set(LaserMachineHandle laserMachineHandle, const LaserRampControlConfigSdk *config);
 /**
  * @brief 获取外控配置；未设置时 enabled=0，默认周期100ms、稳定50ms、超时2000ms。
  * @param[in] laserMachineHandle 已注册的焊机句柄。
  * @param[in,out] config 调用前填写 structSize；成功后返回当前版本的完整副本。
  * @return 成功、无效句柄或缓冲结构错误；失败不写出部分配置。
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_get(LaserMachineHandle laserMachineHandle,
-                                                            LaserRampControlConfigSdk* config);
+LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_get(LaserMachineHandle laserMachineHandle, LaserRampControlConfigSdk *config);
 /**
  * @brief 清除句柄外控策略并恢复旧默认行为；不影响已经在控制器执行的旧程序。
  * @param[in] laserMachineHandle 已注册的焊机句柄。
@@ -118,9 +116,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_reset(LaserMachineHand
  * @note 起弧同时包含该工艺的参数准备；缓降和终点不会重新下发全部工艺。
  *       失败不写输出或修改资源；三档送丝输入均为mm/s，自熔焊不访问送丝设备。
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_arc_script_get(LaserMachineHandle laserMachineHandle,
-        const CraftInfoLaserSdk* craft, SwitchTypeLaserSdk arcSwitch, bool rampDownOnly,
-        char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_arc_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk *craft, SwitchTypeLaserSdk arcSwitch,
+    bool rampDownOnly, char *scripts, int *scriptLen);
 
 /**
  * @brief 设置参数描述和控制器本地地址绑定，SDK深复制配置并按句柄独立保存。
@@ -133,11 +130,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_arc_script_get(LaserMachineHandle la
  * @warning 显式配置启用本地映射输出。上位机必须预先配置Modbus RTU主从站及远端地址映射。
  * @return 配置校验失败时保留该句柄原配置，成功不产生通讯或设备动作。
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_set(
-    LaserMachineHandle laserMachineHandle,
-    const LaserParameterDescriptorSdk* descriptors, unsigned int descriptorCount,
-    const LaserParameterBindingSdk* bindings, unsigned int bindingCount,
-    LaserParameterDiagnosticSdk* diagnostic);
+LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_set(LaserMachineHandle laserMachineHandle, const LaserParameterDescriptorSdk *descriptors,
+    unsigned int descriptorCount, const LaserParameterBindingSdk *bindings, unsigned int bindingCount, LaserParameterDiagnosticSdk *diagnostic);
 
 /**
  * @brief 获取有效参数配置；未设置时返回当前型号的兼容默认描述与绑定。
@@ -149,10 +143,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_set(
  * @note 两个数组均为空时只查询个数；任一容量不足时两个数组均不写入。
  * @return 成功、无效句柄、参数错误、内存不足或输出容量不足。
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_get(
-    LaserMachineHandle laserMachineHandle,
-    LaserParameterDescriptorSdk* descriptors, unsigned int* descriptorCount,
-    LaserParameterBindingSdk* bindings, unsigned int* bindingCount);
+LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_get(LaserMachineHandle laserMachineHandle, LaserParameterDescriptorSdk *descriptors,
+    unsigned int *descriptorCount, LaserParameterBindingSdk *bindings, unsigned int *bindingCount);
 
 /**
  * @brief 清除显式参数配置并恢复型号默认行为，不修改控制器主从站配置。
@@ -172,10 +164,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_configuration_reset(LaserMachin
  * @note 未显式配置的旧超强保留自由通讯兼容输出；显式配置后三品牌均输出本地寄存器操作。
  * @return 成功、参数配置或编码错误、无效句柄、内存不足或输出容量不足。
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_script_get(
-    LaserMachineHandle laserMachineHandle,
-    const LaserParameterValueSdk* values, unsigned int valueCount,
-    char* scripts, int* scriptLen, LaserParameterDiagnosticSdk* diagnostic);
+LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_script_get(LaserMachineHandle laserMachineHandle, const LaserParameterValueSdk *values,
+    unsigned int valueCount, char *scripts, int *scriptLen, LaserParameterDiagnosticSdk *diagnostic);
 
 /*
 *************激光焊功能接口*************
@@ -188,7 +178,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_parameters_script_get(
  * @param[in,out] scriptLen      脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的起弧LUA脚本大小
  * @return LaserSdkResult    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
 
 /**
  * @brief  获取收弧脚本脚本
@@ -197,7 +187,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_start_script(const LaserMachineHan
  * @param[in,out] scriptLen      脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的收弧LUA脚本大小
  * @return LaserSdkResult    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
 
 /**
  * @brief     初始化所有焊接相关状态
@@ -211,7 +201,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_init(const LaserMachineH
  * @param[in] laserMachineHandle             焊机资源句柄
  * @return LaserSdkResult                处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
 
 /**
  * @brief     获取指令列表转换后脚本
@@ -224,7 +214,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_device_status_modify(const LaserMach
  * @warning SDK当前不支持并发调用，包括不同焊机句柄之间的并发；调用方必须串行化。
  * @return LaserSdkResult        处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld,
+    char *scripts, int *scriptLen);
 
 /**
  * @brief     获取修改工艺参数生效后脚本
@@ -234,7 +225,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_list_script_get(const LaserMach
  * @param[out] scriptLen             脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的指令列表LUA脚本大小
  * @return LaserSdkResult        处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo, char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const LaserMachineHandle laserMachineHandle, CraftInfoLaserSdk craftInfo,
+    char *scripts, int *scriptLen);
 
 /**
  * @brief     获取收弧子程序脚本
@@ -243,7 +235,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_inst_devices_params_script_get(const
  * @param[out] scriptLen                脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的ArcSet的LUA脚本大小
  * @return LaserSdkResult               处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
 
 /**
  * @brief   获取焊接结束后操作的脚本
@@ -252,7 +244,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_end_arc_subprogram_script_get(const 
  * @param[out] scriptLen                     脚本长度 传入时为scripts参数申请的空间大小，传出时为生成的LUA脚本大小
  * @return LaserSdkResult                处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHandle laserMachineHandle,char* scripts, int* scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_after_weld_end_operate_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen);
 
 /**
  * @brief getLapRollbackCirclePoint     缓升缓降 起弧
@@ -295,7 +287,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_craft_weld_status_monitor_script_get(const
  * @param liftJoint                 抬枪后参考关节角
  * @return LaserSdkResult           处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double* pose, const double* joint, const double liftDistance, double* liftPose, double* liftJoint);
+LASERWELDSDK_EXPORT LaserSdkResult cl_craft_lift_pose_cal(const LaserMachineHandle laserMachineHandle, const double *pose, const double *joint,
+    const double liftDistance, double *liftPose, double *liftJoint);
 
 /*
 *************Modbus报文相关*************
@@ -312,7 +305,8 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_craft_lift_pose_cal(const LaserMachineHan
  * @param[out] length                        报文长度
  * @return LaserSdkResult                    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr, uint8_t funcCode, uint8_t *message, int *length);
+LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, uint16_t firstAddr, uint16_t parameter, uint8_t slaveAddr,
+    uint8_t funcCode, uint8_t *message, int *length);
 
 /**
  * @brief     将变量写入bool寄存器(暂不支持)
@@ -322,7 +316,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_message_generate(const LaserMachineHandle 
  * @param[in] message                        报文列表
  * @return LaserSdkResult                    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message);
+LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister,
+    unsigned int registerNums, uint8_t *message);
 
 /**
  * @brief     将报文写入Int16寄存器
@@ -332,7 +327,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_bool_register(const Laser
  * @param[in] message                        报文列表，单字节
  * @return LaserSdkResult                    处理结果
  */
-LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister, unsigned int registerNums, uint8_t *message);
+LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister,
+    unsigned int registerNums, uint8_t *message);
 
 /**
  * @brief     将状态监控报文写入Int32寄存器,占用24个内存
@@ -342,7 +338,7 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_write_message_to_Int16_register(const Lase
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachineHandle laserMachineHandle, unsigned int firstRegister);
 
-  /**
+/**
  * @brief cl_parse_modbus_to_int16_register modbus报文解析
  * @param laserMachineHandle                焊机资源句柄
  * @param hexResponse                       返回报文
@@ -351,7 +347,8 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_write_state_monitor_message_to_Int32_regis
  * @param value                             返回值
  * @return LaserSdkResult
  */
-LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int16_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, const int regIndex, const int regLen,  int16_t* value);
+LASERWELDSDK_EXPORT LaserSdkResult cl_parse_modbus_to_int16_register(const LaserMachineHandle laserMachineHandle, const char *hexResponse, const int regIndex,
+    const int regLen, int16_t *value);
 
 /**
 * @brief cl_parse_modbus_to_int16_register modbus报文解析
@@ -360,7 +357,7 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int16_register(const Lase
 * @param value                             返回值
 * @return LaserSdkResult
 */
-LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int32_register(const LaserMachineHandle laserMachineHandle,const char* hexResponse, int32_t &value);
+LASERWELDSDK_EXPORT LaserSdkResult cl_parse_modbus_to_int32_register(const LaserMachineHandle laserMachineHandle, const char *hexResponse, int32_t &value);
 
 /**
 * @brief cl_get_instance_function_script 获取指令函数脚本
@@ -373,11 +370,11 @@ LASERWELDSDK_EXPORT LaserSdkResult  cl_parse_modbus_to_int32_register(const Lase
 * @param scriptLen                      脚本长度
 * @return LaserSdkResult
 */
-LASERWELDSDK_EXPORT LaserSdkResult cl_get_instance_function_script(const char* funcName, const char* funcParam, const unsigned int addr, const int regType,unsigned int coAddr, int comNo, char *scripts, int *scriptLen);
+LASERWELDSDK_EXPORT LaserSdkResult cl_get_instance_function_script(const char *funcName, const char *funcParam, const unsigned int addr, const int regType,
+    unsigned int coAddr, int comNo, char *scripts, int *scriptLen);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif // CL_API_H
-

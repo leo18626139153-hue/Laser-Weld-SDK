@@ -14,14 +14,11 @@
 extern int parameter_test_robot_calls;
 namespace lp = laser_parameters;
 
-namespace
-{
+namespace {
 unsigned checks = 0;
-void Check(bool condition, const char* expression, int line)
-{
+void Check(bool condition, const char *expression, int line) {
     ++checks;
-    if (!condition)
-    {
+    if (!condition) {
         std::ostringstream message;
         message << "line " << line << ": " << expression;
         throw std::runtime_error(message.str());
@@ -30,8 +27,7 @@ void Check(bool condition, const char* expression, int line)
 #define CHECK(expression) Check((expression), #expression, __LINE__)
 
 /** @brief 构造纯编译资源，所有实际机器人 API 均由失败桩阻止。 */
-MachineResource Resource(LaserHeadBrandSdk brand, bool wire)
-{
+MachineResource Resource(LaserHeadBrandSdk brand, bool wire) {
     MachineResource r;
     std::memset(&r, 0, sizeof(r));
     r.commuType = RS485_2_LASER_SDK;
@@ -88,8 +84,7 @@ MachineResource Resource(LaserHeadBrandSdk brand, bool wire)
     r.robotParams.emptyRunTCPSpeed = 100;
     r.robotParams.emptyRunTCPAcc = 1000;
     r.robotParams.weldTCPAcc = 1000;
-    if (!wire)
-    {
+    if (!wire) {
         // 自熔焊必须允许送丝设备未配置；这些哨兵地址不得被解析或下发。
         r.autoWireFeedSpeedLoc = std::numeric_limits<unsigned>::max();
         r.wireRetractLengthLoc = std::numeric_limits<unsigned>::max();
@@ -101,8 +96,7 @@ MachineResource Resource(LaserHeadBrandSdk brand, bool wire)
 }
 
 /** @brief 新外控模式输入统一为 mm/s，额定功率不作为动态输出。 */
-CraftInfoLaserSdk Craft()
-{
+CraftInfoLaserSdk Craft() {
     CraftInfoLaserSdk c = {};
     c.craftweldMode = CONTINUOUS_LASER_SDK;
     c.laserHeadPeakPower = 3000;
@@ -131,8 +125,7 @@ CraftInfoLaserSdk Craft()
     return c;
 }
 
-LaserRampControlConfigSdk Enabled()
-{
+LaserRampControlConfigSdk Enabled() {
     LaserRampControlConfigSdk config = {};
     config.structSize = sizeof(config);
     config.version = 1;
@@ -143,8 +136,7 @@ LaserRampControlConfigSdk Enabled()
     return config;
 }
 
-std::string CraftScript(LaserMachineHandle handle, const CraftInfoLaserSdk& craft)
-{
+std::string CraftScript(LaserMachineHandle handle, const CraftInfoLaserSdk &craft) {
     std::vector<char> buffer(1024 * 1024, '#');
     int length = static_cast<int>(buffer.size());
     CHECK(cl_craft_inst_devices_params_script_get(handle, craft, buffer.data(), &length) == SUCCESS_LASER_SDK);
@@ -152,21 +144,17 @@ std::string CraftScript(LaserMachineHandle handle, const CraftInfoLaserSdk& craf
 }
 
 /** @brief 使用公共程序入口生成含真实收弧轨迹的实际 Lua。 */
-std::string Program(LaserMachineHandle handle, const CraftInfoLaserSdk& craft, bool weld)
-{
+std::string Program(LaserMachineHandle handle, const CraftInfoLaserSdk &craft, bool weld) {
     PointDataLaserSdk points[2] = {};
     points[0].pointType = LINE_POINT_WELD_SDK;
     points[1].pointType = LINE_POINT_WELD_SDK;
     points[1].pose[0] = 10;
-    int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0,
-                          LINE_POINT_INST_LASER_WELD_SDK, 0,
-                          ARC_START_INST_LASER_WELD_SDK, 0,
-                          LINE_POINT_INST_LASER_WELD_SDK, 1,
-                          ARC_END_INST_LASER_WELD_SDK, 0};
+    int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0, LINE_POINT_INST_LASER_WELD_SDK, 0, ARC_START_INST_LASER_WELD_SDK, 0,
+        LINE_POINT_INST_LASER_WELD_SDK, 1, ARC_END_INST_LASER_WELD_SDK, 0};
     LaserWeldStartData start = {};
     start.instList = instructions;
     start.instNum = 5;
-    start.craftInfoList = const_cast<CraftInfoLaserSdk*>(&craft);
+    start.craftInfoList = const_cast<CraftInfoLaserSdk *>(&craft);
     start.craftNum = 1;
     start.pointList = points;
     start.pointsNum = 2;
@@ -179,16 +167,13 @@ std::string Program(LaserMachineHandle handle, const CraftInfoLaserSdk& craft, b
     return std::string(buffer.data());
 }
 
-void Literal(std::ostream& output, const char* key, const std::string& value)
-{
+void Literal(std::ostream &output, const char *key, const std::string &value) {
     CHECK(value.find("]====]") == std::string::npos);
     output << key << "=[====[\n" << value << "\n]====],\n";
 }
 
 /** @brief 公有独立动作入口应与完整程序复用同一运行时和阶段。 */
-std::string Action(LaserMachineHandle handle,
-                   LaserSdkResult (*function)(LaserMachineHandle, char*, int*))
-{
+std::string Action(LaserMachineHandle handle, LaserSdkResult (*function)(LaserMachineHandle, char *, int *)) {
     std::vector<char> buffer(1024 * 1024, '#');
     int length = static_cast<int>(buffer.size());
     CHECK(function(handle, buffer.data(), &length) == SUCCESS_LASER_SDK);
@@ -196,9 +181,7 @@ std::string Action(LaserMachineHandle handle,
 }
 
 /** @brief 新工艺动作接口必须直接消费调用方快照，并保持资源不变。 */
-std::string CraftAction(LaserMachineHandle handle, const CraftInfoLaserSdk& craft,
-                        SwitchTypeLaserSdk action, bool downOnly)
-{
+std::string CraftAction(LaserMachineHandle handle, const CraftInfoLaserSdk &craft, SwitchTypeLaserSdk action, bool downOnly) {
     const CraftInfoLaserSdk craftBefore = craft;
     MachineResource before, after;
     CHECK(cl_machine_resource_get(handle, &before) == SUCCESS_LASER_SDK);
@@ -215,8 +198,7 @@ std::string CraftAction(LaserMachineHandle handle, const CraftInfoLaserSdk& craf
 }
 
 /** @brief 校验配置事务性、默认禁用兼容及句柄隔离。 */
-void TestConfiguration()
-{
+void TestConfiguration() {
     MachineResource resource = Resource(BCXLASERPOWER_SDK, true);
     LaserMachineHandle first = -1, second = -1;
     CHECK(cl_machine_resource_init(&resource, &first) == SUCCESS_LASER_SDK);
@@ -234,8 +216,7 @@ void TestConfiguration()
     CHECK(cl_ramp_control_config_get(second, &observed) == SUCCESS_LASER_SDK);
     CHECK(observed.enabled == 0);
     const unsigned invalidValues[] = {0, 1001};
-    for (unsigned i = 0; i < 2; ++i)
-    {
+    for (unsigned i = 0; i < 2; ++i) {
         LaserRampControlConfigSdk invalid = enabled;
         invalid.updatePeriodMs = invalidValues[i];
         CHECK(cl_ramp_control_config_set(first, &invalid) != SUCCESS_LASER_SDK);
@@ -257,26 +238,25 @@ void TestConfiguration()
 }
 
 /** @brief 导出真正编译生成的运行时和完整程序，交由 Lua 解释器执行。 */
-void EmitFixture(std::ostream& output, LaserHeadBrandSdk brand, const char* name,
-                 bool wire, bool scaled = false)
-{
+void EmitFixture(std::ostream &output, LaserHeadBrandSdk brand, const char *name, bool wire, bool scaled = false) {
     MachineResource resource = Resource(brand, wire);
     LaserMachineHandle handle = -1;
     CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
     LaserRampControlConfigSdk enabled = Enabled();
     CHECK(cl_ramp_control_config_set(handle, &enabled) == SUCCESS_LASER_SDK);
-    if (brand == CQLASERPOWER_SDK)
+    if (brand == CQLASERPOWER_SDK) {
         CHECK(cl_machine_device_power_managed_set(handle, true) == SUCCESS_LASER_SDK);
-    if (scaled)
-    {
+    }
+    if (scaled) {
         lp::Configuration configuration;
         CHECK(lp::BuildDefaultConfiguration(resource, configuration) == SUCCESS_LASER_SDK);
-        for (std::size_t i = 0; i < configuration.descriptors.size(); ++i)
-            if (configuration.descriptors[i].parameterId == LASER_PARAM_WIRE_FEED_SPEED_SDK)
+        for (std::size_t i = 0; i < configuration.descriptors.size(); ++i) {
+            if (configuration.descriptors[i].parameterId == LASER_PARAM_WIRE_FEED_SPEED_SDK) {
                 configuration.descriptors[i].scale = 2;
-        CHECK(cl_parameters_configuration_set(handle, configuration.descriptors.data(),
-                    static_cast<unsigned>(configuration.descriptors.size()), configuration.bindings.data(),
-                    static_cast<unsigned>(configuration.bindings.size()), nullptr) == SUCCESS_LASER_SDK);
+            }
+        }
+        CHECK(cl_parameters_configuration_set(handle, configuration.descriptors.data(), static_cast<unsigned>(configuration.descriptors.size()),
+                  configuration.bindings.data(), static_cast<unsigned>(configuration.bindings.size()), nullptr) == SUCCESS_LASER_SDK);
     }
     MachineResource before, after;
     CHECK(cl_machine_resource_get(handle, &before) == SUCCESS_LASER_SDK);
@@ -285,12 +265,10 @@ void EmitFixture(std::ostream& output, LaserHeadBrandSdk brand, const char* name
     CHECK(!runtime.empty());
     const CraftInfoLaserSdk craft = Craft();
     const std::string parameters = CraftScript(handle, craft);
-    if (brand == CQ_SUP26AD_LASERPOWER_SDK)
-    {
+    if (brand == CQ_SUP26AD_LASERPOWER_SDK) {
         CHECK(parameters.find("-- SUP26AD_CRAFT_BANK_V1:") != std::string::npos);
         CHECK(parameters.find(",95=0,") != std::string::npos);
-        if (!wire)
-        {
+        if (!wire) {
             CHECK(parameters.find(",94=0,") != std::string::npos);
             CHECK(parameters.find(",96=0,") != std::string::npos);
             CHECK(parameters.find(",97=0,") != std::string::npos);
@@ -300,8 +278,7 @@ void EmitFixture(std::ostream& output, LaserHeadBrandSdk brand, const char* name
     const std::string simulation = Program(handle, craft, false);
     CHECK(cl_machine_resource_get(handle, &after) == SUCCESS_LASER_SDK);
     CHECK(std::memcmp(&before, &after, sizeof(before)) == 0);
-    if (wire && brand != BCXLASERPOWER_SDK)
-    {
+    if (wire && brand != BCXLASERPOWER_SDK) {
         CraftInfoLaserSdk over = craft;
         over.craftWeldingWireFeed = 101;
         std::vector<char> buffer(1024 * 1024, '#');
@@ -310,12 +287,11 @@ void EmitFixture(std::ostream& output, LaserHeadBrandSdk brand, const char* name
         CHECK(buffer[0] == '#');
     }
     const int wireMultiplier = brand == BCXLASERPOWER_SDK ? 1 : (scaled ? 12 : 6);
-    output << "{name='" << name << (wire ? "_wire" : "_self") << (scaled ? "_scaled" : "")
-           << "',wire=" << (wire ? "true" : "false") << ",legacy="
-           << (brand == CQLASERPOWER_SDK ? "true" : "false") << ",powerAddress="
-           << (brand == BCXLASERPOWER_SDK ? 63 : (brand == CQ_SUP26AD_LASERPOWER_SDK ? 90 : 51))
-           << ",wireAddress=" << (brand == BCXLASERPOWER_SDK ? 73 : (brand == CQ_SUP26AD_LASERPOWER_SDK ? 94 : 256))
-           << ",wireMultiplier=" << wireMultiplier << ",period=100,settle=50,timeout=2000,\n";
+    output << "{name='" << name << (wire ? "_wire" : "_self") << (scaled ? "_scaled" : "") << "',wire=" << (wire ? "true" : "false")
+           << ",legacy=" << (brand == CQLASERPOWER_SDK ? "true" : "false")
+           << ",powerAddress=" << (brand == BCXLASERPOWER_SDK ? 63 : (brand == CQ_SUP26AD_LASERPOWER_SDK ? 90 : 51))
+           << ",wireAddress=" << (brand == BCXLASERPOWER_SDK ? 73 : (brand == CQ_SUP26AD_LASERPOWER_SDK ? 94 : 256)) << ",wireMultiplier=" << wireMultiplier
+           << ",period=100,settle=50,timeout=2000,\n";
     Literal(output, "runtime", runtime);
     Literal(output, "parameters", parameters);
     Literal(output, "program", program);
@@ -337,18 +313,15 @@ void EmitFixture(std::ostream& output, LaserHeadBrandSdk brand, const char* name
 }
 }
 
-int main()
-{
-    try
-    {
+int main() {
+    try {
         TestConfiguration();
         std::ofstream fixtures("generated_sequence_fixtures.lua.md", std::ios::binary);
         CHECK(fixtures.good());
         fixtures << "return {\n";
         const LaserHeadBrandSdk brands[] = {BCXLASERPOWER_SDK, CQ_SUP26AD_LASERPOWER_SDK, CQLASERPOWER_SDK};
-        const char* names[] = {"bcx", "sup26", "sup25"};
-        for (unsigned index = 0; index < 3; ++index)
-        {
+        const char *names[] = {"bcx", "sup26", "sup25"};
+        for (unsigned index = 0; index < 3; ++index) {
             EmitFixture(fixtures, brands[index], names[index], true);
             EmitFixture(fixtures, brands[index], names[index], false);
         }
@@ -357,12 +330,9 @@ int main()
         fixtures.close();
         CHECK(fixtures.good());
         CHECK(parameter_test_robot_calls == 0);
-        std::cout << "PASS sequence generation: " << checks
-                  << " checks, seven executable fixtures, zero robot SDK calls" << std::endl;
+        std::cout << "PASS sequence generation: " << checks << " checks, seven executable fixtures, zero robot SDK calls" << std::endl;
         return 0;
-    }
-    catch (const std::exception& error)
-    {
+    } catch (const std::exception &error) {
         std::cerr << "FAIL sequence generation: " << error.what() << std::endl;
         return 1;
     }

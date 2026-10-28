@@ -9,31 +9,34 @@
 namespace laser_parameters {
 namespace {
 
+constexpr double kMillisecondsPerSecond = 1000.0;
+
 std::map<LaserMachineHandle, Configuration> configurations;
 std::set<LaserMachineHandle> devicePowerManaged;
 std::mutex configurationMutex;
 
 /** @brief 在配置锁内生成独立副本，编译过程不持有内部容器引用或长时间占锁。 */
-bool copyOverride(LaserMachineHandle handle, Configuration& configuration)
-{
+bool copyOverride(LaserMachineHandle handle, Configuration &configuration) {
     std::lock_guard<std::mutex> lock(configurationMutex);
     const std::map<LaserMachineHandle, Configuration>::const_iterator it = configurations.find(handle);
-    if (it == configurations.end()) return false;
+    if (it == configurations.end()) {
+        return false;
+    }
     configuration = it->second;
     return true;
 }
 
 } // namespace
 
-LaserSdkResult SetMachineConfiguration(LaserMachineHandle handle,
-                                      const Configuration& configuration,
-                                      LaserParameterDiagnosticSdk* diagnostic)
-{
-    if (machineResourcesMap.find(handle) == machineResourcesMap.end())
+LaserSdkResult SetMachineConfiguration(LaserMachineHandle handle, const Configuration &configuration, LaserParameterDiagnosticSdk *diagnostic) {
+    if (machineResourcesMap.find(handle) == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
+    }
     // 第一阶段：先校验候选配置，失败不改变现有句柄配置。
     const LaserSdkResult result = ValidateConfiguration(configuration, diagnostic);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     Configuration copy(configuration);
     // 第二阶段：完整副本准备好后才进入配置锁，原子替换该句柄的编译配置。
     std::lock_guard<std::mutex> lock(configurationMutex);
@@ -41,117 +44,113 @@ LaserSdkResult SetMachineConfiguration(LaserMachineHandle handle,
     return SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult GetMachineConfiguration(LaserMachineHandle handle,
-                                      Configuration& configuration,
-                                      bool* explicitlyConfigured,
-                                      LaserParameterDiagnosticSdk* diagnostic)
-{
+LaserSdkResult GetMachineConfiguration(LaserMachineHandle handle, Configuration &configuration, bool *explicitlyConfigured,
+    LaserParameterDiagnosticSdk *diagnostic) {
     const std::unordered_map<int, MachineResource>::const_iterator it = machineResourcesMap.find(handle);
-    if (it == machineResourcesMap.end()) return HANDLE_ERROR_LASER_SDK;
+    if (it == machineResourcesMap.end()) {
+        return HANDLE_ERROR_LASER_SDK;
+    }
     Configuration candidate;
     // 配置来源只选择一次：优先显式绑定，缺省时才从设备档案构建。
     const bool hasOverride = copyOverride(handle, candidate);
-    if (!hasOverride)
-    {
+    if (!hasOverride) {
         const LaserSdkResult result = BuildDefaultConfiguration(it->second, candidate, diagnostic);
-        if (result != SUCCESS_LASER_SDK) return result;
-    }
-    else
-    {
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
+    } else {
         const LaserSdkResult result = ValidateConfiguration(candidate, diagnostic);
-        if (result != SUCCESS_LASER_SDK) return result;
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
     }
     // 全部校验成功后统一交付，避免失败调用暴露半份配置。
     configuration = std::move(candidate);
-    if (explicitlyConfigured != nullptr) *explicitlyConfigured = hasOverride;
+    if (explicitlyConfigured != nullptr) {
+        *explicitlyConfigured = hasOverride;
+    }
     return SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult ResetMachineConfiguration(LaserMachineHandle handle)
-{
-    if (machineResourcesMap.find(handle) == machineResourcesMap.end())
+LaserSdkResult ResetMachineConfiguration(LaserMachineHandle handle) {
+    if (machineResourcesMap.find(handle) == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
+    }
     ReleaseMachineConfiguration(handle);
     return SUCCESS_LASER_SDK;
 }
 
-void ReleaseMachineConfiguration(LaserMachineHandle handle)
-{
+void ReleaseMachineConfiguration(LaserMachineHandle handle) {
     std::lock_guard<std::mutex> lock(configurationMutex);
     configurations.erase(handle);
 }
 
-LaserSdkResult SetMachineDevicePowerManaged(LaserMachineHandle handle, bool managed)
-{
-    if (machineResourcesMap.find(handle) == machineResourcesMap.end())
+LaserSdkResult SetMachineDevicePowerManaged(LaserMachineHandle handle, bool managed) {
+    if (machineResourcesMap.find(handle) == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
+    }
     std::lock_guard<std::mutex> lock(configurationMutex);
-    if (managed) devicePowerManaged.insert(handle);
-    else devicePowerManaged.erase(handle);
+    if (managed) {
+        devicePowerManaged.insert(handle);
+    } else {
+        devicePowerManaged.erase(handle);
+    }
     return SUCCESS_LASER_SDK;
 }
 
-bool IsMachineDevicePowerManaged(LaserMachineHandle handle)
-{
+bool IsMachineDevicePowerManaged(LaserMachineHandle handle) {
     std::lock_guard<std::mutex> lock(configurationMutex);
     return devicePowerManaged.find(handle) != devicePowerManaged.end();
 }
 
-void ReleaseMachineDevicePowerPolicy(LaserMachineHandle handle)
-{
+void ReleaseMachineDevicePowerPolicy(LaserMachineHandle handle) {
     std::lock_guard<std::mutex> lock(configurationMutex);
     devicePowerManaged.erase(handle);
 }
 
-bool UsesMappedParameters(LaserMachineHandle handle, LaserHeadBrandSdk brand)
-{
+bool UsesMappedParameters(LaserMachineHandle handle, LaserHeadBrandSdk brand) {
     {
         std::lock_guard<std::mutex> lock(configurationMutex);
-        if (configurations.find(handle) != configurations.end()) return true;
+        if (configurations.find(handle) != configurations.end()) {
+            return true;
+        }
     }
     return brand == BCXLASERPOWER_SDK || brand == CQ_SUP26AD_LASERPOWER_SDK;
 }
 
-LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle,
-                                      const MachineResource& resource,
-                                      const CraftInfoLaserSdk& craft,
-                                      std::string& script,
-                                      LaserParameterDiagnosticSdk* diagnostic)
-{
-    if (machineResourcesMap.find(handle) == machineResourcesMap.end())
+LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle, const MachineResource &resource, const CraftInfoLaserSdk &craft, std::string &script,
+    LaserParameterDiagnosticSdk *diagnostic) {
+    if (machineResourcesMap.find(handle) == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
+    }
     // 显式外控使用独立单位及包络策略，旧调用方继续沿原编译路径。
-    if (ramp_control::Enabled(handle))
+    if (ramp_control::Enabled(handle)) {
         return ramp_control::BuildCraftScript(handle, resource, craft, script);
+    }
     Configuration configured;
     const bool hasOverride = copyOverride(handle, configured);
     // 品牌换算、参数编码和脚本输出均只使用本次局部副本。
-    return BuildDeviceCraftScript(resource, craft, hasOverride ? &configured : nullptr, script, diagnostic,
-                                  IsMachineDevicePowerManaged(handle));
+    return BuildDeviceCraftScript(resource, craft, hasOverride ? &configured : nullptr, script, diagnostic, IsMachineDevicePowerManaged(handle));
 }
 
-LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle,
-                                          const MachineResource& resource,
-                                          const std::vector<LaserParameterValueSdk>& values,
-                                          std::string& script,
-                                          LaserParameterDiagnosticSdk* diagnostic)
-{
-    if (machineResourcesMap.find(handle) == machineResourcesMap.end())
+LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle, const MachineResource &resource, const std::vector<LaserParameterValueSdk> &values,
+    std::string &script, LaserParameterDiagnosticSdk *diagnostic) {
+    if (machineResourcesMap.find(handle) == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
+    }
     Configuration configured;
     const bool hasOverride = copyOverride(handle, configured);
     return BuildDeviceParametersScript(resource, hasOverride ? &configured : nullptr, values, script, diagnostic);
 }
 
-void UpdateCompilationResource(MachineResource& resource, const CraftInfoLaserSdk& craft)
-{
+void UpdateCompilationResource(MachineResource &resource, const CraftInfoLaserSdk &craft) {
     // 兼容旧控制生成器：只更新本次编译的工作快照，不表示板卡已经执行。
-    CgxiLaserPowerLaserSdk& power = resource.laserPowerParams;
+    CgxiLaserPowerLaserSdk &power = resource.laserPowerParams;
     power.laserPower = craft.craftLaserPower;
     power.laserPowerOpen = craft.craftLeadInPower;
     power.laserPowerClose = craft.craftLeadOutPower;
     power.laserRampUpTime = craft.craftLeadInRampTime;
-    power.laserRampDownTime = craft.craftLeadOutRampDistance * 1000.0 / craft.craftWeldingSpeed;
+    power.laserRampDownTime = craft.craftLeadOutRampDistance * kMillisecondsPerSecond / craft.craftWeldingSpeed;
     power.gasStartupAdvanceTime = craft.craftPreGasTime;
     power.gasShutoffDelayTime = craft.craftPostGasTime;
     power.laserHeadYEnlarge = craft.craftYAxisZoom;
@@ -162,7 +161,7 @@ void UpdateCompilationResource(MachineResource& resource, const CraftInfoLaserSd
     power.spotWeldDurationTime = craft.craftSpotWeldDuration;
     power.spotWeldIntervalTime = craft.craftSpotWeldInterval;
     power.weldMode = craft.craftweldMode;
-    CgxiLaserHeadLaserSdk& head = resource.laserHeadParams;
+    CgxiLaserHeadLaserSdk &head = resource.laserHeadParams;
     // 旧缓升缓降生成器把此字段作为目标功率；额定限制已由参数编译器单独校验。
     head.laserHeadPeakPower = craft.craftLaserPower;
     head.laserHeadScanSpeed = craft.craftScanSpeed;
@@ -174,8 +173,10 @@ void UpdateCompilationResource(MachineResource& resource, const CraftInfoLaserSd
     head.laserHeadHighPulseFrequency = craft.laserHeadHighPulseFrequency;
     head.laserSpotPattern = craft.graphicsSwitching;
     // 自熔焊不访问未使用的送丝字段，避免断联设备和未初始化输入进入阶段资源。
-    if (resource.weldingProcessType != WIRE_WELDING_LASERSDK) return;
-    CgxiWireFeederLaserSdk& wire = resource.wireFeederParams;
+    if (resource.weldingProcessType != WIRE_WELDING_LASERSDK) {
+        return;
+    }
+    CgxiWireFeederLaserSdk &wire = resource.wireFeederParams;
     wire.lengthBack = 0.0;
     wire.wireFeederWaitTime = craft.wireDelayTime;
     wire.wireFeederBackLength = craft.craftRetractionLength;

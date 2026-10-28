@@ -14,9 +14,7 @@ namespace laser_parameters {
  * @return 成功、无效句柄或配置校验错误；失败不替换该句柄的旧配置。
  * @note 仅安装编译配置，不执行通讯；整库仍遵循公开API的串行调用要求。
  */
-LaserSdkResult SetMachineConfiguration(LaserMachineHandle handle,
-                                      const Configuration& configuration,
-                                      LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult SetMachineConfiguration(LaserMachineHandle handle, const Configuration &configuration, LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 获取当前有效配置，未显式配置时从型号兼容档案生成默认配置。
@@ -26,10 +24,8 @@ LaserSdkResult SetMachineConfiguration(LaserMachineHandle handle,
  * @param[out] diagnostic 可为空的参数级诊断。
  * @return 成功、无效句柄或型号档案及配置错误。
  */
-LaserSdkResult GetMachineConfiguration(LaserMachineHandle handle,
-                                      Configuration& configuration,
-                                      bool* explicitlyConfigured = nullptr,
-                                      LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult GetMachineConfiguration(LaserMachineHandle handle, Configuration &configuration, bool *explicitlyConfigured = nullptr,
+    LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 删除显式绑定并恢复型号默认配置，不修改上位机或控制器的通讯配置。
@@ -70,11 +66,8 @@ bool UsesMappedParameters(LaserMachineHandle handle, LaserHeadBrandSdk brand);
  * @param[out] diagnostic 可为空的参数转换或编码诊断。
  * @return 成功、无效句柄或工艺转换及配置错误。
  */
-LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle,
-                                      const MachineResource& resource,
-                                      const CraftInfoLaserSdk& craft,
-                                      std::string& script,
-                                      LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle, const MachineResource &resource, const CraftInfoLaserSdk &craft, std::string &script,
+    LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 将显式参数值编译成脚本体，默认旧超强保留其兼容输出通道。
@@ -85,11 +78,8 @@ LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle,
  * @param[out] diagnostic 可为空的参数级诊断。
  * @return 成功、无效句柄或参数校验及编码错误。
  */
-LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle,
-                                          const MachineResource& resource,
-                                          const std::vector<LaserParameterValueSdk>& values,
-                                          std::string& script,
-                                          LaserParameterDiagnosticSdk* diagnostic = nullptr);
+LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle, const MachineResource &resource, const std::vector<LaserParameterValueSdk> &values,
+    std::string &script, LaserParameterDiagnosticSdk *diagnostic = nullptr);
 
 /**
  * @brief 更新完整指令编译期间的兼容资源快照，供旧缓升缓降生成器读取。
@@ -97,7 +87,7 @@ LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle,
  * @param[in] craft 已完成校验的工艺参数，焊接速度必须为有限正数。
  * @warning 仅在外层资源快照保护下调用；该资源不是设备已确认状态。
  */
-void UpdateCompilationResource(MachineResource& resource, const CraftInfoLaserSdk& craft);
+void UpdateCompilationResource(MachineResource &resource, const CraftInfoLaserSdk &craft);
 
 } // namespace laser_parameters
 

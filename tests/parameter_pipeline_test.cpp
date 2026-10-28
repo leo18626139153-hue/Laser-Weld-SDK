@@ -20,14 +20,11 @@
 extern int parameter_test_robot_calls;
 namespace lp = laser_parameters;
 
-namespace
-{
+namespace {
 unsigned checks = 0;
-void Check(bool condition, const char* expression, int line)
-{
+void Check(bool condition, const char *expression, int line) {
     ++checks;
-    if (!condition)
-    {
+    if (!condition) {
         std::ostringstream message;
         message << "line " << line << ": " << expression;
         throw std::runtime_error(message.str());
@@ -35,9 +32,7 @@ void Check(bool condition, const char* expression, int line)
 }
 #define CHECK(expression) Check((expression), #expression, __LINE__)
 
-LaserParameterDescriptorSdk Descriptor(unsigned id, LaserParameterDataTypeSdk type,
-                                      double minimum, double maximum)
-{
+LaserParameterDescriptorSdk Descriptor(unsigned id, LaserParameterDataTypeSdk type, double minimum, double maximum) {
     LaserParameterDescriptorSdk value = {};
     value.structSize = sizeof(value);
     value.parameterId = id;
@@ -51,8 +46,7 @@ LaserParameterDescriptorSdk Descriptor(unsigned id, LaserParameterDataTypeSdk ty
     return value;
 }
 
-LaserParameterBindingSdk Binding(unsigned id, unsigned address)
-{
+LaserParameterBindingSdk Binding(unsigned id, unsigned address) {
     LaserParameterBindingSdk value = {};
     value.structSize = sizeof(value);
     value.parameterId = id;
@@ -61,8 +55,7 @@ LaserParameterBindingSdk Binding(unsigned id, unsigned address)
     return value;
 }
 
-LaserParameterValueSdk Value(unsigned id, double physicalValue)
-{
+LaserParameterValueSdk Value(unsigned id, double physicalValue) {
     LaserParameterValueSdk value = {};
     value.structSize = sizeof(value);
     value.parameterId = id;
@@ -70,38 +63,31 @@ LaserParameterValueSdk Value(unsigned id, double physicalValue)
     return value;
 }
 
-lp::Configuration OneParameter(LaserParameterDataTypeSdk type = LASER_PARAMETER_U16_SDK)
-{
+lp::Configuration OneParameter(LaserParameterDataTypeSdk type = LASER_PARAMETER_U16_SDK) {
     lp::Configuration result;
     result.descriptors.push_back(Descriptor(1001, type, -1e12, 1e12));
     result.bindings.push_back(Binding(1001, 0));
     return result;
 }
 
-lp::WritePlan Compile(const lp::Configuration& config,
-                      const std::vector<LaserParameterValueSdk>& values)
-{
+lp::WritePlan Compile(const lp::Configuration &config, const std::vector<LaserParameterValueSdk> &values) {
     lp::WritePlan plan;
     LaserParameterDiagnosticSdk diagnostic = {};
     diagnostic.structSize = sizeof(diagnostic);
     LaserSdkResult result = lp::CompileWritePlan(config, values, plan, &diagnostic);
-    if (result != SUCCESS_LASER_SDK)
-    {
+    if (result != SUCCESS_LASER_SDK) {
         std::ostringstream error;
-        error << "CompileWritePlan result=" << result << " id="
-              << diagnostic.parameterId << " message=" << diagnostic.message;
+        error << "CompileWritePlan result=" << result << " id=" << diagnostic.parameterId << " message=" << diagnostic.message;
         throw std::runtime_error(error.str());
     }
     return plan;
 }
 
 // 同时检查数值、位模式和地址，避免仅验证脚本含有某个函数名。
-std::map<unsigned, int> ParseWrites(const std::string& script)
-{
+std::map<unsigned, int> ParseWrites(const std::string &script) {
     std::map<unsigned, int> writes;
     const std::regex pattern("write_int16_register\\(\\s*(0x[0-9a-fA-F]+|[0-9]+)\\s*,\\s*(-?[0-9]+)\\s*\\)");
-    for (std::sregex_iterator it(script.begin(), script.end(), pattern), end; it != end; ++it)
-    {
+    for (std::sregex_iterator it(script.begin(), script.end(), pattern), end; it != end; ++it) {
         const unsigned address = static_cast<unsigned>(std::stoul((*it)[1].str(), nullptr, 0));
         CHECK(writes.count(address) == 0);
         writes[address] = std::stoi((*it)[2].str());
@@ -110,12 +96,10 @@ std::map<unsigned, int> ParseWrites(const std::string& script)
 }
 
 // 默认超强自由通讯同时检查实际地址和数值，不把函数定义当成参数写入。
-std::map<unsigned, int> ParseLegacySupWrites(const std::string& script)
-{
+std::map<unsigned, int> ParseLegacySupWrites(const std::string &script) {
     std::map<unsigned, int> writes;
     const std::regex pattern("write_value_port\\(\\s*0x[0-9a-fA-F]+\\s*,\\s*([0-9]+)\\s*,\\s*([0-9]+)\\s*,");
-    for (std::sregex_iterator it(script.begin(), script.end(), pattern), end; it != end; ++it)
-    {
+    for (std::sregex_iterator it(script.begin(), script.end(), pattern), end; it != end; ++it) {
         const unsigned address = static_cast<unsigned>(std::stoul((*it)[1].str()));
         CHECK(writes.count(address) == 0);
         writes[address] = std::stoi((*it)[2].str());
@@ -123,11 +107,12 @@ std::map<unsigned, int> ParseLegacySupWrites(const std::string& script)
     return writes;
 }
 
-std::map<unsigned, unsigned> ParseSup26CraftBank(const std::string& script)
-{
+std::map<unsigned, unsigned> ParseSup26CraftBank(const std::string &script) {
     const std::string prefix = "-- SUP26AD_CRAFT_BANK_V1:";
     const std::size_t begin = script.find(prefix);
-    if (begin == std::string::npos) return std::map<unsigned, unsigned>();
+    if (begin == std::string::npos) {
+        return std::map<unsigned, unsigned>();
+    }
     CHECK(script.find(prefix, begin + prefix.size()) == std::string::npos);
     const std::size_t end = script.find('\n', begin);
     CHECK(end != std::string::npos);
@@ -135,8 +120,7 @@ std::map<unsigned, unsigned> ParseSup26CraftBank(const std::string& script)
     CHECK(line.find_first_not_of("0123456789=,") == std::string::npos);
     std::map<unsigned, unsigned> values;
     const std::regex pair("([0-9]+)=([0-9]+)");
-    for (std::sregex_iterator it(line.begin(), line.end(), pair), last; it != last; ++it)
-    {
+    for (std::sregex_iterator it(line.begin(), line.end(), pair), last; it != last; ++it) {
         const unsigned address = static_cast<unsigned>(std::stoul((*it)[1].str()));
         const unsigned value = static_cast<unsigned>(std::stoul((*it)[2].str()));
         CHECK(value <= 65535 && values.insert(std::make_pair(address, value)).second);
@@ -144,34 +128,31 @@ std::map<unsigned, unsigned> ParseSup26CraftBank(const std::string& script)
     return values;
 }
 
-void CheckMappedTransport(const std::string& script)
-{
+void CheckMappedTransport(const std::string &script) {
     CHECK(script.find("serial_send_receive") == std::string::npos);
     CHECK(script.find("write_value_port") == std::string::npos);
     CHECK(script.find("crc16") == std::string::npos);
     CHECK(script.find("COM") == std::string::npos);
 }
 
-void CheckMappedScript(const std::string& script)
-{
+void CheckMappedScript(const std::string &script) {
     CheckMappedTransport(script);
     CHECK(script.find("set_configurable_digital_out") == std::string::npos);
 }
 
-void CheckPlanScript(const lp::WritePlan& plan, const std::string& script)
-{
+void CheckPlanScript(const lp::WritePlan &plan, const std::string &script) {
     CheckMappedScript(script);
     const std::map<unsigned, int> actual = ParseWrites(script);
     unsigned wordCount = 0;
-    for (std::size_t index = 0; index < plan.operations.size(); ++index)
-    {
-        const lp::WriteOperation& op = plan.operations[index];
-        for (std::size_t word = 0; word < op.words.size(); ++word)
-        {
+    for (std::size_t index = 0; index < plan.operations.size(); ++index) {
+        const lp::WriteOperation &op = plan.operations[index];
+        for (std::size_t word = 0; word < op.words.size(); ++word) {
             const unsigned address = op.address + static_cast<unsigned>(word);
             CHECK(actual.count(address) == 1);
             int expected = op.words[word];
-            if (op.signedSingleWord && expected >= 32768) expected -= 65536;
+            if (op.signedSingleWord && expected >= 32768) {
+                expected -= 65536;
+            }
             CHECK(actual.at(address) == expected);
             ++wordCount;
         }
@@ -180,8 +161,7 @@ void CheckPlanScript(const lp::WritePlan& plan, const std::string& script)
 }
 
 /** @brief 校验物理值缩放、带符号位模式、三十二位字序与整数舍入。 */
-void TestIntegerAndFloatEncoding()
-{
+void TestIntegerAndFloatEncoding() {
     lp::Configuration config;
     config.descriptors.push_back(Descriptor(101, LASER_PARAMETER_I16_SDK, -100, 100));
     config.descriptors.back().scale = 10;
@@ -235,20 +215,16 @@ void TestIntegerAndFloatEncoding()
 }
 
 /** @brief 无效配置或写入失败时保留旧计划，覆盖能力、绑定、范围及溢出。 */
-void TestValidationAndTransactionalFailure()
-{
+void TestValidationAndTransactionalFailure() {
     lp::Configuration valid = OneParameter();
     CHECK(lp::ValidateConfiguration(valid) == SUCCESS_LASER_SDK);
     const lp::WritePlan baseline = Compile(valid, {Value(1001, 12)});
     lp::WritePlan output = baseline;
     LaserParameterDiagnosticSdk diagnostic = {};
     diagnostic.structSize = sizeof(diagnostic);
-    const double failures[] = {-1, 65536, std::numeric_limits<double>::quiet_NaN(),
-                               std::numeric_limits<double>::infinity()};
-    for (unsigned index = 0; index < sizeof(failures) / sizeof(failures[0]); ++index)
-    {
-        CHECK(lp::CompileWritePlan(valid, {Value(1001, failures[index])}, output, &diagnostic)
-              == PARAMETER_OUT_OF_RANGE_LASER_SDK);
+    const double failures[] = {-1, 65536, std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity()};
+    for (unsigned index = 0; index < sizeof(failures) / sizeof(failures[0]); ++index) {
+        CHECK(lp::CompileWritePlan(valid, {Value(1001, failures[index])}, output, &diagnostic) == PARAMETER_OUT_OF_RANGE_LASER_SDK);
         CHECK(diagnostic.parameterId == 1001);
         CHECK(output.operations[0].words[0] == 12);
     }
@@ -324,8 +300,7 @@ void TestValidationAndTransactionalFailure()
     CHECK(preserved == "previous script");
 }
 
-MachineResource Resource(LaserHeadBrandSdk brand)
-{
+MachineResource Resource(LaserHeadBrandSdk brand) {
     MachineResource r;
     std::memset(&r, 0, sizeof(r));
     r.commuType = RS485_2_LASER_SDK;
@@ -378,8 +353,7 @@ MachineResource Resource(LaserHeadBrandSdk brand)
     return r;
 }
 
-CraftInfoLaserSdk Craft()
-{
+CraftInfoLaserSdk Craft() {
     CraftInfoLaserSdk c = {};
     c.craftweldMode = CONTINUOUS_LASER_SDK;
     c.laserHeadPeakPower = 3000;
@@ -410,55 +384,55 @@ CraftInfoLaserSdk Craft()
     return c;
 }
 
-LaserParameterBindingSdk& FindBinding(lp::Configuration& configuration, unsigned id)
-{
-    for (std::size_t index = 0; index < configuration.bindings.size(); ++index)
-        if (configuration.bindings[index].parameterId == id) return configuration.bindings[index];
+LaserParameterBindingSdk &FindBinding(lp::Configuration &configuration, unsigned id) {
+    for (std::size_t index = 0; index < configuration.bindings.size(); ++index) {
+        if (configuration.bindings[index].parameterId == id) {
+            return configuration.bindings[index];
+        }
+    }
     throw std::runtime_error("parameter binding missing");
 }
 
-LaserParameterDescriptorSdk& FindDescriptor(lp::Configuration& configuration, unsigned id)
-{
-    for (std::size_t index = 0; index < configuration.descriptors.size(); ++index)
-        if (configuration.descriptors[index].parameterId == id) return configuration.descriptors[index];
+LaserParameterDescriptorSdk &FindDescriptor(lp::Configuration &configuration, unsigned id) {
+    for (std::size_t index = 0; index < configuration.descriptors.size(); ++index) {
+        if (configuration.descriptors[index].parameterId == id) {
+            return configuration.descriptors[index];
+        }
+    }
     throw std::runtime_error("parameter descriptor missing");
 }
 
-std::string OldCraftScript(LaserMachineHandle handle, const CraftInfoLaserSdk& craft)
-{
+std::string OldCraftScript(LaserMachineHandle handle, const CraftInfoLaserSdk &craft) {
     std::vector<char> output(1024 * 1024, '\0');
     int size = static_cast<int>(output.size());
     LaserSdkResult result = cl_craft_inst_devices_params_script_get(handle, craft, output.data(), &size);
-    if (result != SUCCESS_LASER_SDK)
+    if (result != SUCCESS_LASER_SDK) {
         throw std::runtime_error("old craft API result=" + std::to_string(static_cast<int>(result)));
+    }
     return std::string(output.data());
 }
 
-void SetConfiguration(LaserMachineHandle handle, const lp::Configuration& configuration)
-{
-    CHECK(cl_parameters_configuration_set(handle, configuration.descriptors.data(),
-          static_cast<unsigned>(configuration.descriptors.size()), configuration.bindings.data(),
-          static_cast<unsigned>(configuration.bindings.size()), nullptr) == SUCCESS_LASER_SDK);
+void SetConfiguration(LaserMachineHandle handle, const lp::Configuration &configuration) {
+    CHECK(cl_parameters_configuration_set(handle, configuration.descriptors.data(), static_cast<unsigned>(configuration.descriptors.size()),
+              configuration.bindings.data(), static_cast<unsigned>(configuration.bindings.size()), nullptr) == SUCCESS_LASER_SDK);
 }
 
-std::vector<LaserParameterValueSdk> SupportedValues(const lp::Configuration& config,
-                                                   const std::vector<LaserParameterValueSdk>& values)
-{
+std::vector<LaserParameterValueSdk> SupportedValues(const lp::Configuration &config, const std::vector<LaserParameterValueSdk> &values) {
     std::vector<LaserParameterValueSdk> selected;
-    for (std::size_t i = 0; i < values.size(); ++i)
-        for (std::size_t j = 0; j < config.descriptors.size(); ++j)
-            if (config.descriptors[j].parameterId == values[i].parameterId
-                    && (config.descriptors[j].flags & LASER_PARAMETER_WRITABLE_SDK))
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        for (std::size_t j = 0; j < config.descriptors.size(); ++j) {
+            if (config.descriptors[j].parameterId == values[i].parameterId && (config.descriptors[j].flags & LASER_PARAMETER_WRITABLE_SDK)) {
                 selected.push_back(values[i]);
+            }
+        }
+    }
     return selected;
 }
 
 /** @brief 用独立寄存器预期表验证默认工艺，并确认原接口使用重新配置的地址。 */
-void TestBrandProfilesAndOldEntryPoint()
-{
+void TestBrandProfilesAndOldEntryPoint() {
     const LaserHeadBrandSdk brands[] = {BCXLASERPOWER_SDK, CQ_SUP26AD_LASERPOWER_SDK, CQLASERPOWER_SDK};
-    for (unsigned index = 0; index < sizeof(brands) / sizeof(brands[0]); ++index)
-    {
+    for (unsigned index = 0; index < sizeof(brands) / sizeof(brands[0]); ++index) {
         MachineResource resource = Resource(brands[index]);
         const CraftInfoLaserSdk craft = Craft();
         lp::Configuration config;
@@ -475,70 +449,55 @@ void TestBrandProfilesAndOldEntryPoint()
         CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
         const std::string oldEntryScript = OldCraftScript(handle, craft);
         CHECK(oldEntryScript.size() >= defaultScript.size());
-        CHECK(oldEntryScript.compare(oldEntryScript.size() - defaultScript.size(),
-                                     defaultScript.size(), defaultScript) == 0);
+        CHECK(oldEntryScript.compare(oldEntryScript.size() - defaultScript.size(), defaultScript.size(), defaultScript) == 0);
         CHECK(oldEntryScript.find("set_configurable_digital_out") == std::string::npos);
-        if (brands[index] != CQLASERPOWER_SDK)
-        {
+        if (brands[index] != CQLASERPOWER_SDK) {
             CheckPlanScript(plan, defaultScript);
             // 固定工艺的独立预期表覆盖板卡地址、单位、瓦/百分比与缩放差异。
-            const int expectedBcx[] = {3000, 75, -125, 2000, 2100, 100, 1000, 1500,
-                                      200, 1000, 100, 200, 100, 60, 0, 60, 10, 5,
-                                      0, 200, 0, 200, 10, 10};
-            const int expectedSup[] = {10, -125, 10, 75, 0, 100, 200, 0, 0, 1,
-                                      0, 32, 20, 40, 0, 2000, 100, 0, 2100,
-                                      60, 1, 10, 5, 50, 200, 75, 1000};
-            const int* expected = brands[index] == BCXLASERPOWER_SDK ? expectedBcx : expectedSup;
+            const int expectedBcx[] = {3000, 75, -125, 2000, 2100, 100, 1000, 1500, 200, 1000, 100, 200, 100, 60, 0, 60, 10, 5, 0, 200, 0, 200, 10, 10};
+            const int expectedSup[] = {10, -125, 10, 75, 0, 100, 200, 0, 0, 1, 0, 32, 20, 40, 0, 2000, 100, 0, 2100, 60, 1, 10, 5, 50, 200, 75, 1000};
+            const int *expected = brands[index] == BCXLASERPOWER_SDK ? expectedBcx : expectedSup;
             const unsigned count = brands[index] == BCXLASERPOWER_SDK ? 24 : 27;
             const std::map<unsigned, int> writes = ParseWrites(defaultScript);
             CHECK(writes.size() == count);
-            for (unsigned slot = 0; slot < count; ++slot)
-            {
-                const unsigned address = brands[index] == CQ_SUP26AD_LASERPOWER_SDK && slot >= 15
-                        ? 90 + slot - 15 : 60 + slot;
-                if (writes.at(address) != expected[slot])
-                {
+            for (unsigned slot = 0; slot < count; ++slot) {
+                const unsigned address = brands[index] == CQ_SUP26AD_LASERPOWER_SDK && slot >= 15 ? 90 + slot - 15 : 60 + slot;
+                if (writes.at(address) != expected[slot]) {
                     std::ostringstream mismatch;
-                    mismatch << "brand=" << brands[index] << " address=" << address
-                             << " expected=" << expected[slot] << " actual=" << writes.at(address);
+                    mismatch << "brand=" << brands[index] << " address=" << address << " expected=" << expected[slot] << " actual=" << writes.at(address);
                     throw std::runtime_error(mismatch.str());
                 }
                 CHECK(writes.at(address) == expected[slot]);
             }
-            if (brands[index] == CQ_SUP26AD_LASERPOWER_SDK)
-            {
-                for (const LaserParameterBindingSdk& binding : config.bindings)
-                {
+            if (brands[index] == CQ_SUP26AD_LASERPOWER_SDK) {
+                for (const LaserParameterBindingSdk &binding : config.bindings) {
                     CHECK(binding.readAddress == binding.writeAddress + 15);
                     CHECK(binding.writeAddress % 30 < 15);
                     CHECK(binding.readAddress % 30 >= 15);
                 }
                 // 两页之间的回读区及尾部手动命令、事务标记都不属于工艺写入。
-                for (unsigned address = 75; address < 90; ++address)
+                for (unsigned address = 75; address < 90; ++address) {
                     CHECK(writes.count(address) == 0);
+                }
                 CHECK(writes.count(102) == 0 && writes.count(103) == 0 && writes.count(104) == 0);
             }
-        }
-        else
-        {
-            CHECK(defaultScript.find("write_value_port") != std::string::npos
-                  || defaultScript.find("write_multi_value_port") != std::string::npos);
+        } else {
+            CHECK(defaultScript.find("write_value_port") != std::string::npos || defaultScript.find("write_multi_value_port") != std::string::npos);
             CHECK(defaultScript.find("set_configurable_digital_out") == std::string::npos);
             CHECK(FindBinding(config, LASER_PARAM_SCAN_SPEED_SDK).writeAddress == 0);
         }
 
         // 同一工艺换本地地址后，数值及位模式必须完全保持，旧入口同样使用新绑定。
-        for (std::size_t binding = 0; binding < config.bindings.size(); ++binding)
-        {
+        for (std::size_t binding = 0; binding < config.bindings.size(); ++binding) {
             config.bindings[binding].writeAddress = 300 + static_cast<unsigned>(binding * 3);
-            if (config.bindings[binding].readAddress != LASER_PARAMETER_INVALID_ADDRESS_SDK)
+            if (config.bindings[binding].readAddress != LASER_PARAMETER_INVALID_ADDRESS_SDK) {
                 config.bindings[binding].readAddress = 600 + static_cast<unsigned>(binding * 3);
+            }
         }
         SetConfiguration(handle, config);
         const lp::WritePlan relocated = Compile(config, values);
         CHECK(relocated.operations.size() == plan.operations.size());
-        for (std::size_t operation = 0; operation < plan.operations.size(); ++operation)
-        {
+        for (std::size_t operation = 0; operation < plan.operations.size(); ++operation) {
             CHECK(relocated.operations[operation].words == plan.operations[operation].words);
             CHECK(relocated.operations[operation].address != plan.operations[operation].address);
         }
@@ -562,8 +521,7 @@ void TestBrandProfilesAndOldEntryPoint()
 }
 
 /** @brief 验证公开接口的容量查询、深复制、句柄隔离和失败不改资源。 */
-void TestPublicApiBuffersIsolationAndPurity()
-{
+void TestPublicApiBuffersIsolationAndPurity() {
     MachineResource resource = Resource(CQ_SUP26AD_LASERPOWER_SDK);
     LaserMachineHandle first = -1, second = -1;
     CHECK(cl_machine_resource_init(&resource, &first) == SUCCESS_LASER_SDK);
@@ -578,20 +536,17 @@ void TestPublicApiBuffersIsolationAndPurity()
     config.bindings[0].writeAddress = 999;
 
     unsigned descriptorCount = 0, bindingCount = 0;
-    CHECK(cl_parameters_configuration_get(first, nullptr, &descriptorCount, nullptr, &bindingCount)
-          == SUCCESS_LASER_SDK);
+    CHECK(cl_parameters_configuration_get(first, nullptr, &descriptorCount, nullptr, &bindingCount) == SUCCESS_LASER_SDK);
     CHECK(descriptorCount == 1 && bindingCount == 1);
     LaserParameterDescriptorSdk descriptor = {};
     LaserParameterBindingSdk binding = {};
-    CHECK(cl_parameters_configuration_get(first, &descriptor, &descriptorCount, &binding, &bindingCount)
-          == SUCCESS_LASER_SDK);
+    CHECK(cl_parameters_configuration_get(first, &descriptor, &descriptorCount, &binding, &bindingCount) == SUCCESS_LASER_SDK);
     CHECK(binding.writeAddress == 0);
     binding.writeAddress = 700;
     descriptor.maximum = 1;
     descriptorCount = 0;
     bindingCount = 1;
-    CHECK(cl_parameters_configuration_get(first, &descriptor, &descriptorCount, &binding, &bindingCount)
-          == BUFFER_TOO_SMALL_LASER_SDK);
+    CHECK(cl_parameters_configuration_get(first, &descriptor, &descriptorCount, &binding, &bindingCount) == BUFFER_TOO_SMALL_LASER_SDK);
     CHECK(descriptorCount == 1 && bindingCount == 1);
     CHECK(descriptor.maximum == 1 && binding.writeAddress == 700);
 
@@ -602,8 +557,7 @@ void TestPublicApiBuffersIsolationAndPurity()
     const int required = size;
     std::vector<char> output(static_cast<std::size_t>(required), '#');
     size = required - 1;
-    CHECK(cl_parameters_script_get(first, &value, 1, output.data(), &size, nullptr)
-          == BUFFER_TOO_SMALL_LASER_SDK);
+    CHECK(cl_parameters_script_get(first, &value, 1, output.data(), &size, nullptr) == BUFFER_TOO_SMALL_LASER_SDK);
     CHECK(size == required);
     CHECK(output[0] == '#' && output.back() == '#');
     size = required;
@@ -611,8 +565,7 @@ void TestPublicApiBuffersIsolationAndPurity()
     CHECK(size == required && output.back() == '\0');
     CHECK(ParseWrites(output.data()).at(0) == 42);
     size = required;
-    CHECK(cl_parameters_script_get(first, &value, 1, output.data(), nullptr, nullptr)
-          == PARAMETER_ERROR_LASER_SDK);
+    CHECK(cl_parameters_script_get(first, &value, 1, output.data(), nullptr, nullptr) == PARAMETER_ERROR_LASER_SDK);
     std::vector<char> other(1024, '#');
     size = static_cast<int>(other.size());
     CHECK(cl_parameters_script_get(second, &value, 1, other.data(), &size, nullptr) == SUCCESS_LASER_SDK);
@@ -623,14 +576,12 @@ void TestPublicApiBuffersIsolationAndPurity()
     CHECK(cl_machine_resource_get(first, &before) == SUCCESS_LASER_SDK);
     lp::Configuration invalid = config;
     invalid.descriptors.push_back(invalid.descriptors[0]);
-    CHECK(cl_parameters_configuration_set(first, invalid.descriptors.data(),
-          static_cast<unsigned>(invalid.descriptors.size()), invalid.bindings.data(),
-          static_cast<unsigned>(invalid.bindings.size()), nullptr) != SUCCESS_LASER_SDK);
+    CHECK(cl_parameters_configuration_set(first, invalid.descriptors.data(), static_cast<unsigned>(invalid.descriptors.size()), invalid.bindings.data(),
+              static_cast<unsigned>(invalid.bindings.size()), nullptr) != SUCCESS_LASER_SDK);
     value.value = 101;
     output.assign(static_cast<std::size_t>(required), '#');
     size = required;
-    CHECK(cl_parameters_script_get(first, &value, 1, output.data(), &size, nullptr)
-          == PARAMETER_OUT_OF_RANGE_LASER_SDK);
+    CHECK(cl_parameters_script_get(first, &value, 1, output.data(), &size, nullptr) == PARAMETER_OUT_OF_RANGE_LASER_SDK);
     CHECK(output[0] == '#');
     MachineResource after;
     CHECK(cl_machine_resource_get(first, &after) == SUCCESS_LASER_SDK);
@@ -644,8 +595,7 @@ void TestPublicApiBuffersIsolationAndPurity()
     resource.laserHeadBrand = BCXLASERPOWER_SDK;
     CHECK(cl_machine_resource_update(first, &resource) == SUCCESS_LASER_SDK);
     descriptorCount = bindingCount = 0;
-    CHECK(cl_parameters_configuration_get(first, nullptr, &descriptorCount, nullptr, &bindingCount)
-          == SUCCESS_LASER_SDK);
+    CHECK(cl_parameters_configuration_get(first, nullptr, &descriptorCount, nullptr, &bindingCount) == SUCCESS_LASER_SDK);
     CHECK(descriptorCount > 1 && bindingCount > 1);
     CHECK(cl_machine_resource_release(first) == SUCCESS_LASER_SDK);
     CHECK(cl_parameters_configuration_reset(first) == HANDLE_ERROR_LASER_SDK);
@@ -653,8 +603,7 @@ void TestPublicApiBuffersIsolationAndPurity()
 }
 
 /** @brief 可选只读能力可跳过，必要工艺能力与自定义范围必须严格执行。 */
-void TestOptionalCapabilitiesAndCustomRanges()
-{
+void TestOptionalCapabilitiesAndCustomRanges() {
     MachineResource resource = Resource(BCXLASERPOWER_SDK);
     const CraftInfoLaserSdk craft = Craft();
     lp::Configuration config;
@@ -666,8 +615,7 @@ void TestOptionalCapabilitiesAndCustomRanges()
     CHECK(ParseWrites(script).count(60) == 0);
     CHECK(ParseWrites(script).at(63) == 2000);
     lp::WritePlan plan;
-    CHECK(lp::CompileWritePlan(config, {Value(LASER_PARAM_RATED_POWER_SDK, 3000)}, plan)
-          == PARAM_WRITE_ERROR_LASER_SDK);
+    CHECK(lp::CompileWritePlan(config, {Value(LASER_PARAM_RATED_POWER_SDK, 3000)}, plan) == PARAM_WRITE_ERROR_LASER_SDK);
     FindDescriptor(config, LASER_PARAM_WELD_POWER_SDK).flags = LASER_PARAMETER_READABLE_SDK;
     FindBinding(config, LASER_PARAM_WELD_POWER_SDK).writeAddress = LASER_PARAMETER_INVALID_ADDRESS_SDK;
     CHECK(lp::BuildDeviceCraftScript(resource, craft, &config, script) != SUCCESS_LASER_SDK);
@@ -685,8 +633,7 @@ void TestOptionalCapabilitiesAndCustomRanges()
     // 三十二位完整频率按高低字先校验再组合，禁止负数或窄化截断。
     resource = Resource(CQLASERPOWER_SDK);
     CHECK(lp::BuildDefaultConfiguration(resource, config) == SUCCESS_LASER_SDK);
-    config.descriptors.push_back(Descriptor(LASER_PARAM_PWM_FREQUENCY_SDK,
-                                LASER_PARAMETER_U32_SDK, 0, 4294967295.0));
+    config.descriptors.push_back(Descriptor(LASER_PARAM_PWM_FREQUENCY_SDK, LASER_PARAMETER_U32_SDK, 0, 4294967295.0));
     config.bindings.push_back(Binding(LASER_PARAM_PWM_FREQUENCY_SDK, 500));
     CraftInfoLaserSdk pwmCraft = craft;
     pwmCraft.laserHeadHighPulseFrequency = 0x1234;
@@ -705,8 +652,7 @@ void TestOptionalCapabilitiesAndCustomRanges()
 }
 
 /** @brief 保留板卡既有舍入方式及旧客户端未使用地址、自熔焊断丝机行为。 */
-void TestDefaultRoundingCompatibility()
-{
+void TestDefaultRoundingCompatibility() {
     MachineResource resource = Resource(BCXLASERPOWER_SDK);
     CraftInfoLaserSdk craft = Craft();
     craft.craftScanWidth = 1.239;
@@ -757,8 +703,7 @@ void TestDefaultRoundingCompatibility()
 }
 
 /** @brief 完整工艺快照使用原始字和分页地址，部分参数与其它品牌不产生快照。 */
-void TestSup26PagedCraftBank()
-{
+void TestSup26PagedCraftBank() {
     MachineResource resource = Resource(CQ_SUP26AD_LASERPOWER_SDK);
     CraftInfoLaserSdk craft = Craft();
     lp::Configuration configuration;
@@ -768,8 +713,9 @@ void TestSup26PagedCraftBank()
     const std::map<unsigned, unsigned> bank = ParseSup26CraftBank(script);
     const std::map<unsigned, int> writes = ParseWrites(script);
     CHECK(bank.size() == 27 && writes.size() == 27);
-    for (const auto& item : writes)
+    for (const auto &item : writes) {
         CHECK(bank.at(item.first) == static_cast<unsigned>(item.second & 0xFFFF));
+    }
     CHECK(bank.at(61) == 65411 && bank.at(90) == 2000);
 
     std::vector<LaserParameterValueSdk> values;
@@ -791,11 +737,12 @@ void TestSup26PagedCraftBank()
 
     resource.weldingProcessType = SELF_WELDING_LASERSDK;
     std::vector<LaserParameterValueSdk> noWire;
-    for (const LaserParameterValueSdk& parameter : values)
-        if (parameter.parameterId != LASER_PARAM_WIRE_FEED_SPEED_SDK
-                && parameter.parameterId != LASER_PARAM_WIRE_FEED_SWITCH_SDK
-                && parameter.parameterId != LASER_PARAM_WIRE_RETRACT_LENGTH_SDK
-                && parameter.parameterId != LASER_PARAM_WIRE_FEED_LENGTH_SDK) noWire.push_back(parameter);
+    for (const LaserParameterValueSdk &parameter : values) {
+        if (parameter.parameterId != LASER_PARAM_WIRE_FEED_SPEED_SDK && parameter.parameterId != LASER_PARAM_WIRE_FEED_SWITCH_SDK &&
+            parameter.parameterId != LASER_PARAM_WIRE_RETRACT_LENGTH_SDK && parameter.parameterId != LASER_PARAM_WIRE_FEED_LENGTH_SDK) {
+            noWire.push_back(parameter);
+        }
+    }
     CHECK(noWire.size() == 23);
     CHECK(lp::BuildDeviceParametersScript(resource, nullptr, noWire, script) == SUCCESS_LASER_SDK);
     CHECK(ParseWrites(script).size() == 23 && ParseSup26CraftBank(script).empty());
@@ -805,7 +752,9 @@ void TestSup26PagedCraftBank()
     CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
     const std::map<unsigned, unsigned> selfBank = ParseSup26CraftBank(script);
     CHECK(selfBank.size() == 27);
-    for (unsigned address = 94; address <= 97; ++address) CHECK(selfBank.at(address) == 0);
+    for (unsigned address = 94; address <= 97; ++address) {
+        CHECK(selfBank.at(address) == 0);
+    }
     std::vector<LaserParameterValueSdk> existing(1, Value(LASER_PARAM_WIRE_FEED_SPEED_SDK, 20));
     lp::CompleteSup26SelfWeldCraftValues(resource, existing);
     CHECK(existing.size() == 1 && existing[0].value == 20);
@@ -816,8 +765,7 @@ void TestSup26PagedCraftBank()
 }
 
 /** @brief 原工艺下发入口成功、失败或重试均不得改变持久机器资源。 */
-void TestOldCraftFailureDoesNotMutateResource()
-{
+void TestOldCraftFailureDoesNotMutateResource() {
     MachineResource resource = Resource(CQ_SUP26AD_LASERPOWER_SDK);
     LaserMachineHandle handle = -1;
     CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
@@ -831,8 +779,7 @@ void TestOldCraftFailureDoesNotMutateResource()
     craft.craftXAxisOffset = std::numeric_limits<double>::quiet_NaN();
     std::vector<char> output(1024 * 1024, '#');
     int size = static_cast<int>(output.size());
-    CHECK(cl_craft_inst_devices_params_script_get(handle, craft, output.data(), &size)
-          != SUCCESS_LASER_SDK);
+    CHECK(cl_craft_inst_devices_params_script_get(handle, craft, output.data(), &size) != SUCCESS_LASER_SDK);
     CHECK(output[0] == '#');
     CHECK(cl_machine_resource_get(handle, &after) == SUCCESS_LASER_SDK);
     CHECK(std::memcmp(&before, &after, sizeof(before)) == 0);
@@ -842,16 +789,13 @@ void TestOldCraftFailureDoesNotMutateResource()
 }
 
 /** @brief 原完整程序和起收弧入口必须贯通映射参数链，选工艺不能隐式出光。 */
-void TestFullInstructionAndControlPaths()
-{
+void TestFullInstructionAndControlPaths() {
     const LaserHeadBrandSdk brands[] = {BCXLASERPOWER_SDK, CQ_SUP26AD_LASERPOWER_SDK, CQLASERPOWER_SDK};
     const std::regex laserOn("set_configurable_digital_out\\(\\s*1\\s*,\\s*true\\s*\\)");
-    typedef LaserSdkResult (*ScriptFunction)(LaserMachineHandle, char*, int*);
-    const ScriptFunction controls[] = {cl_get_arc_start_script, cl_get_arc_stop_script,
-                                      cl_get_arc_start_slow_script, cl_get_arc_stop_slow_script,
-                                      cl_craft_device_status_modify};
-    for (unsigned board = 0; board < sizeof(brands) / sizeof(brands[0]); ++board)
-    {
+    typedef LaserSdkResult (*ScriptFunction)(LaserMachineHandle, char *, int *);
+    const ScriptFunction controls[] = {
+        cl_get_arc_start_script, cl_get_arc_stop_script, cl_get_arc_start_slow_script, cl_get_arc_stop_slow_script, cl_craft_device_status_modify};
+    for (unsigned board = 0; board < sizeof(brands) / sizeof(brands[0]); ++board) {
         MachineResource resource = Resource(brands[board]);
         resource.laserPowerParams.gasStartupAdvanceTime = 5000;
         LaserMachineHandle handle = -1;
@@ -859,12 +803,13 @@ void TestFullInstructionAndControlPaths()
         lp::Configuration config;
         CHECK(lp::BuildDefaultConfiguration(resource, config) == SUCCESS_LASER_SDK);
         FindDescriptor(config, LASER_PARAM_PRE_GAS_TIME_SDK).maximum = 10000;
-        for (std::size_t i = 0; i < config.bindings.size(); ++i)
-        {
-            if (config.bindings[i].writeAddress != LASER_PARAMETER_INVALID_ADDRESS_SDK)
+        for (std::size_t i = 0; i < config.bindings.size(); ++i) {
+            if (config.bindings[i].writeAddress != LASER_PARAMETER_INVALID_ADDRESS_SDK) {
                 config.bindings[i].writeAddress = 300 + static_cast<unsigned>(i * 3);
-            if (config.bindings[i].readAddress != LASER_PARAMETER_INVALID_ADDRESS_SDK)
+            }
+            if (config.bindings[i].readAddress != LASER_PARAMETER_INVALID_ADDRESS_SDK) {
                 config.bindings[i].readAddress = 600 + static_cast<unsigned>(i * 3);
+            }
         }
         SetConfiguration(handle, config);
         CraftInfoLaserSdk craft = Craft();
@@ -916,8 +861,7 @@ void TestFullInstructionAndControlPaths()
         CHECK(std::memcmp(&before, &after, sizeof(before)) == 0);
 
         // 动作接口允许数字输出，但不应夹带串口工具定义或未定义自由通讯调用。
-        for (unsigned control = 0; control < sizeof(controls) / sizeof(controls[0]); ++control)
-        {
+        for (unsigned control = 0; control < sizeof(controls) / sizeof(controls[0]); ++control) {
             output.assign(1024 * 1024, '#');
             size = static_cast<int>(output.size());
             CHECK(controls[control](handle, output.data(), &size) == SUCCESS_LASER_SDK);
@@ -930,8 +874,7 @@ void TestFullInstructionAndControlPaths()
 }
 
 /** @brief 继承旧超强功率、超时清零和不隐式操作 CO 的行为，并检查 Lua 行边界。 */
-void TestLegacyFullProgramPowerAndTimeoutReset()
-{
+void TestLegacyFullProgramPowerAndTimeoutReset() {
     MachineResource resource = Resource(CQLASERPOWER_SDK);
     resource.robotParams.emptyRunTCPSpeed = 100;
     resource.robotParams.emptyRunTCPAcc = 1000;
@@ -947,12 +890,8 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
     points[0].pointType = LINE_POINT_WELD_SDK;
     points[1].pointType = LINE_POINT_WELD_SDK;
     points[1].pose[0] = 100;
-    int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0,
-                          LINE_POINT_INST_LASER_WELD_SDK, 0,
-                          ARC_START_INST_LASER_WELD_SDK, 0,
-                          LINE_POINT_INST_LASER_WELD_SDK, 1,
-                          SLOW_DOWN_LASER_WELD_SDK, 0,
-                          ARC_END_INST_LASER_WELD_SDK, 0};
+    int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0, LINE_POINT_INST_LASER_WELD_SDK, 0, ARC_START_INST_LASER_WELD_SDK, 0,
+        LINE_POINT_INST_LASER_WELD_SDK, 1, SLOW_DOWN_LASER_WELD_SDK, 0, ARC_END_INST_LASER_WELD_SDK, 0};
     LaserWeldStartData start = {};
     start.instList = instructions;
     start.instNum = 6;
@@ -975,7 +914,7 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
     CHECK(cl_machine_resource_get(handle, &after) == SUCCESS_LASER_SDK);
     CHECK(std::memcmp(&before, &after, sizeof(before)) == 0);
 
-    // 已起弧后切换工艺也只下发参数，继承原仓库取消隐式 CO 操作的修复。
+    // 切换工艺只能更新参数，避免隐式改变正在执行的出光动作。
     InstListData changingCraft;
     changingCraft.listLocToTypeID[0] = std::make_pair(CRAFT_SELECT_INST_LASER_WELD_SDK, 0);
     // 解释器要求列表结束时焊接状态闭合；关闭控制输出策略，仅用收弧指令闭合状态。
@@ -997,9 +936,8 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
     resource.laserPowerParams.laserPowerOpen = craft.craftLeadInPower;
     resource.laserPowerParams.laserRampUpTime = craft.craftLeadInRampTime;
     CHECK(cl_machine_resource_update(handle, &resource) == SUCCESS_LASER_SDK);
-    CommuRS485* const rawRenderer = CommuRS485::GetInstance();
-    for (unsigned action = 0; action < 2; ++action)
-    {
+    CommuRS485 *const rawRenderer = CommuRS485::GetInstance();
+    for (unsigned action = 0; action < 2; ++action) {
         rawRenderer->resetPendingScriptFragments();
         const SwitchTypeLaserSdk arcSwitch = action == 0 ? SWITCH_ON_LASER_SDK : SWITCH_OFF_LASER_SDK;
         CHECK(rawRenderer->craft_script_arc_function_switch_script_get(handle, arcSwitch) == SUCCESS_LASER_SDK);
@@ -1010,21 +948,21 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
         std::istringstream lines(rawScript);
         std::string line;
         unsigned activeCo1Statements = 0;
-        const std::regex co1(action == 0
-                ? "set_configurable_digital_out\\(\\s*1\\s*,\\s*true\\s*\\)"
-                : "set_configurable_digital_out\\(\\s*1\\s*,\\s*false\\s*\\)");
-        while (std::getline(lines, line))
-        {
+        const std::regex co1(action == 0 ? "set_configurable_digital_out\\(\\s*1\\s*,\\s*true\\s*\\)"
+                                         : "set_configurable_digital_out\\(\\s*1\\s*,\\s*false\\s*\\)");
+        while (std::getline(lines, line)) {
             // 单行注释后的文本不会被 Lua 执行，只统计注释前的有效语句。
             const std::string active = line.substr(0, line.find("--"));
-            if (std::regex_search(active, co1)) ++activeCo1Statements;
+            if (std::regex_search(active, co1)) {
+                ++activeCo1Statements;
+            }
         }
         CHECK(activeCo1Statements > 0);
         CHECK(rawScript.find("set_configurable_digital_out(2,") == std::string::npos);
     }
     CHECK(cl_machine_resource_release(handle) == SUCCESS_LASER_SDK);
 
-    // 欧斯睿普保留原有功率映射，不随普通超强此次修复改变板卡参数。
+    // 欧斯睿普使用独立的功率映射，普通超强的板卡语义不能影响该兼容路径。
     std::string supScript, aliasScript;
     CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, supScript) == SUCCESS_LASER_SDK);
     resource.laserHeadBrand = OSRPLASERPOWER_SDK;
@@ -1037,8 +975,7 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
     CHECK(aliasWrites.at(562) == 0 && aliasWrites.at(564) == 0);
 }
 /** @brief 普通超强默认额定、焊接峰值和板卡渐进参数分别使用正确的物理含义。 */
-void TestDefaultSupPowerSemantics()
-{
+void TestDefaultSupPowerSemantics() {
     MachineResource resource = Resource(CQLASERPOWER_SDK);
     CraftInfoLaserSdk craft = Craft();
     std::string script;
@@ -1057,8 +994,7 @@ void TestDefaultSupPowerSemantics()
     CHECK(ParseLegacySupWrites(script).at(560) == 4000);
     CHECK(ParseLegacySupWrites(script).at(2) == 2000);
     const int ratedBoundaries[] = {1, 65535};
-    for (unsigned index = 0; index < sizeof(ratedBoundaries) / sizeof(ratedBoundaries[0]); ++index)
-    {
+    for (unsigned index = 0; index < sizeof(ratedBoundaries) / sizeof(ratedBoundaries[0]); ++index) {
         craft = Craft();
         craft.laserHeadPeakPower = ratedBoundaries[index];
         craft.craftLaserPower = ratedBoundaries[index];
@@ -1069,8 +1005,7 @@ void TestDefaultSupPowerSemantics()
         CHECK(ParseLegacySupWrites(script).at(2) == ratedBoundaries[index]);
     }
     const int invalidRatings[] = {-1, 0, 65536};
-    for (unsigned index = 0; index < sizeof(invalidRatings) / sizeof(invalidRatings[0]); ++index)
-    {
+    for (unsigned index = 0; index < sizeof(invalidRatings) / sizeof(invalidRatings[0]); ++index) {
         craft = Craft();
         craft.laserHeadPeakPower = 0;
         resource.laserPowerParams.laserPower = invalidRatings[index];
@@ -1102,8 +1037,7 @@ void TestDefaultSupPowerSemantics()
 }
 
 /** @brief 默认超强正式起弧和独立缓升共用功率缓升，显式映射仍使用本地动作函数。 */
-void TestSupArcStartEntryPoints()
-{
+void TestSupArcStartEntryPoints() {
     MachineResource resource = Resource(CQLASERPOWER_SDK);
     const CraftInfoLaserSdk craft = Craft();
     LaserMachineHandle handle = -1;
@@ -1119,11 +1053,10 @@ void TestSupArcStartEntryPoints()
     CHECK(GetBasicCraftScript(handle, list, environment, parameters) == SUCCESS_LASER_SDK);
     CHECK(parameters.find("if not sup_arc_start(") == std::string::npos);
     const std::regex rampCall("if not sup_arc_start\\(1000,2000,200,100,51,0x[0-9A-Fa-f]+\\)");
-    typedef LaserSdkResult (*ScriptFunction)(LaserMachineHandle, char*, int*);
+    typedef LaserSdkResult (*ScriptFunction)(LaserMachineHandle, char *, int *);
     const ScriptFunction starts[] = {cl_get_arc_start_script, cl_get_arc_start_slow_script};
     std::vector<char> output(1024 * 1024, '\0');
-    for (unsigned index = 0; index < sizeof(starts) / sizeof(starts[0]); ++index)
-    {
+    for (unsigned index = 0; index < sizeof(starts) / sizeof(starts[0]); ++index) {
         int size = static_cast<int>(output.size());
         CHECK(starts[index](handle, output.data(), &size) == SUCCESS_LASER_SDK);
         const std::string script(output.data());
@@ -1134,8 +1067,7 @@ void TestSupArcStartEntryPoints()
     lp::Configuration config;
     CHECK(lp::BuildDefaultConfiguration(resource, config) == SUCCESS_LASER_SDK);
     SetConfiguration(handle, config);
-    for (unsigned index = 0; index < sizeof(starts) / sizeof(starts[0]); ++index)
-    {
+    for (unsigned index = 0; index < sizeof(starts) / sizeof(starts[0]); ++index) {
         int size = static_cast<int>(output.size());
         CHECK(starts[index](handle, output.data(), &size) == SUCCESS_LASER_SDK);
         const std::string script(output.data());
@@ -1149,8 +1081,7 @@ void TestSupArcStartEntryPoints()
 }
 
 /** @brief 设备维护模式只移除旧超强额定参数，覆盖单工艺、正式程序、准备和设置入口。 */
-void TestDeviceManagedPowerPolicy()
-{
+void TestDeviceManagedPowerPolicy() {
     MachineResource resource = Resource(CQLASERPOWER_SDK);
     resource.robotParams.emptyRunTCPSpeed = 100;
     resource.robotParams.emptyRunTCPAcc = 1000;
@@ -1181,12 +1112,8 @@ void TestDeviceManagedPowerPolicy()
     points[0].pointType = LINE_POINT_WELD_SDK;
     points[1].pointType = LINE_POINT_WELD_SDK;
     points[1].pose[0] = 100;
-    int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0,
-                          LINE_POINT_INST_LASER_WELD_SDK, 0,
-                          ARC_START_INST_LASER_WELD_SDK, 0,
-                          LINE_POINT_INST_LASER_WELD_SDK, 1,
-                          SLOW_DOWN_LASER_WELD_SDK, 0,
-                          ARC_END_INST_LASER_WELD_SDK, 0};
+    int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0, LINE_POINT_INST_LASER_WELD_SDK, 0, ARC_START_INST_LASER_WELD_SDK, 0,
+        LINE_POINT_INST_LASER_WELD_SDK, 1, SLOW_DOWN_LASER_WELD_SDK, 0, ARC_END_INST_LASER_WELD_SDK, 0};
     LaserWeldStartData start = {};
     start.instList = instructions;
     start.instNum = 6;
@@ -1234,10 +1161,8 @@ void TestDeviceManagedPowerPolicy()
 }
 } // namespace
 
-int main()
-{
-    try
-    {
+int main() {
+    try {
         TestIntegerAndFloatEncoding();
         TestValidationAndTransactionalFailure();
         TestBrandProfilesAndOldEntryPoint();
@@ -1252,12 +1177,9 @@ int main()
         TestSupArcStartEntryPoints();
         TestDeviceManagedPowerPolicy();
         CHECK(parameter_test_robot_calls == 0);
-        std::cout << "PASS parameter pipeline: " << checks
-                  << " checks, 13 scenario groups, zero robot SDK calls" << std::endl;
+        std::cout << "PASS parameter pipeline: " << checks << " checks, 13 scenario groups, zero robot SDK calls" << std::endl;
         return 0;
-    }
-    catch (const std::exception& error)
-    {
+    } catch (const std::exception &error) {
         std::cerr << "FAIL parameter pipeline: " << error.what() << std::endl;
         return 1;
     }

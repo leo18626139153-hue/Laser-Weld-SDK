@@ -5,8 +5,7 @@
  * @file    craftscript.h
  * @brief   工艺脚本引擎 — 指令列表转Lua焊接脚本
  *
- * SDK重构：CommuBase 通讯基类已移至 common/CommuBase.h，
- * 本文件保留工艺脚本引擎相关的声明。
+ * 工艺编排通过通讯抽象获取设备脚本，避免直接依赖品牌报文格式。
  */
 
 #include "common/base_commu.h"
@@ -20,9 +19,7 @@
  * @param[out] bodyScriptText    生成的脚本正文；失败时调用方不得使用。
  * @return LaserSdkResult        处理结果。
  */
-LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
-    const InstListData& instListData,
-    InstListTransEnvironmentData& environment,
+LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, const InstListData &instListData, InstListTransEnvironmentData &environment,
     std::string &bodyScriptText);
 
 #endif // CRAFTSCRIPT_H

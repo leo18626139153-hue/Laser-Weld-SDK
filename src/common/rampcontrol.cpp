@@ -13,16 +13,22 @@
 #include <new>
 #include <sstream>
 
-namespace ramp_control
-{
-namespace
-{
+namespace ramp_control {
+namespace {
 std::map<LaserMachineHandle, LaserRampControlConfigSdk> configurations;
 std::mutex configurationMutex;
-const unsigned kLegacyFrameSettleMs = 50;
+constexpr unsigned kLegacyFrameSettleMs = 50;
+constexpr unsigned kDefaultUpdatePeriodMs = 100;
+constexpr unsigned kDefaultSettleTimeMs = 50;
+constexpr unsigned kDefaultTimeoutMs = 2000;
+constexpr unsigned kMaximumUpdatePeriodMs = 1000;
+constexpr unsigned kMaximumSettleTimeMs = 1000;
+constexpr unsigned kMaximumPhaseDurationMs = 60000;
+constexpr unsigned kMaximumTimeoutMs = 60000;
+constexpr double kMillimetersPerSecondToCentimetersPerMinute = 6.0;
+constexpr double kFullPowerPercent = 100.0;
 
-struct Context
-{
+struct Context {
     LaserRampControlConfigSdk config;
     laser_parameters::Configuration parameters;
     LaserParameterDescriptorSdk power;
@@ -34,72 +40,77 @@ struct Context
     bool explicitlyConfigured;
 };
 
-LaserRampControlConfigSdk defaults()
-{
+LaserRampControlConfigSdk defaults() {
     LaserRampControlConfigSdk result = {};
     result.structSize = sizeof(result);
     result.version = LASER_RAMP_CONTROL_CONFIG_VERSION_SDK;
-    result.updatePeriodMs = 100;
-    result.settleTimeMs = 50;
-    result.timeoutMs = 2000;
+    result.updatePeriodMs = kDefaultUpdatePeriodMs;
+    result.settleTimeMs = kDefaultSettleTimeMs;
+    result.timeoutMs = kDefaultTimeoutMs;
     return result;
 }
 
-bool exists(LaserMachineHandle handle)
-{
+bool exists(LaserMachineHandle handle) {
     return machineResourcesMap.find(handle) != machineResourcesMap.end();
 }
 
-bool wireParameter(unsigned id)
-{
-    return (id >= LASER_PARAM_WIRE_FEED_SPEED_SDK && id <= LASER_PARAM_MANUAL_RETRACT_SWITCH_SDK)
-            || id == LASER_PARAM_WIRE_FEED_SWITCH_SDK || id == LASER_PARAM_WIRE_OUTPUT_DELAY_SDK
-            || id == LASER_PARAM_WIRE_RETRACT_SPEED_SDK || id == LASER_PARAM_SINGLE_STEP_DISTANCE_SDK;
+bool wireParameter(unsigned id) {
+    return (id >= LASER_PARAM_WIRE_FEED_SPEED_SDK && id <= LASER_PARAM_MANUAL_RETRACT_SWITCH_SDK) || id == LASER_PARAM_WIRE_FEED_SWITCH_SDK ||
+        id == LASER_PARAM_WIRE_OUTPUT_DELAY_SDK || id == LASER_PARAM_WIRE_RETRACT_SPEED_SDK || id == LASER_PARAM_SINGLE_STEP_DISTANCE_SDK;
 }
 
-LaserSdkResult descriptor(const laser_parameters::Configuration& config, unsigned id,
-                          LaserParameterDescriptorSdk& result, unsigned& address)
-{
+LaserSdkResult descriptor(const laser_parameters::Configuration &config, unsigned id, LaserParameterDescriptorSdk &result, unsigned &address) {
     bool found = false;
-    for (std::size_t i = 0; i < config.descriptors.size(); ++i)
-        if (config.descriptors[i].parameterId == id)
-        {
+    for (std::size_t i = 0; i < config.descriptors.size(); ++i) {
+        if (config.descriptors[i].parameterId == id) {
             result = config.descriptors[i];
             found = true;
             break;
         }
-    if (!found) return PARAM_TYPE_ERROR_LASER_SDK;
-    if ((result.flags & LASER_PARAMETER_WRITABLE_SDK) == 0) return PARAM_WRITE_ERROR_LASER_SDK;
-    // 动态逐周期只支持已验证的线性十六位无符号寄存器，拒绝猜测多字浮点原子性。
-    if (result.dataType != LASER_PARAMETER_U16_SDK || result.scale <= 0.0)
+    }
+    if (!found) {
         return PARAM_TYPE_ERROR_LASER_SDK;
-    for (std::size_t i = 0; i < config.bindings.size(); ++i)
-        if (config.bindings[i].parameterId == id)
-        {
+    }
+    if ((result.flags & LASER_PARAMETER_WRITABLE_SDK) == 0) {
+        return PARAM_WRITE_ERROR_LASER_SDK;
+    }
+    // 动态逐周期只支持已验证的线性十六位无符号寄存器，拒绝猜测多字浮点原子性。
+    if (result.dataType != LASER_PARAMETER_U16_SDK || result.scale <= 0.0) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
+    for (std::size_t i = 0; i < config.bindings.size(); ++i) {
+        if (config.bindings[i].parameterId == id) {
             address = config.bindings[i].writeAddress;
-            return address <= 65535u ? SUCCESS_LASER_SDK : PARAMETER_ERROR_LASER_SDK;
+            return address <= (std::numeric_limits<uint16_t>::max)() ? SUCCESS_LASER_SDK : PARAMETER_ERROR_LASER_SDK;
         }
+    }
     return PARAMETER_ERROR_LASER_SDK;
 }
 
-LaserSdkResult resolve(LaserMachineHandle handle, const MachineResource& resource, Context& context,
-                        const LaserRampControlConfigSdk* candidate = nullptr)
-{
+LaserSdkResult resolve(LaserMachineHandle handle, const MachineResource &resource, Context &context, const LaserRampControlConfigSdk *candidate = nullptr) {
     context.config.structSize = sizeof(context.config);
     LaserSdkResult result = SUCCESS_LASER_SDK;
-    if (candidate != nullptr) context.config = *candidate;
-    else result = GetConfig(handle, &context.config);
-    if (result != SUCCESS_LASER_SDK) return result;
-    if (context.config.enabled == 0) return PARAMETER_ERROR_LASER_SDK;
-    if (resource.laserHeadBrand != CQLASERPOWER_SDK && resource.laserHeadBrand != BCXLASERPOWER_SDK
-            && resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK)
+    if (candidate != nullptr) {
+        context.config = *candidate;
+    } else {
+        result = GetConfig(handle, &context.config);
+    }
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
+    if (context.config.enabled == 0) {
+        return PARAMETER_ERROR_LASER_SDK;
+    }
+    if (resource.laserHeadBrand != CQLASERPOWER_SDK && resource.laserHeadBrand != BCXLASERPOWER_SDK && resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK) {
         return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     context.mapped = laser_parameters::UsesMappedParameters(handle, resource.laserHeadBrand);
     context.wireWelding = resource.weldingProcessType == WIRE_WELDING_LASERSDK;
     result = laser_parameters::GetMachineConfiguration(handle, context.parameters, &context.explicitlyConfigured);
-    if (result != SUCCESS_LASER_SDK) return result;
-    if (!context.mapped && resource.laserHeadBrand == CQLASERPOWER_SDK)
-    {
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
+    if (!context.mapped && resource.laserHeadBrand == CQLASERPOWER_SDK) {
         // 旧协议的动态目标是快速峰值地址，绝不把激光器额定功率地址用于渐变。
         LaserParameterDescriptorSdk power = {};
         power.structSize = sizeof(power);
@@ -109,7 +120,7 @@ LaserSdkResult resolve(LaserMachineHandle handle, const MachineResource& resourc
         power.rounding = LASER_PARAMETER_NEAREST_SDK;
         power.scale = 1;
         power.minimum = 0;
-        power.maximum = 65535;
+        power.maximum = (std::numeric_limits<uint16_t>::max)();
         power.flags = LASER_PARAMETER_WRITABLE_SDK;
         std::strcpy(power.name, "快速峰值功率");
         std::strcpy(power.unit, "W");
@@ -121,31 +132,35 @@ LaserSdkResult resolve(LaserMachineHandle handle, const MachineResource& resourc
         context.parameters.descriptors.push_back(power);
         context.parameters.bindings.push_back(binding);
     }
-    const unsigned powerId = resource.laserHeadBrand == CQLASERPOWER_SDK
-            ? LASER_PARAM_FAST_PEAK_POWER_SDK : LASER_PARAM_WELD_POWER_SDK;
+    const unsigned powerId = resource.laserHeadBrand == CQLASERPOWER_SDK ? LASER_PARAM_FAST_PEAK_POWER_SDK : LASER_PARAM_WELD_POWER_SDK;
     result = descriptor(context.parameters, powerId, context.power, context.powerAddress);
-    if (result != SUCCESS_LASER_SDK) return result;
-    if (std::strcmp(context.power.unit, "W") != 0) return PARAM_TYPE_ERROR_LASER_SDK;
-    if (context.wireWelding)
-    {
-        result = descriptor(context.parameters, LASER_PARAM_WIRE_FEED_SPEED_SDK, context.wire, context.wireAddress);
-        if (result != SUCCESS_LASER_SDK) return result;
-        if (std::strcmp(context.wire.unit, "mm/s") != 0 && std::strcmp(context.wire.unit, "cm/min") != 0)
-            return PARAM_TYPE_ERROR_LASER_SDK;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
     }
-    if (!context.mapped && (context.config.settleTimeMs < kLegacyFrameSettleMs
-            || context.config.updatePeriodMs < context.config.settleTimeMs * (context.wireWelding ? 2u : 1u)))
+    if (std::strcmp(context.power.unit, "W") != 0) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
+    if (context.wireWelding) {
+        result = descriptor(context.parameters, LASER_PARAM_WIRE_FEED_SPEED_SDK, context.wire, context.wireAddress);
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
+        if (std::strcmp(context.wire.unit, "mm/s") != 0 && std::strcmp(context.wire.unit, "cm/min") != 0) {
+            return PARAM_TYPE_ERROR_LASER_SDK;
+        }
+    }
+    if (!context.mapped &&
+        (context.config.settleTimeMs < kLegacyFrameSettleMs || context.config.updatePeriodMs < context.config.settleTimeMs * (context.wireWelding ? 2u : 1u))) {
         return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
     return laser_parameters::ValidateConfiguration(context.parameters);
 }
 
-double nativeWire(const Context& context, double millimetersPerSecond)
-{
-    return std::strcmp(context.wire.unit, "cm/min") == 0 ? millimetersPerSecond * 6.0 : millimetersPerSecond;
+double nativeWire(const Context &context, double millimetersPerSecond) {
+    return std::strcmp(context.wire.unit, "cm/min") == 0 ? millimetersPerSecond * kMillimetersPerSecondToCentimetersPerMinute : millimetersPerSecond;
 }
 
-LaserSdkResult encode(const Context& context, unsigned id, double value, unsigned& raw)
-{
+LaserSdkResult encode(const Context &context, unsigned id, double value, unsigned &raw) {
     LaserParameterValueSdk parameter = {};
     parameter.structSize = sizeof(parameter);
     parameter.parameterId = id;
@@ -153,74 +168,71 @@ LaserSdkResult encode(const Context& context, unsigned id, double value, unsigne
     std::vector<LaserParameterValueSdk> values(1, parameter);
     laser_parameters::WritePlan plan;
     const LaserSdkResult result = laser_parameters::CompileWritePlan(context.parameters, values, plan);
-    if (result != SUCCESS_LASER_SDK) return result;
-    if (plan.operations.size() != 1 || plan.operations[0].words.size() != 1)
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
+    if (plan.operations.size() != 1 || plan.operations[0].words.size() != 1) {
         return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     raw = plan.operations[0].words[0];
     return SUCCESS_LASER_SDK;
 }
 
 /** @brief SDK 外控保留原配置时间能力，另外限制单阶段最多一分钟，避免巨大输入无限等待。 */
-LaserSdkResult checkTime(const Context& context, unsigned id, double milliseconds)
-{
-    if (!std::isfinite(milliseconds) || milliseconds < 0 || milliseconds > 60000.0)
+LaserSdkResult checkTime(const Context &context, unsigned id, double milliseconds) {
+    if (!std::isfinite(milliseconds) || milliseconds < 0 || milliseconds > kMaximumPhaseDurationMs) {
         return PARAMETER_OUT_OF_RANGE_LASER_SDK;
-    for (std::size_t i = 0; i < context.parameters.descriptors.size(); ++i)
-    {
-        const LaserParameterDescriptorSdk& item = context.parameters.descriptors[i];
-        if (item.parameterId == id)
-        {
-            if (std::strcmp(item.unit, "ms") != 0) return PARAM_TYPE_ERROR_LASER_SDK;
-            return milliseconds >= item.minimum && milliseconds <= item.maximum
-                    ? SUCCESS_LASER_SDK : PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
+    for (std::size_t i = 0; i < context.parameters.descriptors.size(); ++i) {
+        const LaserParameterDescriptorSdk &item = context.parameters.descriptors[i];
+        if (item.parameterId == id) {
+            if (std::strcmp(item.unit, "ms") != 0) {
+                return PARAM_TYPE_ERROR_LASER_SDK;
+            }
+            return milliseconds >= item.minimum && milliseconds <= item.maximum ? SUCCESS_LASER_SDK : PARAMETER_OUT_OF_RANGE_LASER_SDK;
         }
     }
     return PARAM_TYPE_ERROR_LASER_SDK;
 }
 
-LaserSdkResult checkTimes(const Context& context, const CgxiLaserPowerLaserSdk& parameters)
-{
+LaserSdkResult checkTimes(const Context &context, const CgxiLaserPowerLaserSdk &parameters) {
     const unsigned ids[] = {LASER_PARAM_RAMP_UP_TIME_SDK, LASER_PARAM_RAMP_DOWN_TIME_SDK};
     const double values[] = {static_cast<double>(parameters.laserRampUpTime), parameters.laserRampDownTime};
-    for (unsigned i = 0; i < 2; ++i)
-    {
+    for (unsigned i = 0; i < 2; ++i) {
         const LaserSdkResult result = checkTime(context, ids[i], values[i]);
-        if (result != SUCCESS_LASER_SDK) return result;
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
     }
     return SUCCESS_LASER_SDK;
 }
 
 /** @brief 编译同一阶段的三个精确端点；自熔焊在此之前就屏蔽所有送丝字段读取。 */
-LaserSdkResult endpoints(const Context& context, const MachineResource& resource,
-                         unsigned (&power)[3], unsigned (&wire)[3])
-{
-    const double powers[] = {static_cast<double>(resource.laserPowerParams.laserPowerOpen),
-                             static_cast<double>(resource.laserHeadParams.laserHeadPeakPower),
-                             static_cast<double>(resource.laserPowerParams.laserPowerClose)};
-    for (unsigned i = 0; i < 3; ++i)
-    {
+LaserSdkResult endpoints(const Context &context, const MachineResource &resource, unsigned (&power)[3], unsigned (&wire)[3]) {
+    const double powers[] = {static_cast<double>(resource.laserPowerParams.laserPowerOpen), static_cast<double>(resource.laserHeadParams.laserHeadPeakPower),
+        static_cast<double>(resource.laserPowerParams.laserPowerClose)};
+    for (unsigned i = 0; i < 3; ++i) {
         const LaserSdkResult result = encode(context, context.power.parameterId, powers[i], power[i]);
-        if (result != SUCCESS_LASER_SDK) return result;
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
     }
-    if (context.wireWelding)
-    {
-        const CgxiWireFeederLaserSdk& wireParameters = resource.wireFeederParams;
-        const double speeds[] = {static_cast<double>(wireParameters.wireFeederStartMotorSpeed),
-                                  static_cast<double>(wireParameters.wireFeederMotorSpeed),
-                                  static_cast<double>(wireParameters.wireFeederStopMotorSpeed)};
-        for (unsigned i = 0; i < 3; ++i)
-        {
-            const LaserSdkResult result = encode(context, LASER_PARAM_WIRE_FEED_SPEED_SDK,
-                                                 nativeWire(context, speeds[i]), wire[i]);
-            if (result != SUCCESS_LASER_SDK) return result;
+    if (context.wireWelding) {
+        const CgxiWireFeederLaserSdk &wireParameters = resource.wireFeederParams;
+        const double speeds[] = {static_cast<double>(wireParameters.wireFeederStartMotorSpeed), static_cast<double>(wireParameters.wireFeederMotorSpeed),
+            static_cast<double>(wireParameters.wireFeederStopMotorSpeed)};
+        for (unsigned i = 0; i < 3; ++i) {
+            const LaserSdkResult result = encode(context, LASER_PARAM_WIRE_FEED_SPEED_SDK, nativeWire(context, speeds[i]), wire[i]);
+            if (result != SUCCESS_LASER_SDK) {
+                return result;
+            }
         }
     }
     return SUCCESS_LASER_SDK;
 }
 
 /** @brief 仅在串口发送前生成一帧；等待点在带代次校验的调用方，避免取消后旧函数重试。 */
-std::string serialWriter()
-{
+std::string serialWriter() {
     return R"(
 local function cl_ramp_xor(a, b)
     local result, bit = 0, 1
@@ -272,85 +284,93 @@ end
 )";
 }
 
-std::string writer(const Context& context, const MachineResource& resource, bool wire, const std::string& value)
-{
+std::string writer(const Context &context, const MachineResource &resource, bool wire, const std::string &value) {
     std::ostringstream output;
-    if (context.mapped)
+    if (context.mapped) {
         output << "write_int16_register(" << (wire ? context.wireAddress : context.powerAddress) << ", " << value << ")\n";
-    else
-    {
+    } else {
         const BrandProtocolProfile profile = GetBrandProtocolAdapter(resource.laserHeadBrand).profile();
-        output << "if not cl_ramp_serial(" << (wire ? profile.wireFeederWriteSingleScriptCode : profile.laserWriteSingleScriptCode)
-               << ", " << (wire ? context.wireAddress : context.powerAddress) << ", " << value << ", " << (wire ? 2 : 3)
-               << ", 0, deadline) then return false end\n";
+        output << "if not cl_ramp_serial(" << (wire ? profile.wireFeederWriteSingleScriptCode : profile.laserWriteSingleScriptCode) << ", "
+               << (wire ? context.wireAddress : context.powerAddress) << ", " << value << ", " << (wire ? 2 : 3) << ", 0, deadline) then return false end\n";
     }
     return output.str();
 }
 
 /** @brief 关丝只负责协议触发，抽补丝由板卡已配置的长度、延时和断丝模式执行。 */
-LaserSdkResult wireSwitch(const Context& context, const MachineResource& resource, bool enabled, std::string& script)
-{
-    if (!context.wireWelding) { script.clear(); return SUCCESS_LASER_SDK; }
-    const BrandProtocolAdapter& adapter = GetBrandProtocolAdapter(resource.laserHeadBrand);
-    if (adapter.controlsWireThroughDigitalOutput())
-    {
+LaserSdkResult wireSwitch(const Context &context, const MachineResource &resource, bool enabled, std::string &script) {
+    if (!context.wireWelding) {
+        script.clear();
+        return SUCCESS_LASER_SDK;
+    }
+    const BrandProtocolAdapter &adapter = GetBrandProtocolAdapter(resource.laserHeadBrand);
+    if (adapter.controlsWireThroughDigitalOutput()) {
         script = enabled ? "set_configurable_digital_out(2, true)\n" : "set_configurable_digital_out(2, false)\n";
         return SUCCESS_LASER_SDK;
     }
-    if (!context.mapped)
-    {
+    if (!context.mapped) {
         std::ostringstream output;
-        output << "if not cl_ramp_serial(" << adapter.profile().laserWriteSingleScriptCode << ", "
-               << resource.wireFeedSignalLoc << ", " << (enabled ? 1 : 0) << ", 3) then return end\n";
+        output << "if not cl_ramp_serial(" << adapter.profile().laserWriteSingleScriptCode << ", " << resource.wireFeedSignalLoc << ", " << (enabled ? 1 : 0)
+               << ", 3) then return end\n";
         script = output.str();
         return SUCCESS_LASER_SDK;
     }
     LaserParameterDescriptorSdk signal = {};
     unsigned address = 0;
     const LaserSdkResult result = descriptor(context.parameters, LASER_PARAM_WIRE_FEED_SWITCH_SDK, signal, address);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     unsigned raw = 0;
     const LaserSdkResult encoded = encode(context, LASER_PARAM_WIRE_FEED_SWITCH_SDK, enabled ? 1 : 0, raw);
-    if (encoded != SUCCESS_LASER_SDK) return encoded;
+    if (encoded != SUCCESS_LASER_SDK) {
+        return encoded;
+    }
     script = "write_int16_register(" + std::to_string(address) + ", " + std::to_string(raw) + ")\n";
     return SUCCESS_LASER_SDK;
 }
 } // 匿名命名空间
 
-LaserSdkResult GetConfig(LaserMachineHandle handle, LaserRampControlConfigSdk* config)
-{
-    if (!exists(handle)) return HANDLE_ERROR_LASER_SDK;
-    if (config == nullptr || config->structSize < sizeof(*config)) return PARAMETER_ERROR_LASER_SDK;
+LaserSdkResult GetConfig(LaserMachineHandle handle, LaserRampControlConfigSdk *config) {
+    if (!exists(handle)) {
+        return HANDLE_ERROR_LASER_SDK;
+    }
+    if (config == nullptr || config->structSize < sizeof(*config)) {
+        return PARAMETER_ERROR_LASER_SDK;
+    }
     std::lock_guard<std::mutex> lock(configurationMutex);
     const std::map<LaserMachineHandle, LaserRampControlConfigSdk>::const_iterator it = configurations.find(handle);
     *config = it == configurations.end() ? defaults() : it->second;
     return SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult SetConfig(LaserMachineHandle handle, const LaserRampControlConfigSdk* config)
-{
-    if (!exists(handle)) return HANDLE_ERROR_LASER_SDK;
-    if (config == nullptr || config->structSize < sizeof(*config)
-            || config->version != LASER_RAMP_CONTROL_CONFIG_VERSION_SDK || config->enabled > 1)
+LaserSdkResult SetConfig(LaserMachineHandle handle, const LaserRampControlConfigSdk *config) {
+    if (!exists(handle)) {
+        return HANDLE_ERROR_LASER_SDK;
+    }
+    if (config == nullptr || config->structSize < sizeof(*config) || config->version != LASER_RAMP_CONTROL_CONFIG_VERSION_SDK || config->enabled > 1) {
         return PARAMETER_ERROR_LASER_SDK;
-    if (config->updatePeriodMs < 1 || config->updatePeriodMs > 1000 || config->settleTimeMs > 1000
-            || config->timeoutMs < config->updatePeriodMs || config->timeoutMs < config->settleTimeMs
-            || config->timeoutMs > 60000)
+    }
+    if (config->updatePeriodMs < 1 || config->updatePeriodMs > kMaximumUpdatePeriodMs || config->settleTimeMs > kMaximumSettleTimeMs ||
+        config->timeoutMs < config->updatePeriodMs || config->timeoutMs < config->settleTimeMs || config->timeoutMs > kMaximumTimeoutMs) {
         return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
     // 安装之前验证型号和动态目标，失败时不污染既有配置。
-    const MachineResource& resource = machineResourcesMap.find(handle)->second;
-    if (config->enabled)
-    {
-        if (resource.laserHeadBrand != CQLASERPOWER_SDK && resource.laserHeadBrand != BCXLASERPOWER_SDK
-                && resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK) return PARAM_TYPE_ERROR_LASER_SDK;
-        if (!laser_parameters::UsesMappedParameters(handle, resource.laserHeadBrand)
-                && (config->settleTimeMs < kLegacyFrameSettleMs
-                    || config->updatePeriodMs < config->settleTimeMs
-                       * (resource.weldingProcessType == WIRE_WELDING_LASERSDK ? 2u : 1u)))
+    const MachineResource &resource = machineResourcesMap.find(handle)->second;
+    if (config->enabled) {
+        if (resource.laserHeadBrand != CQLASERPOWER_SDK && resource.laserHeadBrand != BCXLASERPOWER_SDK &&
+            resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK) {
+            return PARAM_TYPE_ERROR_LASER_SDK;
+        }
+        if (!laser_parameters::UsesMappedParameters(handle, resource.laserHeadBrand) &&
+            (config->settleTimeMs < kLegacyFrameSettleMs ||
+                config->updatePeriodMs < config->settleTimeMs * (resource.weldingProcessType == WIRE_WELDING_LASERSDK ? 2u : 1u))) {
             return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+        }
         Context context = {};
         const LaserSdkResult result = resolve(handle, resource, context, config);
-        if (result != SUCCESS_LASER_SDK) return result;
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
     }
     LaserRampControlConfigSdk copy = *config;
     copy.structSize = sizeof(copy);
@@ -359,37 +379,41 @@ LaserSdkResult SetConfig(LaserMachineHandle handle, const LaserRampControlConfig
     return SUCCESS_LASER_SDK;
 }
 
-void ReleaseConfig(LaserMachineHandle handle)
-{
+void ReleaseConfig(LaserMachineHandle handle) {
     std::lock_guard<std::mutex> lock(configurationMutex);
     configurations.erase(handle);
 }
 
-LaserSdkResult ResetConfig(LaserMachineHandle handle)
-{
-    if (!exists(handle)) return HANDLE_ERROR_LASER_SDK;
+LaserSdkResult ResetConfig(LaserMachineHandle handle) {
+    if (!exists(handle)) {
+        return HANDLE_ERROR_LASER_SDK;
+    }
     ReleaseConfig(handle);
     return SUCCESS_LASER_SDK;
 }
 
-bool Enabled(LaserMachineHandle handle)
-{
+bool Enabled(LaserMachineHandle handle) {
     std::lock_guard<std::mutex> lock(configurationMutex);
     const std::map<LaserMachineHandle, LaserRampControlConfigSdk>::const_iterator it = configurations.find(handle);
     return it != configurations.end() && it->second.enabled != 0;
 }
 
-LaserSdkResult BuildRuntimeScript(LaserMachineHandle handle, const MachineResource& resource, std::string& script)
-{
+LaserSdkResult BuildRuntimeScript(LaserMachineHandle handle, const MachineResource &resource, std::string &script) {
     Context context = {};
     context.config.structSize = sizeof(context.config);
     LaserSdkResult result = resolve(handle, resource, context);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     std::string wireOn, wireOff;
     result = wireSwitch(context, resource, true, wireOn);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     result = wireSwitch(context, resource, false, wireOff);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     std::ostringstream output;
     output.imbue(std::locale::classic());
     // 同一控制器重新加载运行时，先使旧代次无效并删除旧任务，避免全局覆盖留下孤儿。
@@ -430,9 +454,10 @@ local function cl_ramp_valid(token, deadline)
     return true
 end
 )";
-    if (!context.mapped) output << serialWriter();
-    if (!context.mapped)
-    {
+    if (!context.mapped) {
+        output << serialWriter();
+    }
+    if (!context.mapped) {
         output << R"(
 function cl_ramp_prepare(code, address, value, port)
     local token = cl_ramp_ctx.token
@@ -461,17 +486,17 @@ local function cl_ramp_write(token, p, w, immediate, deadline)
     p = math.floor(p + 0.5)
 )" << writer(context, resource, false, "p")
            << "    cl_ramp_ctx.power = p\n";
-    if (!context.mapped)
+    if (!context.mapped) {
         output << "    if not immediate then wait(cl_ramp_settle) end\n    if not cl_ramp_valid(token, deadline) then return false end\n";
-    if (context.wireWelding)
-    {
+    }
+    if (context.wireWelding) {
         output << "    if w ~= nil then\n        w = math.floor(w + 0.5)\n"
-               << writer(context, resource, true, "w")
-               << "        cl_ramp_ctx.wire = w\n    end\n";
+               << writer(context, resource, true, "w") << "        cl_ramp_ctx.wire = w\n    end\n";
     }
     // 自由通讯自融只有功率一帧，上方已等待稳定；映射初值及填丝第二帧才在此等待。
-    if (context.mapped || context.wireWelding)
+    if (context.mapped || context.wireWelding) {
         output << "    if not immediate then wait(cl_ramp_settle) end\n";
+    }
     output << "    return cl_ramp_valid(token, deadline)\nend\n";
     output << R"(
 local function cl_ramp_stop_outputs(token)
@@ -479,7 +504,8 @@ local function cl_ramp_stop_outputs(token)
     -- 正常终点和异常均先关光，再按协议安全提交一次停丝，禁止终点保持出光等待串口。
     set_configurable_digital_out(1, false)
     if not cl_ramp_ctx.stopped then
-)" << wireOff << R"(
+)" << wireOff
+           << R"(
         if token ~= cl_ramp_ctx.token then return false end
         -- stopped 表示停丝已经提交；排队等待不能冒充完成，新代次必须接管未提交的停丝。
         cl_ramp_ctx.stopped = true
@@ -546,8 +572,9 @@ local function cl_ramp_phase(p0, p1, w0, w1, duration)
     local token = cl_ramp_ctx.token
     if cl_ramp_ctx.power ~= nil then p0 = cl_ramp_ctx.power end
 )";
-    if (context.wireWelding)
+    if (context.wireWelding) {
         output << "    if cl_ramp_ctx.wire ~= nil then w0 = cl_ramp_ctx.wire end\n";
+    }
     output << R"(
     local started = cl_ramp_now()
     local phase = cl_ramp_record_phase(p0, p1, w0, w1, duration, started, false)
@@ -558,8 +585,9 @@ local function cl_ramp_phase(p0, p1, w0, w1, duration)
     local function worker()
         while token == cl_ramp_ctx.token and cl_ramp_ctx.on do
 )";
-    if (!context.mapped)
+    if (!context.mapped) {
         output << "            if not cl_ramp_wait_bus(token) then return end\n";
+    }
     output << R"(
             local elapsed = cl_ramp_now() - started
             if elapsed < 0 or elapsed > duration + cl_ramp_timeout then
@@ -572,13 +600,14 @@ local function cl_ramp_phase(p0, p1, w0, w1, duration)
             local p = p0 + (p1-p0) * ratio
             local w = nil
 )";
-    if (context.wireWelding)
+    if (context.wireWelding) {
         output << "            w = w0 + (w1-w0) * ratio\n";
+    }
     output << R"(
 )";
     // 映射更新由主站周期传播，稳定等待只放在开光准备；周期任务不能额外拖长短坡度。
     output << (context.mapped ? "            if not cl_ramp_write(token, p, w, true, started+duration+cl_ramp_timeout) then return end\n"
-                             : "            if not cl_ramp_write(token, p, w, false, started+duration+cl_ramp_timeout) then return end\n");
+                              : "            if not cl_ramp_write(token, p, w, false, started+duration+cl_ramp_timeout) then return end\n");
     output << R"(
             if ratio >= 1 then
                 if token == cl_ramp_ctx.token and cl_ramp_ctx.phase == phase then
@@ -605,7 +634,9 @@ function cl_ramp_retarget(p, w)
         cl_ramp_ctx.request = {p0=p, p1=p, w0=w, w1=w, duration=0}
     end
 )";
-    if (context.wireWelding) output << "    cl_ramp_ctx.wire = w\n";
+    if (context.wireWelding) {
+        output << "    cl_ramp_ctx.wire = w\n";
+    }
     output << R"(
 end
 function cl_ramp_start(p0, p1, w0, w1, duration, preGas)
@@ -626,16 +657,15 @@ function cl_ramp_start(p0, p1, w0, w1, duration, preGas)
     if duration <= 0 then p0 = p1 w0 = w1 end
     if not cl_ramp_write(token, p0, w0, false, preparationStarted+cl_ramp_timeout) then return end
 )";
-    if (context.wireWelding && !context.mapped)
-    {
-        const BrandProtocolAdapter& adapter = GetBrandProtocolAdapter(resource.laserHeadBrand);
-        output << "    if not cl_ramp_prepare(" << adapter.profile().wireFeederWriteSingleScriptCode
-               << ", " << resource.wireFeederStatusLoc << ", "
+    if (context.wireWelding && !context.mapped) {
+        const BrandProtocolAdapter &adapter = GetBrandProtocolAdapter(resource.laserHeadBrand);
+        output << "    if not cl_ramp_prepare(" << adapter.profile().wireFeederWriteSingleScriptCode << ", " << resource.wireFeederStatusLoc << ", "
                << adapter.wireFeederRunStatusValue(WIRE_WELDING_LASERSDK) << ", 2) then return end\n";
     }
     output << R"(
     if token ~= cl_ramp_ctx.token then return end
-)" << wireOn << R"(
+)" << wireOn
+           << R"(
     if token ~= cl_ramp_ctx.token then return end
     cl_ramp_ctx.stopped = false
     cl_ramp_ctx.preparing = false
@@ -651,9 +681,10 @@ function cl_ramp_down(p0, p1, w0, w1, duration)
     if not cl_ramp_ctx.on then return end
     cl_ramp_ctx.resume = nil
 )";
-    if (!context.mapped)
+    if (!context.mapped) {
         output << "    if duration <= 0 then\n        cl_ramp_cancel()\n"
                   "        cl_ramp_record_phase(p1, p1, w1, w1, 0, cl_ramp_now(), true)\n        return\n    end\n";
+    }
     // 零距离的降功率点就是终点，自由通讯不得同步补帧阻塞随后的硬截止。
     output << R"(
     cl_ramp_phase(p0, p1, w0, w1, duration)
@@ -675,8 +706,9 @@ function cl_ramp_finish(p, w, postGas)
     local token = cl_ramp_ctx.token
     cl_ramp_ctx.on = false
 )";
-    if (context.mapped)
+    if (context.mapped) {
         output << "    if wasOn and not cl_ramp_write(token, p, w, true) then return end\n";
+    }
     // 自由通讯终点必须先截止出光，不能把三个帧压进同一个发送缓冲或等待完整剩余坡度。
     output << R"(
     -- 正常停丝仅在轨迹终点触发一次；板卡负责其已配置的回抽和补丝。
@@ -697,8 +729,9 @@ function cl_ramp_pause()
         snapshot = {p0=cl_ramp_ctx.power or target.p0, p1=target.p1,
                     w0=target.w0, w1=target.w1, duration=remaining, phaseOwner=cl_ramp_ctx.phaseOwner}
 )";
-    if (context.wireWelding)
+    if (context.wireWelding) {
         output << "        snapshot.w0 = cl_ramp_ctx.wire or target.w0\n";
+    }
     output << R"(
     end
     cl_ramp_ctx.resume = snapshot
@@ -739,87 +772,88 @@ end
     return SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult BuildStageScript(LaserMachineHandle handle, const MachineResource& resource,
-                               SwitchTypeLaserSdk arcSwitch, bool rampDownOnly, std::string& script)
-{
+LaserSdkResult BuildStageScript(LaserMachineHandle handle, const MachineResource &resource, SwitchTypeLaserSdk arcSwitch, bool rampDownOnly,
+    std::string &script) {
     Context context = {};
     context.config.structSize = sizeof(context.config);
     LaserSdkResult result = resolve(handle, resource, context);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     unsigned power[3] = {}, wire[3] = {};
     result = endpoints(context, resource, power, wire);
-    if (result != SUCCESS_LASER_SDK) return result;
-    const CgxiLaserPowerLaserSdk& parameters = resource.laserPowerParams;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
+    const CgxiLaserPowerLaserSdk &parameters = resource.laserPowerParams;
     result = checkTimes(context, parameters);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     std::ostringstream output;
     output.imbue(std::locale::classic());
     output << std::setprecision(17);
     const std::string startWire = context.wireWelding ? std::to_string(wire[0]) : "nil";
     const std::string weldWire = context.wireWelding ? std::to_string(wire[1]) : "nil";
     const std::string endWire = context.wireWelding ? std::to_string(wire[2]) : "nil";
-    if (arcSwitch == SWITCH_ON_LASER_SDK)
-    {
+    if (arcSwitch == SWITCH_ON_LASER_SDK) {
         output << "do\nlocal function requestedArcStart()\n";
         // 独立普通/慢速起弧也必须真实屏蔽板卡时间渐变，不能只依赖工艺下发的先后顺序。
         std::vector<LaserParameterValueSdk> envelope(4);
-        const unsigned ids[] = {LASER_PARAM_LASER_ON_POWER_SDK, LASER_PARAM_LASER_OFF_POWER_SDK,
-                                 LASER_PARAM_RAMP_UP_TIME_SDK, LASER_PARAM_RAMP_DOWN_TIME_SDK};
-        const double values[] = {resource.laserHeadBrand == BCXLASERPOWER_SDK
-                                 ? static_cast<double>(parameters.laserPowerOpen) : 100.0,
-                                 resource.laserHeadBrand == BCXLASERPOWER_SDK
-                                 ? static_cast<double>(parameters.laserPowerClose) : 100.0, 0.0, 0.0};
-        for (unsigned i = 0; i < 4; ++i)
-        {
+        const unsigned ids[] = {LASER_PARAM_LASER_ON_POWER_SDK, LASER_PARAM_LASER_OFF_POWER_SDK, LASER_PARAM_RAMP_UP_TIME_SDK, LASER_PARAM_RAMP_DOWN_TIME_SDK};
+        const double values[] = {resource.laserHeadBrand == BCXLASERPOWER_SDK ? static_cast<double>(parameters.laserPowerOpen) : kFullPowerPercent,
+            resource.laserHeadBrand == BCXLASERPOWER_SDK ? static_cast<double>(parameters.laserPowerClose) : kFullPowerPercent, 0.0, 0.0};
+        for (unsigned i = 0; i < 4; ++i) {
             envelope[i].structSize = sizeof(LaserParameterValueSdk);
             envelope[i].parameterId = ids[i];
             envelope[i].value = values[i];
         }
         laser_parameters::WritePlan plan;
         result = laser_parameters::CompileWritePlan(context.parameters, envelope, plan);
-        if (result != SUCCESS_LASER_SDK) return result;
-        if (context.mapped)
-        {
-            for (std::size_t i = 0; i < plan.operations.size(); ++i)
-                for (std::size_t j = 0; j < plan.operations[i].words.size(); ++j)
-                    output << "write_int16_register(" << plan.operations[i].address + j << ", "
-                           << plan.operations[i].words[j] << ")\n";
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
         }
-        else
-        {
+        if (context.mapped) {
+            for (std::size_t i = 0; i < plan.operations.size(); ++i) {
+                for (std::size_t j = 0; j < plan.operations[i].words.size(); ++j) {
+                    output << "write_int16_register(" << plan.operations[i].address + j << ", " << plan.operations[i].words[j] << ")\n";
+                }
+            }
+        } else {
             output << "do\nlocal preparationToken = cl_ramp_ctx.token\n";
             const unsigned code = GetBrandProtocolAdapter(resource.laserHeadBrand).profile().laserWriteSingleScriptCode;
-            for (std::size_t i = 0; i < plan.operations.size(); ++i)
-                for (std::size_t j = 0; j < plan.operations[i].words.size(); ++j)
+            for (std::size_t i = 0; i < plan.operations.size(); ++i) {
+                for (std::size_t j = 0; j < plan.operations[i].words.size(); ++j) {
                     output << "if preparationToken ~= cl_ramp_ctx.token then return end\n"
-                           << "if not cl_ramp_prepare(" << code << ", " << plan.operations[i].address + j << ", "
-                           << plan.operations[i].words[j] << ", 3) then return end\n";
+                           << "if not cl_ramp_prepare(" << code << ", " << plan.operations[i].address + j << ", " << plan.operations[i].words[j]
+                           << ", 3) then return end\n";
+                }
+            }
             output << "if preparationToken ~= cl_ramp_ctx.token then return end\nend\n";
         }
-        output << "cl_ramp_start(" << power[0] << ", " << power[1] << ", " << startWire << ", " << weldWire
-               << ", " << parameters.laserRampUpTime << ")\n";
+        output << "cl_ramp_start(" << power[0] << ", " << power[1] << ", " << startWire << ", " << weldWire << ", " << parameters.laserRampUpTime << ")\n";
         output << "end\ncl_ramp_submit_start(requestedArcStart)\nend\n";
+    } else if (arcSwitch != SWITCH_OFF_LASER_SDK) {
+        return PARAMETER_ERROR_LASER_SDK;
+    } else if (rampDownOnly) {
+        output << "cl_ramp_down(" << power[1] << ", " << power[2] << ", " << weldWire << ", " << endWire << ", " << parameters.laserRampDownTime << ")\n";
+    } else {
+        output << "cl_ramp_finish(" << power[2] << ", " << endWire << ")\n";
     }
-    else if (arcSwitch != SWITCH_OFF_LASER_SDK) return PARAMETER_ERROR_LASER_SDK;
-    else if (rampDownOnly)
-        output << "cl_ramp_down(" << power[1] << ", " << power[2] << ", " << weldWire << ", " << endWire
-               << ", " << parameters.laserRampDownTime << ")\n";
-    else output << "cl_ramp_finish(" << power[2] << ", " << endWire << ")\n";
     script = output.str();
     return SUCCESS_LASER_SDK;
 }
 
-LaserSdkResult BuildCraftScript(LaserMachineHandle handle, const MachineResource& resource,
-                               const CraftInfoLaserSdk& craft, std::string& script)
-{
+LaserSdkResult BuildCraftScript(LaserMachineHandle handle, const MachineResource &resource, const CraftInfoLaserSdk &craft, std::string &script) {
     Context context = {};
     context.config.structSize = sizeof(context.config);
     LaserSdkResult result = resolve(handle, resource, context);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     CraftInfoLaserSdk prepared = craft;
     // 自熔焊只使用无丝副本，后续兼容转换函数不会读取原工艺未初始化的送丝字段。
-    if (!context.wireWelding)
-    {
+    if (!context.wireWelding) {
         prepared.craftWeldingWireFeed = 0;
         prepared.craftLeadInWireFeed = 0;
         prepared.craftLeadOutWireFeed = 0;
@@ -830,65 +864,73 @@ LaserSdkResult BuildCraftScript(LaserMachineHandle handle, const MachineResource
         prepared.craftWireCutMode = NORMAL;
         prepared.craftStepEquivalent = 0;
     }
-    if (!context.explicitlyConfigured)
-    {
+    if (!context.explicitlyConfigured) {
         // 显式外控不能绕过原默认型号的额定功率、图形、扫描及时间校验。
         CraftInfoLaserSdk validation = prepared;
-        if (context.wireWelding)
-        {
-            if (nativeWire(context, craft.craftWeldingWireFeed) > std::numeric_limits<int>::max()
-                    || nativeWire(context, craft.craftLeadInWireFeed) > std::numeric_limits<int>::max()
-                    || nativeWire(context, craft.craftLeadOutWireFeed) > std::numeric_limits<int>::max())
+        if (context.wireWelding) {
+            if (nativeWire(context, craft.craftWeldingWireFeed) > std::numeric_limits<int>::max() ||
+                nativeWire(context, craft.craftLeadInWireFeed) > std::numeric_limits<int>::max() ||
+                nativeWire(context, craft.craftLeadOutWireFeed) > std::numeric_limits<int>::max()) {
                 return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+            }
             validation.craftWeldingWireFeed = static_cast<int>(nativeWire(context, craft.craftWeldingWireFeed));
             validation.craftLeadInWireFeed = static_cast<int>(nativeWire(context, craft.craftLeadInWireFeed));
             validation.craftLeadOutWireFeed = static_cast<int>(nativeWire(context, craft.craftLeadOutWireFeed));
         }
         result = GetBrandProtocolAdapter(resource.laserHeadBrand).checkCraft(validation);
-        if (result != SUCCESS_LASER_SDK) return result;
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
     }
     std::vector<LaserParameterValueSdk> converted;
     result = laser_parameters::BuildCraftValues(resource, prepared, converted);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     std::vector<LaserParameterValueSdk> selected;
     const bool legacy = resource.laserHeadBrand == CQLASERPOWER_SDK;
-    for (std::size_t i = 0; i < converted.size(); ++i)
-    {
+    for (std::size_t i = 0; i < converted.size(); ++i) {
         LaserParameterValueSdk parameter = converted[i];
-        if (parameter.parameterId == LASER_PARAM_RATED_POWER_SDK
-                || (legacy && parameter.parameterId == LASER_PARAM_WELD_POWER_SDK)) continue;
-        if (wireParameter(parameter.parameterId))
-        {
-            if (!context.wireWelding) continue;
-            if (parameter.parameterId == LASER_PARAM_WIRE_FEED_SWITCH_SDK
-                    || parameter.parameterId == LASER_PARAM_WIRE_RUN_STATE_SDK)
-            {
-                if (resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK
-                        || parameter.parameterId != LASER_PARAM_WIRE_FEED_SWITCH_SDK) continue;
+        if (parameter.parameterId == LASER_PARAM_RATED_POWER_SDK || (legacy && parameter.parameterId == LASER_PARAM_WELD_POWER_SDK)) {
+            continue;
+        }
+        if (wireParameter(parameter.parameterId)) {
+            if (!context.wireWelding) {
+                continue;
+            }
+            if (parameter.parameterId == LASER_PARAM_WIRE_FEED_SWITCH_SDK || parameter.parameterId == LASER_PARAM_WIRE_RUN_STATE_SDK) {
+                if (resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK || parameter.parameterId != LASER_PARAM_WIRE_FEED_SWITCH_SDK) {
+                    continue;
+                }
                 // 完整首站准备保持停丝，起弧阶段仍按原控制流程打开送丝。
                 parameter.value = 0;
             }
-            if (parameter.parameterId == LASER_PARAM_WIRE_FEED_SPEED_SDK
-                    || parameter.parameterId == LASER_PARAM_START_WIRE_FEED_SPEED_SDK
-                    || parameter.parameterId == LASER_PARAM_STOP_WIRE_FEED_SPEED_SDK)
+            if (parameter.parameterId == LASER_PARAM_WIRE_FEED_SPEED_SDK || parameter.parameterId == LASER_PARAM_START_WIRE_FEED_SPEED_SDK ||
+                parameter.parameterId == LASER_PARAM_STOP_WIRE_FEED_SPEED_SDK) {
                 parameter.value = nativeWire(context, parameter.value);
+            }
         }
         // 外控只关闭板卡时间渐变，功率端点保留品牌协议语义，不能把四个字段一律清零。
-        if (parameter.parameterId == LASER_PARAM_RAMP_UP_TIME_SDK
-                || parameter.parameterId == LASER_PARAM_RAMP_DOWN_TIME_SDK) parameter.value = 0;
-        if (resource.laserHeadBrand != BCXLASERPOWER_SDK
-                && (parameter.parameterId == LASER_PARAM_LASER_ON_POWER_SDK
-                    || parameter.parameterId == LASER_PARAM_LASER_OFF_POWER_SDK)) parameter.value = 100;
+        if (parameter.parameterId == LASER_PARAM_RAMP_UP_TIME_SDK || parameter.parameterId == LASER_PARAM_RAMP_DOWN_TIME_SDK) {
+            parameter.value = 0;
+        }
+        if (resource.laserHeadBrand != BCXLASERPOWER_SDK &&
+            (parameter.parameterId == LASER_PARAM_LASER_ON_POWER_SDK || parameter.parameterId == LASER_PARAM_LASER_OFF_POWER_SDK)) {
+            parameter.value = kFullPowerPercent;
+        }
         bool writable = false;
-        for (std::size_t j = 0; j < context.parameters.descriptors.size(); ++j)
-            if (context.parameters.descriptors[j].parameterId == parameter.parameterId)
+        for (std::size_t j = 0; j < context.parameters.descriptors.size(); ++j) {
+            if (context.parameters.descriptors[j].parameterId == parameter.parameterId) {
                 writable = (context.parameters.descriptors[j].flags & LASER_PARAMETER_WRITABLE_SDK) != 0;
-        if (writable) selected.push_back(parameter);
+            }
+        }
+        if (writable) {
+            selected.push_back(parameter);
+        }
     }
     laser_parameters::CompleteSup26SelfWeldCraftValues(resource, selected);
     // 旧超强工艺仍设置初始峰值，但新实际运行功率只写快速峰值，保持额定功率不动。
-    if (legacy)
-    {
+    if (legacy) {
         LaserParameterValueSdk power = {};
         power.structSize = sizeof(power);
         power.parameterId = LASER_PARAM_FAST_PEAK_POWER_SDK;
@@ -898,45 +940,47 @@ LaserSdkResult BuildCraftScript(LaserMachineHandle handle, const MachineResource
     MachineResource snapshot = resource;
     laser_parameters::UpdateCompilationResource(snapshot, prepared);
     result = checkTimes(context, snapshot.laserPowerParams);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     unsigned powers[3] = {}, wires[3] = {};
     result = endpoints(context, snapshot, powers, wires);
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     // 使用本次已经扩充的配置；自由通讯仍走品牌协议渲染，映射仅写本地槽。
     std::string body;
-    if (context.mapped)
+    if (context.mapped) {
         result = laser_parameters::BuildDeviceParametersScript(resource, &context.parameters, selected, body);
-    else
-    {
+    } else {
         laser_parameters::WritePlan plan;
         result = laser_parameters::CompileWritePlan(context.parameters, selected, plan);
-        if (result == SUCCESS_LASER_SDK)
-        {
+        if (result == SUCCESS_LASER_SDK) {
             // 新外控脚本使用同一无后台重试的帧发送器，保持 Lua5.1 兼容和取消边界。
             const BrandProtocolProfile profile = GetBrandProtocolAdapter(resource.laserHeadBrand).profile();
             std::ostringstream emitted;
             emitted << "do\nlocal preparationToken = cl_ramp_ctx.token\n";
-            for (std::size_t i = 0; i < plan.operations.size(); ++i)
-            {
-                const laser_parameters::WriteOperation& operation = plan.operations[i];
-                const bool directWire = operation.parameterId >= LASER_PARAM_WIRE_FEED_SPEED_SDK
-                        && operation.parameterId <= LASER_PARAM_MANUAL_RETRACT_SWITCH_SDK;
-                for (std::size_t word = 0; word < operation.words.size(); ++word)
+            for (std::size_t i = 0; i < plan.operations.size(); ++i) {
+                const laser_parameters::WriteOperation &operation = plan.operations[i];
+                const bool directWire = operation.parameterId >= LASER_PARAM_WIRE_FEED_SPEED_SDK &&
+                    operation.parameterId <= LASER_PARAM_MANUAL_RETRACT_SWITCH_SDK;
+                for (std::size_t word = 0; word < operation.words.size(); ++word) {
                     emitted << "if preparationToken ~= cl_ramp_ctx.token then return end\n"
-                            << "if not cl_ramp_prepare(" << (directWire ? profile.wireFeederWriteSingleScriptCode
-                                                                    : profile.laserWriteSingleScriptCode)
-                            << ", " << operation.address + word << ", " << operation.words[word]
-                            << ", " << (directWire ? 2 : 3) << ") then return end\n";
+                            << "if not cl_ramp_prepare(" << (directWire ? profile.wireFeederWriteSingleScriptCode : profile.laserWriteSingleScriptCode) << ", "
+                            << operation.address + word << ", " << operation.words[word] << ", " << (directWire ? 2 : 3) << ") then return end\n";
+                }
             }
             emitted << "if preparationToken ~= cl_ramp_ctx.token then return end\nend\n";
             body = emitted.str();
         }
     }
-    if (result != SUCCESS_LASER_SDK) return result;
+    if (result != SUCCESS_LASER_SDK) {
+        return result;
+    }
     std::ostringstream output;
-    output << "if cl_ramp_cancel ~= nil then cl_ramp_cancel() end\n" << body
-           << "if cl_ramp_retarget ~= nil then cl_ramp_retarget(" << powers[1] << ", "
-           << (context.wireWelding ? std::to_string(wires[1]) : "nil") << ") end\n";
+    output << "if cl_ramp_cancel ~= nil then cl_ramp_cancel() end\n"
+           << body << "if cl_ramp_retarget ~= nil then cl_ramp_retarget(" << powers[1] << ", " << (context.wireWelding ? std::to_string(wires[1]) : "nil")
+           << ") end\n";
     script = output.str();
     return SUCCESS_LASER_SDK;
 }

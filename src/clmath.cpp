@@ -8,117 +8,104 @@
 #include <cstdint>
 #include <stdexcept>
 
-void normalized_vector_HY(const double *vec, double *result)
-{
+void normalized_vector_HY(const double *vec, double *result) {
     double norm = norm_vec_HY(vec);
 
-    if (norm < ZeroThreshold_HY)
-    {
-        for (int i = 0; i < 3; i++)
-        {
+    if (norm < ZeroThreshold_HY) {
+        for (int i = 0; i < 3; i++) {
             result[i] = 0;
         }
-    }
-    else {
-        for (int i = 0; i < 3; i++)
-        {
+    } else {
+        for (int i = 0; i < 3; i++) {
             result[i] = vec[i] / norm;
         }
     }
 }
 
-void matrix_vector_multiply_HY(const double *matrix, const double *vec, double *result)
-{
-    for (int i = 0; i < 3; i++)
-    {
+void matrix_vector_multiply_HY(const double *matrix, const double *vec, double *result) {
+    for (int i = 0; i < 3; i++) {
         result[i] = 0;
-        for (int j = 0; j < 3; j++)
-        {
-            result[i] += matrix[i*3+j] * vec[j];
+        for (int j = 0; j < 3; j++) {
+            result[i] += matrix[i * 3 + j] * vec[j];
         }
     }
 }
 
 // 向量叉乘
-void vecCross(double xdir[3], double ydir[3], double result[3])
-{
+void vecCross(double xdir[3], double ydir[3], double result[3]) {
     result[0] = xdir[1] * ydir[2] - xdir[2] * ydir[1];
     result[1] = xdir[2] * ydir[0] - xdir[0] * ydir[2];
     result[2] = xdir[0] * ydir[1] - xdir[1] * ydir[0];
 }
 
-
-void normalizeVector(double Fn[3])
-{
-    // 计算Fn的长度
+void normalizeVector(double Fn[3]) {
     double length = sqrt(Fn[0] * Fn[0] + Fn[1] * Fn[1] + Fn[2] * Fn[2]);
 
-    if (length == 0.0)
-    {
+    if (length == 0.0) {
         throw std::runtime_error("起点和终点相同，无法计算");
     }
 
-    // 将Fn归一化
     Fn[0] /= length;
     Fn[1] /= length;
     Fn[2] /= length;
 }
 
 //计算交融半径
-LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r)
-{
-    // 1. 参数初始化
-    const double pathLen = 500.0;
-    const double tAhead = 0.002;
-    const double vPercent = 100.0;
-    const double jPercent = 100.0;
-    vMax = vMax * vPercent / 100.0;
-    aMax = aMax * std::sqrt(vPercent / 100.0);
-    double jMax = aMax * jPercent / 100.0 * 8.0;
+LaserSdkResult CalBlendingRadius(double vMax, double aMax, double *r) {
+    // 半径估算沿用控制器的固定参考轨迹和前瞻窗口，避免随实际线段长度改变结果。
+    constexpr double kReferencePathLengthMm = 500.0;
+    constexpr double kLookAheadTimeSeconds = 0.002;
+    constexpr double kFullPercentage = 100.0;
+    constexpr double kVelocityPercentage = 100.0;
+    constexpr double kJerkPercentage = 100.0;
+    constexpr double kJerkAccelerationFactor = 8.0;
+    constexpr double kMaximumBlendRadiusMm = 10.0;
+    vMax = vMax * kVelocityPercentage / kFullPercentage;
+    aMax = aMax * std::sqrt(kVelocityPercentage / kFullPercentage);
+    double jMax = aMax * kJerkPercentage / kFullPercentage * kJerkAccelerationFactor;
 
     // 2. 计算初始时间参数
-    double Tj = std::pow(pathLen / (2.0 * jMax), 1.0/3.0);
+    double Tj = std::pow(kReferencePathLengthMm / (2.0 * jMax), 1.0 / 3.0);
     double amax = jMax * Tj;
 
     // 3. 条件分支处理
     double Ta = 0.0, Tv = 0.0, vmax = 0.0;
 
-    if(amax > aMax) {
+    if (amax > aMax) {
         // 3.1 加速度超过限制的情况
         amax = aMax;
         Tj = aMax / jMax;
         double a = aMax;
         double b = jMax * std::pow(Tj, 2) + 2.0 * aMax * Tj;
-        double c = 2.0 * jMax * std::pow(Tj, 3) - pathLen;
+        double c = 2.0 * jMax * std::pow(Tj, 3) - kReferencePathLengthMm;
 
         // 解二次方程求Ta
         Ta = (-b + std::sqrt(std::pow(b, 2) - 4.0 * a * c)) / (2.0 * a);
         vmax = jMax * std::pow(Tj, 2) + aMax * Ta;
 
-        if(vmax > vMax) {
+        if (vmax > vMax) {
             // 3.1.1 速度超过限制的情况
             vmax = vMax;
-            if(std::pow(aMax, 2) / jMax > vMax) {
+            if (std::pow(aMax, 2) / jMax > vMax) {
                 Tj = std::sqrt(vMax / jMax);
                 aMax = jMax * Tj;
                 Ta = 0.0;
-                Tv = (pathLen - 2.0 * jMax * std::pow(Tj, 3)) / vMax;
+                Tv = (kReferencePathLengthMm - 2.0 * jMax * std::pow(Tj, 3)) / vMax;
             } else {
                 Ta = (vMax - jMax * std::pow(Tj, 2)) / aMax;
-                Tv = (pathLen - 2.0 * jMax * std::pow(Tj, 3) - aMax * std::pow(Ta, 2) -
-                     (jMax * std::pow(Tj, 2) + 2.0 * aMax * Tj) * Ta) / vMax;
+                Tv = (kReferencePathLengthMm - 2.0 * jMax * std::pow(Tj, 3) - aMax * std::pow(Ta, 2) - (jMax * std::pow(Tj, 2) + 2.0 * aMax * Tj) * Ta) / vMax;
             }
         } else {
             Tv = 0.0;
         }
     } else {
-        if(std::pow(amax, 2) / jMax > vMax) {
+        if (std::pow(amax, 2) / jMax > vMax) {
             // 3.2 速度限制主导的情况
             vmax = vMax;
             Tj = std::sqrt(vMax / jMax);
             amax = jMax * Tj;
             Ta = 0.0;
-            Tv = (pathLen - 2.0 * jMax * std::pow(Tj, 3)) / vMax;
+            Tv = (kReferencePathLengthMm - 2.0 * jMax * std::pow(Tj, 3)) / vMax;
         } else {
             // 3.3 正常情况
             vmax = std::pow(amax, 2) / jMax;
@@ -143,7 +130,7 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r)
     double S6 = S5 + V5 * Ta - jMax * Tj * std::pow(Ta, 2) / 2.0;
 
     // 5. 时间点计算
-    double t = Tj + Ta + Tj + tAhead;
+    double t = Tj + Ta + Tj + kLookAheadTimeSeconds;
 
     double t1 = t;
     double t2 = t1 - Tj;
@@ -156,72 +143,68 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r)
     // 6. 分段计算半径
     double radius = 0.0;
 
-    if(t <= Tj) {
-        radius = 1.0/6.0 * jMax * std::pow(t1, 3);
-    } else if(t < Tj + Ta) {
+    if (t <= Tj) {
+        radius = 1.0 / 6.0 * jMax * std::pow(t1, 3);
+    } else if (t < Tj + Ta) {
         radius = S1 + V1 * t2 + jMax * Tj * std::pow(t2, 2) / 2.0;
-    } else if(t < 2.0 * Tj + Ta) {
+    } else if (t < 2.0 * Tj + Ta) {
         radius = S2 + V2 * t3 + jMax * Tj * std::pow(t3, 2) / 2.0 - jMax * std::pow(t3, 3) / 6.0;
-    } else if(t < 2.0 * Tj + Ta + Tv) {
+    } else if (t < 2.0 * Tj + Ta + Tv) {
         radius = S3 + V3 * t4;
-    } else if(t < 3.0 * Tj + Ta + Tv) {
+    } else if (t < 3.0 * Tj + Ta + Tv) {
         radius = S4 + V4 * t5 - jMax * std::pow(t5, 3) / 6.0;
-    } else if(t < 3.0 * Tj + 2.0 * Ta + Tv) {
+    } else if (t < 3.0 * Tj + 2.0 * Ta + Tv) {
         radius = S5 + V5 * t6 - jMax * Tj * std::pow(t6, 2) / 2.0;
-    } else if(t < 4.0 * Tj + 2.0 * Ta + Tv) {
+    } else if (t < 4.0 * Tj + 2.0 * Ta + Tv) {
         radius = S6 + V6 * t7 - jMax * Tj * std::pow(t7, 2) / 2.0 + jMax * std::pow(t7, 3) / 6.0;
     } else {
-        radius = pathLen;
+        radius = kReferencePathLengthMm;
     }
 
     // 7. 约束处理
-    if (radius > pathLen / 2.0) {
-        radius = pathLen / 2.0;
+    if (radius > kReferencePathLengthMm / 2.0) {
+        radius = kReferencePathLengthMm / 2.0;
     }
     // 8. 最终约束处理
-    if (radius > 10.0) {
-        radius = 10.0;
+    if (radius > kMaximumBlendRadiusMm) {
+        radius = kMaximumBlendRadiusMm;
     }
 
-    *r =  radius;
+    *r = radius;
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 // 机械臂位姿逆解
-LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM])
-{
+LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM],
+    double tarJointPose[ROB_AXIS_NUM]) {
     TCPMsg tcpMsg;
     double flangePose[ROB_AXIS_NUM];
 
     CRresult result = cr_get_currentTCPmsg(robotHandle, &tcpMsg);
-    if(result != CRresult::sucess)
-    {
+    if (result != CRresult::sucess) {
         return crsdk_return_value_transfer(result);
     }
 
     result = cr_TcpToFlangePose(srcPose, tcpMsg.tcpOffset, flangePose);
-    if(result != CRresult::sucess)
-    {
+    if (result != CRresult::sucess) {
         return crsdk_return_value_transfer(result);
     }
 
     result = cr_kineInverse(robotHandle, flangePose, refJointPose, tarJointPose);
-    if(result != CRresult::sucess)
-    {
+    if (result != CRresult::sucess) {
         return crsdk_return_value_transfer(result);
     }
 
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
-void copy_pose_HY(const double *oldpose, double *pose)
-{
-    for(int k=0; k<6; k++)
+void copy_pose_HY(const double *oldpose, double *pose) {
+    for (int k = 0; k < 6; k++) {
         pose[k] = oldpose[k];
+    }
 }
 
-void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pose)
-{
+void pose_trans_HY(const double *pose, const double *delat_pose, double *new_pose) {
     double axis[3];
     double angle = norm_vec_HY(&pose[3]);
     normalized_vector_HY(&pose[3], axis);
@@ -249,24 +232,23 @@ void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pos
 
     for (int i = 0; i < 3; i++) {
         new_pose[i] = pose[i] + dp[i];
-        new_pose[i+3] = pose[i+3];
+        new_pose[i + 3] = pose[i + 3];
     }
 }
 
-LaserSdkResult getStraightLineSlowUpPoint(const double p1[6], const double p2[6], double backDistance, double pointTrans[6])
-{
+LaserSdkResult getStraightLineSlowUpPoint(const double p1[6], const double p2[6], double backDistance, double pointTrans[6]) {
     // 向量 AB = B - A
     double vx = p2[0] - p1[0];
     double vy = p2[1] - p1[1];
     double vz = p2[2] - p1[2];
 
-    double distance = sqrt(vx*vx + vy*vy + vz*vz);
+    double distance = sqrt(vx * vx + vy * vy + vz * vz);
     // 回退距离等于整段长度时会把合成点压到起点，无法形成两段有效轨迹。
     if (backDistance <= 0.0 || distance < 1e-6 || distance <= backDistance) {
         return LaserSdkResult::BACK_DISTANCE_LIMIT_LASER_SDK;
     }
 
-    double temp[3] = {vx,vy,vz};
+    double temp[3] = {vx, vy, vz};
     // 归一化向量
     normalizeVector(temp);
 
@@ -286,12 +268,12 @@ LaserSdkResult getStraightLineSlowUpPoint(const double p1[6], const double p2[6]
 }
 
 //圆弧收弧计算回退点为起点的三个示教点
-LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double newTransPoint[6], double newTransJointPoint[6], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6])
-{
+LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6],
+    double stopMapP[3], double newTransPoint[6], double newTransJointPoint[6], double restartP[6], double midP[6], double endP[6], double restartPJoint[6],
+    double midPJoint[6], double endPJoint[6]) {
     double centerPoint[3], axisVec[3], radius;
     int result = circle3dCalc(p1, p2, p3, &radius, centerPoint, axisVec);
-    if (result != 1)
-    {
+    if (result != 1) {
         std::cout << "空间圆计算失败" << std::endl;
         return LaserSdkResult::ARC_CALCULATE_FAILED_LASER_SDK;
     }
@@ -305,7 +287,7 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
     double angle2 = calculateAngle(vec2, vec3);
     double totalAngle = angle1 + angle2;
     double distance = radius * totalAngle;
-    if(backDistance <= 0.0 || distance <= backDistance){
+    if (backDistance <= 0.0 || distance <= backDistance) {
         return LaserSdkResult::BACK_DISTANCE_LIMIT_LASER_SDK;
     }
 
@@ -325,7 +307,7 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
     endP[3] = p3[3];
     endP[4] = p3[4];
     endP[5] = p3[5];
-    double PresPendVec[3] = {endP[0] - restartP[0],endP[1] - restartP[1],endP[2] - restartP[2]};
+    double PresPendVec[3] = {endP[0] - restartP[0], endP[1] - restartP[1], endP[2] - restartP[2]};
     double MidP[3];
     vecCross(PresPendVec, axisVec, MidP);
     double moerMidP = sqrt(pow(MidP[0], 2) + pow(MidP[1], 2) + pow(MidP[2], 2));
@@ -336,7 +318,7 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
     midP[4] = stopP[4];
     midP[5] = stopP[5];
 
-    double PresPendVec2[3] = {restartP[0] - p1[0],restartP[1] - p1[1],restartP[2] - p1[2]};
+    double PresPendVec2[3] = {restartP[0] - p1[0], restartP[1] - p1[1], restartP[2] - p1[2]};
     double MidP2[3];
     vecCross(PresPendVec2, axisVec, MidP2);
     double moerMidP2 = sqrt(pow(MidP2[0], 2) + pow(MidP2[1], 2) + pow(MidP2[2], 2));
@@ -350,32 +332,31 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
     LaserSdkResult res;
 
     res = kineInverse_tcpPose(robothandle, newTransPoint, refJoint, newTransJointPoint);
-    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK) {
         return res;
     }
     res = kineInverse_tcpPose(robothandle, restartP, refJoint, restartPJoint);
-    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK) {
         return res;
     }
     res = kineInverse_tcpPose(robothandle, midP, refJoint, midPJoint);
-    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK) {
         return res;
     }
     res = kineInverse_tcpPose(robothandle, endP, refJoint, endPJoint);
-    if (res != LaserSdkResult::SUCCESS_LASER_SDK){
+    if (res != LaserSdkResult::SUCCESS_LASER_SDK) {
         return res;
     }
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 //圆形焊缝映射点
-void getMapPoint(double centerP[3], double Fn[3], double radius, double stopPoint[3], double mapPoint[3])
-{
+void getMapPoint(double centerP[3], double Fn[3], double radius, double stopPoint[3], double mapPoint[3]) {
     // 归一化Fn
     normalizeVector(Fn);
 
     // 计算stopPoint到centerP的向量
-    double stopVec[3] = { stopPoint[0] - centerP[0], stopPoint[1] - centerP[1], stopPoint[2] - centerP[2] };
+    double stopVec[3] = {stopPoint[0] - centerP[0], stopPoint[1] - centerP[1], stopPoint[2] - centerP[2]};
 
     // 计算 Fn 向量的长度平方
     double FnDotFn = Fn[0] * Fn[0] + Fn[1] * Fn[1] + Fn[2] * Fn[2];
@@ -392,9 +373,8 @@ void getMapPoint(double centerP[3], double Fn[3], double radius, double stopPoin
     mapPoint[2] = stopPoint[2] - projectionLength * Fn[2];
 
     // 计算投影点到圆心的距离
-    double distance = sqrt((mapPoint[0] - centerP[0]) * (mapPoint[0] - centerP[0]) +
-                           (mapPoint[1] - centerP[1]) * (mapPoint[1] - centerP[1]) +
-                           (mapPoint[2] - centerP[2]) * (mapPoint[2] - centerP[2]));
+    double distance = sqrt((mapPoint[0] - centerP[0]) * (mapPoint[0] - centerP[0]) + (mapPoint[1] - centerP[1]) * (mapPoint[1] - centerP[1]) +
+        (mapPoint[2] - centerP[2]) * (mapPoint[2] - centerP[2]));
 
     // 计算比例因子来调整 mapPoint 使其落在圆上
     double factor = radius / distance;
@@ -405,10 +385,8 @@ void getMapPoint(double centerP[3], double Fn[3], double radius, double stopPoin
     mapPoint[2] = centerP[2] + factor * (mapPoint[2] - centerP[2]);
 }
 
-
 // 计算圆的半径、中心点和法向量
-int circle3dCalc(double point1[6], double point2[6], double point3[6], double* radius, double centerPoint[3], double axisVec[3])
-{
+int circle3dCalc(double point1[6], double point2[6], double point3[6], double *radius, double centerPoint[3], double axisVec[3]) {
     double x1 = point1[0], y1 = point1[1], z1 = point1[2];
     double x2 = point2[0], y2 = point2[1], z2 = point2[2];
     double x3 = point3[0], y3 = point3[1], z3 = point3[2];
@@ -435,10 +413,9 @@ int circle3dCalc(double point1[6], double point2[6], double point3[6], double* r
     double xyzDev = a1 * b2 * c3 - a1 * b3 * c2 - a2 * b1 * c3 + a2 * b3 * c1 + a3 * b1 * c2 - a3 * b2 * c1;
 
     // 如果行列式接近零，无法求解
-    if (fabs(xyzDev) < 1e-6)
-    {
+    if (fabs(xyzDev) < 1e-6) {
         printf("Circle3dCalc Fail!\n");
-        return 0;  // 失败
+        return 0; // 失败
     }
 
     // 计算圆心坐标
@@ -455,22 +432,19 @@ int circle3dCalc(double point1[6], double point2[6], double point3[6], double* r
     axisVec[1] = b1 / m;
     axisVec[2] = c1 / m;
 
-    return 1;  // 成功
+    return 1; // 成功
 }
 
-
 //圆形回退点
-void calculateP2Point(
-    const double O[3],    // 圆心坐标 [x,y,z]
-    const double Fn[3],   // 法向量 [x,y,z]
-    double r,             // 圆半径
-    const double P[3],    // 已知点P坐标 [x,y,z]
-    double c,             // 圆弧长度
-    double P2[3]          // 输出结果坐标 [x,y,z]
-)
-{
+void calculateP2Point(const double O[3], // 圆心坐标 [x,y,z]
+    const double Fn[3],                  // 法向量 [x,y,z]
+    double r,                            // 圆半径
+    const double P[3],                   // 已知点P坐标 [x,y,z]
+    double c,                            // 圆弧长度
+    double P2[3]                         // 输出结果坐标 [x,y,z]
+) {
     // 1. 计算向量 OP = P - O
-    double OP[3] = { P[0] - O[0], P[1] - O[1], P[2] - O[2] };
+    double OP[3] = {P[0] - O[0], P[1] - O[1], P[2] - O[2]};
 
     // 2. 归一化法向量
     double k[3];
@@ -483,22 +457,12 @@ void calculateP2Point(
     double theta = -c / r;
 
     // 4. 计算叉乘 k × OP
-    double cross[3] =
-    {
-        k[1] * OP[2] - k[2] * OP[1],
-        k[2] * OP[0] - k[0] * OP[2],
-        k[0] * OP[1] - k[1] * OP[0]
-    };
+    double cross[3] = {k[1] * OP[2] - k[2] * OP[1], k[2] * OP[0] - k[0] * OP[2], k[0] * OP[1] - k[1] * OP[0]};
 
     // 5. 应用旋转公式计算新向量
     double cos_theta = std::cos(theta);
     double sin_theta = std::sin(theta);
-    double OP2[3] =
-    {
-        OP[0] * cos_theta + cross[0] * sin_theta,
-        OP[1] * cos_theta + cross[1] * sin_theta,
-        OP[2] * cos_theta + cross[2] * sin_theta
-    };
+    double OP2[3] = {OP[0] * cos_theta + cross[0] * sin_theta, OP[1] * cos_theta + cross[1] * sin_theta, OP[2] * cos_theta + cross[2] * sin_theta};
 
     // 6. 计算最终坐标 P2 = O + OP2
     P2[0] = O[0] + OP2[0];
@@ -506,17 +470,14 @@ void calculateP2Point(
     P2[2] = O[2] + OP2[2];
 }
 
-
 //圆形回退点
-double calculateAngle(const double v1[3], const double v2[3])
-{
-    double dot = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
-        double mag1 = sqrt(v1[0]*v1[0] + v1[1]*v1[1] + v1[2]*v1[2]);
-        double mag2 = sqrt(v2[0]*v2[0] + v2[1]*v2[1] + v2[2]*v2[2]);
+double calculateAngle(const double v1[3], const double v2[3]) {
+    double dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+    double mag1 = sqrt(v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2]);
+    double mag2 = sqrt(v2[0] * v2[0] + v2[1] * v2[1] + v2[2] * v2[2]);
 
-        double cosTheta = dot / (mag1 * mag2);
-        // 处理浮点精度问题
-        cosTheta = std::max(-1.0, std::min(1.0, cosTheta));
-        return acos(cosTheta);
+    double cosTheta = dot / (mag1 * mag2);
+    // 处理浮点精度问题
+    cosTheta = std::max(-1.0, std::min(1.0, cosTheta));
+    return acos(cosTheta);
 }
-

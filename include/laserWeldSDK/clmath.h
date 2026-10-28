@@ -24,16 +24,15 @@
  * @param[in]   a   输入三维向量
  * @return 向量模运算结果
  */
-inline double norm_vec_HY(const double *a)
-{
+inline double norm_vec_HY(const double *a) {
     return sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
 }
 
 // 三维空间向量单位化
-void normalized_vector_HY(const double* vec, double* result);
+void normalized_vector_HY(const double *vec, double *result);
 
 // 3X3矩阵与3维向量乘法
-void matrix_vector_multiply_HY(const double* matrix, const double* vec, double* result);
+void matrix_vector_multiply_HY(const double *matrix, const double *vec, double *result);
 
 /**
  * @brief vecCross  空间向量叉乘计算
@@ -44,7 +43,7 @@ void matrix_vector_multiply_HY(const double* matrix, const double* vec, double* 
 void vecCross(double xdir[3], double ydir[3], double result[3]);
 
 //计算交融半径
-LaserSdkResult CalBlendingRadius(double vMax, double aMax, double* r);
+LaserSdkResult CalBlendingRadius(double vMax, double aMax, double *r);
 
 //向量归一化
 void normalizeVector(double Fn[3]);
@@ -53,7 +52,7 @@ void normalizeVector(double Fn[3]);
 LaserSdkResult kineInverse_tcpPose(RobotHandle robotHandle, double srcPose[ROB_AXIS_NUM], double refJointPose[ROB_AXIS_NUM], double tarJointPose[ROB_AXIS_NUM]);
 
 // 姿态复制(六维)
-void copy_pose_HY(const double* oldpose, double* pose);
+void copy_pose_HY(const double *oldpose, double *pose);
 
 /**
  * pose_trans 3D姿态变换,仅支持位置，仅用于焊接时抬枪计算
@@ -61,7 +60,7 @@ void copy_pose_HY(const double* oldpose, double* pose);
  * @param[in] delat_pose 增量姿态（6维数组）
  * @param[out] new_pose 输出姿态
  */
-void pose_trans_HY(const double* pose, const double* delat_pose, double* new_pose);
+void pose_trans_HY(const double *pose, const double *delat_pose, double *new_pose);
 
 /**
  * @brief getStraightLineSlowUpPoint 根据直线终点和回退距离计算降功率点
@@ -86,8 +85,9 @@ LaserSdkResult getStraightLineSlowUpPoint(const double p1[6], const double p2[6]
  * @param endP                 原始终点
  * @return WeldSdkResult       处理结果
  */
-LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6], double stopMapP[3], double newTransPoint[6], double newTransJointPoint[6], double restartP[6], double midP[6], double endP[6], double restartPJoint[6], double midPJoint[6], double endPJoint[6]);
-
+LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[6], double p3[6], double stopP[6], double backDistance, double refJoint[6],
+    double stopMapP[3], double newTransPoint[6], double newTransJointPoint[6], double restartP[6], double midP[6], double endP[6], double restartPJoint[6],
+    double midPJoint[6], double endPJoint[6]);
 
 // 计算圆的半径、中心点和法向量
 /**
@@ -100,9 +100,9 @@ LaserSdkResult getCirclrSlowDownPoints(int robothandle, double p1[6], double p2[
  * @param axisVec       空间圆的法向
  * @return              返回计算是否成功0失败、1成功
  */
-int circle3dCalc(double point1[6], double point2[6], double point3[6], double* radius, double centerPoint[3], double axisVec[3]);
+int circle3dCalc(double point1[6], double point2[6], double point3[6], double *radius, double centerPoint[3], double axisVec[3]);
 
-void getMapPoint(double centerP[3], double Fn[3], double radius, double stopPoint[3], double mapPoint[3]);//映射点
+void getMapPoint(double centerP[3], double Fn[3], double radius, double stopPoint[3], double mapPoint[3]); //映射点
 
 void calculateP2Point(const double O[3], const double Fn[3], double r, const double P[3], double c, double P2[3]);
 

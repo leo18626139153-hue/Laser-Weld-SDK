@@ -20,8 +20,7 @@
  * 描述结构的 parameterId 允许使用非零的自定义 unsigned 编号。
  * 已发布编号保持稳定；用户扩展编号须与同一配置中的其他参数编号不同。
  */
-enum LaserParameterIdSdk
-{
+enum LaserParameterIdSdk {
     LASER_PARAM_RATED_POWER_SDK = 1,             ///< 额定功率
     LASER_PARAM_WELD_POWER_SDK = 2,              ///< 焊接功率
     LASER_PARAM_LASER_ON_POWER_SDK = 3,          ///< 开光功率
@@ -66,21 +65,20 @@ enum LaserParameterIdSdk
     LASER_PARAM_LASER_ENABLE_SWITCH_SDK = 42,    ///< 激光使能开关
     LASER_PARAM_WIRE_FEED_SWITCH_SDK = 43,       ///< 送丝信号开关
     LASER_PARAM_WIRE_RETRACT_SPEED_SDK = 44,     ///< 收尾回抽速度
-    LASER_PARAM_DRIVER_TEMPERATURE_SDK = 45,    ///< 驱动器温度
-    LASER_PARAM_WINDOW_TEMPERATURE_SDK = 46,    ///< 保护镜温度
+    LASER_PARAM_DRIVER_TEMPERATURE_SDK = 45,     ///< 驱动器温度
+    LASER_PARAM_WINDOW_TEMPERATURE_SDK = 46,     ///< 保护镜温度
     LASER_PARAM_COLLIMATOR_TEMPERATURE_SDK = 47, ///< 准直镜温度
-    LASER_PARAM_EXPERT_MODE_SDK = 48,           ///< 板卡专家模式
-    LASER_PARAM_SINGLE_STEP_DISTANCE_SDK = 49,  ///< 送丝机单步距离
-    LASER_PARAM_HEAD_PEAK_POWER_SDK = 50,       ///< 激光头初始峰值功率
-    LASER_PARAM_FAST_PEAK_POWER_SDK = 51        ///< 激光头快速峰值功率
+    LASER_PARAM_EXPERT_MODE_SDK = 48,            ///< 板卡专家模式
+    LASER_PARAM_SINGLE_STEP_DISTANCE_SDK = 49,   ///< 送丝机单步距离
+    LASER_PARAM_HEAD_PEAK_POWER_SDK = 50,        ///< 激光头初始峰值功率
+    LASER_PARAM_FAST_PEAK_POWER_SDK = 51         ///< 激光头快速峰值功率
 };
 
 /**
  * @brief 参数编码类型；多字类型占用两个连续的十六位寄存器。
  * @note 有符号整数按补码保存寄存器位，浮点数按 IEEE 754 单精度位表示保存。
  */
-enum LaserParameterDataTypeSdk
-{
+enum LaserParameterDataTypeSdk {
     LASER_PARAMETER_U16_SDK = 0, ///< 十六位无符号整数
     LASER_PARAMETER_I16_SDK = 1, ///< 十六位有符号整数
     LASER_PARAMETER_U32_SDK = 2, ///< 三十二位无符号整数
@@ -92,15 +90,13 @@ enum LaserParameterDataTypeSdk
  * @brief 多字参数在连续寄存器中的字序；寄存器内部不交换字节。
  * @note 单寄存器类型仍须填写合法字序枚举，但编码时无需交换寄存器顺序。
  */
-enum LaserParameterWordOrderSdk
-{
+enum LaserParameterWordOrderSdk {
     LASER_PARAMETER_HIGH_FIRST_SDK = 0, ///< 高十六位写在起始地址
     LASER_PARAMETER_LOW_FIRST_SDK = 1   ///< 低十六位写在起始地址
 };
 
 /** @brief 整数编码舍入策略；浮点编码不使用整数舍入。 */
-enum LaserParameterRoundingSdk
-{
+enum LaserParameterRoundingSdk {
     LASER_PARAMETER_NEAREST_SDK = 0,  ///< 四舍五入，半整数向远离零方向取整
     LASER_PARAMETER_TRUNCATE_SDK = 1, ///< 向零截断
     LASER_PARAMETER_EXACT_SDK = 2     ///< 必须能表示为整数，允许浮点计算精度误差
@@ -110,8 +106,7 @@ enum LaserParameterRoundingSdk
  * @brief 参数访问能力，可通过按位或组合；是否本次写入由值列表决定。
  * @note 可读能力用于描述及地址校验，不表示生成写入计划时会主动读取设备。
  */
-enum LaserParameterFlagsSdk
-{
+enum LaserParameterFlagsSdk {
     LASER_PARAMETER_READABLE_SDK = 1, ///< 支持读取
     LASER_PARAMETER_WRITABLE_SDK = 2  ///< 支持写入
 };
@@ -123,20 +118,19 @@ enum LaserParameterFlagsSdk
  * @note scale 必须为有限的非零值，offset 和范围端点必须为有限值，minimum 不得大于 maximum。
  *       structSize 用于检查当前结构是否完整；输入数组仍按当前结构布局排列，不采用自定义元素步长。
  */
-typedef struct LaserParameterDescriptorSdk
-{
-    unsigned structSize;                     ///< 调用方结构大小，至少为当前结构大小
-    unsigned parameterId;                    ///< 非零的稳定参数语义编号
-    LaserParameterDataTypeSdk dataType;       ///< 寄存器数据编码类型
-    LaserParameterWordOrderSdk wordOrder;     ///< 多字参数的寄存器字序
-    LaserParameterRoundingSdk rounding;       ///< 整数编码的舍入策略
-    double scale;                            ///< 有限非零的编码比例；原始值等于物理值乘 scale 再加 offset
-    double offset;                           ///< 编码偏移，必须为有限数
-    double minimum;                          ///< 允许的最小物理值，包含端点，必须为有限数
-    double maximum;                          ///< 允许的最大物理值，包含端点，必须为有限数
-    unsigned flags;                          ///< 可读、可写能力位
-    char name[64];                           ///< 参数显示名，必须以零字符结束
-    char unit[16];                           ///< 物理单位，必须以零字符结束
+typedef struct LaserParameterDescriptorSdk {
+    unsigned structSize;                  ///< 调用方结构大小，至少为当前结构大小
+    unsigned parameterId;                 ///< 非零的稳定参数语义编号
+    LaserParameterDataTypeSdk dataType;   ///< 寄存器数据编码类型
+    LaserParameterWordOrderSdk wordOrder; ///< 多字参数的寄存器字序
+    LaserParameterRoundingSdk rounding;   ///< 整数编码的舍入策略
+    double scale;                         ///< 有限非零的编码比例；原始值等于物理值乘 scale 再加 offset
+    double offset;                        ///< 编码偏移，必须为有限数
+    double minimum;                       ///< 允许的最小物理值，包含端点，必须为有限数
+    double maximum;                       ///< 允许的最大物理值，包含端点，必须为有限数
+    unsigned flags;                       ///< 可读、可写能力位
+    char name[64];                        ///< 参数显示名，必须以零字符结束
+    char unit[16];                        ///< 物理单位，必须以零字符结束
 } LaserParameterDescriptorSdk;
 
 /**
@@ -146,8 +140,7 @@ typedef struct LaserParameterDescriptorSdk
  *       读写方向分别检测地址重叠，同一参数的读地址与写地址可以相同。
  *       未配置方向使用 LASER_PARAMETER_INVALID_ADDRESS_SDK，不使用地址零表示缺失。
  */
-typedef struct LaserParameterBindingSdk
-{
+typedef struct LaserParameterBindingSdk {
     unsigned structSize;   ///< 调用方结构大小，至少为当前结构大小
     unsigned parameterId;  ///< 绑定到的参数语义编号
     unsigned writeAddress; ///< 写寄存器起始地址；未配置时用无效地址常量
@@ -158,8 +151,7 @@ typedef struct LaserParameterBindingSdk
  * @brief 本次需要写入的参数物理值，单位必须与该参数描述一致。
  * @note 值列表只列出本次需要写入的参数，不要求包含配置中的全部可写参数；同一列表不得重复编号。
  */
-typedef struct LaserParameterValueSdk
-{
+typedef struct LaserParameterValueSdk {
     unsigned structSize;  ///< 调用方结构大小，至少为当前结构大小
     unsigned parameterId; ///< 参数语义编号
     double value;         ///< 描述规定单位的物理值
@@ -170,8 +162,7 @@ typedef struct LaserParameterValueSdk
  * @note 内核成功时清空 parameterId 和 message，并将 result 设为 SUCCESS_LASER_SDK。
  *       失败时记录首个检测到的错误；诊断结构大小不足时返回参数错误且不写诊断缓冲区。
  */
-typedef struct LaserParameterDiagnosticSdk
-{
+typedef struct LaserParameterDiagnosticSdk {
     unsigned structSize;   ///< 调用方结构大小，至少为当前结构大小
     unsigned parameterId;  ///< 失败参数编号；成功或无法归属单一参数的错误为零
     LaserSdkResult result; ///< 与函数返回值相同的结果码
