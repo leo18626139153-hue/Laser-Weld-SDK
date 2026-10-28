@@ -36,6 +36,126 @@ static std::string scriptCodeToLuaHex(unsigned int scriptCode)
     return oss.str();
 }
 
+/**
+ * @brief 生成普通超强的起弧缓升函数，工艺参数由每次调用传入。
+ * @return 使用绝对 W 值调节峰值寄存器的 Lua 函数。
+ */
+static std::string buildSupArcStartFunctionScript()
+{
+    return R"(
+if sup_cancel_ramp ~= nil then sup_cancel_ramp() end
+local supRampTask = nil
+local supRampGeneration = 0
+local supResumePower = nil
+
+function sup_cancel_ramp()
+    supRampGeneration = supRampGeneration + 1
+    local previousTask = supRampTask
+    supRampTask = nil
+    if previousTask ~= nil then
+        task_delete(previousTask)
+    end
+end
+
+function sup_resume_power()
+    sup_cancel_ramp()
+    if supResumePower ~= nil then
+        write_value_port(supResumePower[3], supResumePower[2], supResumePower[1], 3, SendCommuRegAddr, 1)
+    end
+    return read_integer_register(821) == 0
+end
+
+function sup_arc_start(openPower, peakPower, rampTime, preGasTime, powerAddress, writeCode)
+    local rampStepMs = 20
+    sup_cancel_ramp()
+    local generation = supRampGeneration
+    supResumePower = {peakPower, powerAddress, writeCode}
+    local function fail_start()
+        set_configurable_digital_out(1, false)
+        set_configurable_digital_out(0, false)
+        write_integer_register(673, 1)
+        return false
+    end
+    local function output_ready()
+        return generation == supRampGeneration and read_integer_register(821) == 0
+            and get_configurable_digital_out(0)
+            and get_configurable_digital_out(1)
+    end
+
+    -- 先预置本段开光功率，再开使能；零渐进时间直接预置峰值。
+    write_integer_register(673, 0)
+    if read_integer_register(821) ~= 0 then
+        return fail_start()
+    end
+    local initialPower = openPower
+    if rampTime == 0 then
+        initialPower = peakPower
+    end
+    write_value_port(writeCode, powerAddress, initialPower, 3, SendCommuRegAddr, 1)
+    if read_integer_register(821) ~= 0 then
+        return fail_start()
+    end
+    set_configurable_digital_out(0, true)
+    set_configurable_digital_out(1, true)
+    if preGasTime > 0 then
+        wait(preGasTime)
+    end
+    if not output_ready() then
+        return fail_start()
+    end
+
+    -- 每次起弧独立捕获参数，缓升与焊接运动并行，按真实耗时插值。
+    local started = get_systime()
+    local function rise_power()
+        local elapsed = 0
+        local lastPower = openPower
+        while elapsed < rampTime do
+            wait(math.min(rampStepMs, math.max(1, math.ceil(rampTime - elapsed))))
+            if generation ~= supRampGeneration then
+                return
+            end
+            if not output_ready() then
+                supRampTask = nil
+                if read_integer_register(821) ~= 0 then
+                    fail_start()
+                end
+                return
+            end
+            local now = get_systime()
+            elapsed = math.max(0, (now[1] - started[1]) * 1000 + (now[2] - started[2]) / 1000)
+            local progress = math.min(elapsed, rampTime)
+            local power = math.floor(openPower + (peakPower - openPower) * progress / rampTime + 0.5)
+            if power ~= lastPower then
+                write_value_port(writeCode, powerAddress, power, 3, SendCommuRegAddr, 1)
+                if read_integer_register(821) ~= 0 then
+                    supRampTask = nil
+                    fail_start()
+                    return
+                end
+                lastPower = power
+            end
+        end
+        if generation ~= supRampGeneration then
+            return
+        end
+        -- 明确补写精确终值，避免整数插值使功率停在峰值以下。
+        if output_ready() then
+            write_value_port(writeCode, powerAddress, peakPower, 3, SendCommuRegAddr, 1)
+            if read_integer_register(821) ~= 0 then
+                fail_start()
+            end
+        end
+        supRampTask = nil
+    end
+    if rampTime > 0 and openPower ~= peakPower then
+        supRampTask = task_create(rise_power)
+    end
+    print("起弧成功")
+    return true
+end
+)";
+}
+
 LaserSdkResult CommuRS485::addWriteParamScript(std::unordered_map<unsigned int, std::string>& writeDataHash,
                                                const std::string& writeSingleFuncCode,
                                                CommuRegType regType,
@@ -263,6 +383,8 @@ std::string CommuRS485::buildSlowArcStopFunctionScript(const MachineResource &ma
 
     std::ostringstream script;
     script << "function slow_arc_stop()\n"
+           << (machineResource.laserHeadBrand == CQLASERPOWER_SDK
+               ? "    if sup_cancel_ramp ~= nil then sup_cancel_ramp() end\n" : "")
            << "    write_integer_register(675, 0) \n"
            << "    if read_integer_register(821) ~= 0 then \n"
            << "        print(string.format(\"收弧异常，超时 : 0x%04X\", read_integer_register(821))) \n"
@@ -458,6 +580,12 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         else return PARAMETER_ERROR_LASER_SDK;
         return SUCCESS_LASER_SDK;
     }
+    if (machineResource.laserHeadBrand == CQLASERPOWER_SDK && laserSwitch == SWITCH_ON_LASER_SDK)
+    {
+        // 缓存只包含通用函数，本段功率和时间在运行调用中传入。
+        startLuaScripts["sup_arc_start"] = buildSupArcStartFunctionScript();
+        return SUCCESS_LASER_SDK;
+    }
     std::string writeFunction;
     std::string dataFunction;
     int gasWaitTime = 1;
@@ -510,7 +638,8 @@ LaserSdkResult CommuRS485::craft_script_arc_function_switch_script_get(LaserMach
         writeFunction =
         R"(
         function arc_stop()
-            --收弧脚本
+)" + std::string(machineResource.laserHeadBrand == CQLASERPOWER_SDK
+      ? "            if sup_cancel_ramp ~= nil then sup_cancel_ramp() end\n" : "") + R"(            --收弧脚本
             write_integer_register(675, 0) --起弧异常信号清空
             local retry_times = 5
             while true do
@@ -572,7 +701,31 @@ LaserSdkResult CommuRS485::craft_script_arc_program_run_script_get(LaserMachineH
             writeLog("起弧预置延时参数异常 范围0~3000ms");
             return PARAMETER_OUT_OF_RANGE_LASER_SDK;
         }
-        script += "arc_start()\n";
+        if (machineResource.laserHeadBrand == CQLASERPOWER_SDK
+                && !laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand))
+        {
+            const CgxiLaserPowerLaserSdk &power = machineResource.laserPowerParams;
+            const int peakPower = machineResource.laserHeadParams.laserHeadPeakPower;
+            if (peakPower < 0 || peakPower > power.laserPower
+                    || power.laserPowerOpen < 0 || power.laserPowerOpen > peakPower
+                    || power.laserRampUpTime < 0 || power.laserRampUpTime > 60000
+                    || machineResource.laserHeadPeakPowerQuickLoc >= 0xFFFF)
+            {
+                return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+            }
+            const BrandProtocolProfile profile = GetBrandProtocolAdapter(machineResource.laserHeadBrand).profile();
+            std::ostringstream call;
+            call << "if not sup_arc_start(" << power.laserPowerOpen << "," << peakPower
+                 << "," << power.laserRampUpTime << "," << gasWaitTime << ","
+                 << machineResource.laserHeadPeakPowerQuickLoc << ","
+                 << scriptCodeToLuaHex(profile.laserWriteSingleScriptCode)
+                 << ") then halt() end\n";
+            script += call.str();
+        }
+        else
+        {
+            script += "arc_start()\n";
+        }
     }
     else if (startSwitch == SWITCH_OFF_LASER_SDK)
     {
@@ -603,15 +756,16 @@ LaserSdkResult CommuRS485::craft_laser_param_set_script_get(LaserMachineHandle l
     const std::string writeSingleFuncCode = scriptCodeToLuaHex(profile.laserWriteSingleScriptCode);
     CgxiLaserPowerLaserSdk &laserPowerParams = machineResource.laserPowerParams;
     std::unordered_map<unsigned int, std::string> writeDataHash;
+    const bool isSup = machineResource.laserHeadBrand == CQLASERPOWER_SDK;
 
     // 1. 写入激光器功率 (0-5000W, 整型)
     addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPower, machineResource.laserPowerLoc, 3, 1);
-    // 2. 写入开光功率 (0-5000W, 整型)
-    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc, 3, 1);
+    // 2. 普通超强 0x0231 的单位是百分比，绝对开光功率留给 SDK 起弧调节。
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, isSup ? 100 : laserPowerParams.laserPowerOpen, machineResource.laserOnPowerLoc, 3, 1);
     // 3. 写入开光渐进时间 (0~1000ms, 整型)
     addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, 0, machineResource.laserOnRampTimeLoc, 3, 1);
-    // 4. 写入关光功率 (0-5000W, 整型)
-    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc, 3, 1);
+    // 4. 普通超强保持板卡满比例，避免把绝对 W 值写入百分比地址。
+    addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, isSup ? 100 : laserPowerParams.laserPowerClose, machineResource.laserOffPowerLoc, 3, 1);
     // 5. 写入关光渐进时间 (0~300mm, 整型)
     addWriteParamScript(writeDataHash, writeSingleFuncCode, int16Reg, 0, machineResource.laserOffRampTimeLoc, 3, 1);
     // 6. 写入开气延时函数 提前送气时间	0~3000ms
@@ -832,6 +986,10 @@ LaserSdkResult CommuRS485::craft_script_configure_machine_param_set_script_get(L
                 laserMachineHandle, it->second, craftInfo, compiled);
     if (result != SUCCESS_LASER_SDK) return result;
     // 保留旧工艺下发的通讯超时复位，实际执行前不会改变任何资源或控制器状态。
+    if (it->second.laserHeadBrand == CQLASERPOWER_SDK
+            && !ramp_control::Enabled(laserMachineHandle)
+            && !laser_parameters::UsesMappedParameters(laserMachineHandle, it->second.laserHeadBrand))
+        bodyScriptText += "if sup_cancel_ramp ~= nil then sup_cancel_ramp() end\n";
     bodyScriptText += strWriteInt32RegReplace(INT32_REG_COMMU_TIMEOUT_821, 0) + compiled;
     return SUCCESS_LASER_SDK;
 }
@@ -856,6 +1014,10 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_function_switch_script_get(Lase
     {
         if (laserSwitch == SWITCH_ON_LASER_SDK)
         {
+            if (machineResource.laserHeadBrand == CQLASERPOWER_SDK)
+            {
+                return craft_script_arc_function_switch_script_get(laserMachineHandle, laserSwitch);
+            }
             startLuaScripts.emplace("arcStartScript", buildSlowArcStartFunctionScript(machineResource));
             return LaserSdkResult::SUCCESS_LASER_SDK;
         }
@@ -891,6 +1053,10 @@ LaserSdkResult CommuRS485::craft_script_slow_arc_program_run_script_get(LaserMac
     //获取脚本
     if (startSwitch == SWITCH_ON_LASER_SDK)
     {
+        if (machineResourcesMap[laserMachineHandle].laserHeadBrand == CQLASERPOWER_SDK)
+        {
+            return craft_script_arc_program_run_script_get(laserMachineHandle, startSwitch, script);
+        }
         script += " --slow_arc_start()\n";
     }
     else if (startSwitch == SWITCH_OFF_LASER_SDK)

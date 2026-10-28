@@ -59,7 +59,6 @@
 #define LOG_RPC_MAX_NUM 10
 #define MOVECPOINT_NUM 2
 #define PATHMAXPOINTS 10000   ///<轨迹最大数量为10000个点
-#define PATH_SIGNAL_MAX_NUM 8 ///<轨迹记录信号配置最大个数
 
 #define VERSION_MAX_LENGTH 50
 
@@ -407,15 +406,6 @@ typedef struct  WorldTime
     unsigned int second;             /// 秒
     unsigned int milliSecond;        /// 毫秒
 }WorldTime;
-
-///控制柜上电运行时长
-typedef struct ControllerUptime
-{
-    unsigned long long days;    ///< 运行天数
-    unsigned int hours;         ///< 运行小时数(0-23)
-    unsigned int minutes;       ///< 运行分钟数 (0-59)
-    unsigned int seconds;       ///< 运行秒数 (0-59)
-} ControllerUptime;
 
 typedef struct RobotLogMsg
 {
@@ -859,45 +849,11 @@ typedef struct PopUpMsg
     double inVarMinValue; 		///输入弹窗时，变量数值范围最小值
     double inVarMaxValue; 		///输入弹窗时，变量数值范围最大值
 }PopUpMsg;
-
-typedef enum PathSignalType   ///<轨迹信号类型
-{
-    ///输出信号（轨迹记录和轨迹运行通用）
-    Path_StandardDO = 0,     ///<标准数字输出
-    Path_ConfigurableDO = 1, ///<可配置数字输出
-    Path_ToolDO = 2,         ///<工具数字输出
-    Path_AnalogDO = 3,       ///<模拟量输出
-    Path_ExpandDO = 4,       ///<扩展输出
-
-    ///输入信号（仅限轨迹记录场景)
-    Path_StandardDI = 5,     ///<标准数字输入
-    Path_ConfigurableDI = 6, ///<可配置数字输入
-    Path_ToolDI = 7,         ///<工具数字输入
-    Path_AnalogDI = 8,       ///<模拟量输入
-    Path_ToolAnalogDI = 9,  ///<工具模拟量输入
-    Path_ExpandDI = 10,       ///<扩展输入
-
-    ///寄存器（当前仅限轨迹运行场景，轨迹记录暂不支持）
-    Path_BoolReg = 11,        ///<bool寄存器
-    Path_Int16Reg = 12,        ///<int16寄存器
-    Path_Int32Reg = 13,        ///<int32寄存器
-    Path_FloatReg = 14,        ///<float寄存器
-}PathSignalType;
-
-
-typedef struct PathIOPara ///<轨迹记录信号类型信息
-{
-    enum PathSignalType ioType[PATH_SIGNAL_MAX_NUM];  ///<IO类型
-    int ioIndex[PATH_SIGNAL_MAX_NUM]; ///<IO索引
-    int ioNum;  ///<IO数量
-}PathIOPara;
-
 typedef struct PathPoint
 {
     double pose[ROB_AXIS_NUM];                  ///<坐标点向量:x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     double jointpos[ROB_AXIS_NUM];              ///<关节角度：关节1~6（单位：°）
     double exjData[ROB_AXIS_NUM];               ///<扩展轴数据；扩展轴1~6，只在透传时有效
-    int ioData[PATH_SIGNAL_MAX_NUM];            ///<轨迹IO数据（对应IO的值）
 }PathPoint;
 
 typedef struct PathPara  ///<轨迹参数
@@ -915,7 +871,6 @@ typedef struct PathData     ///<轨迹数据
     int pathPointsNum;      ///<轨迹数量
     int moveTime;           ///<运动时间  moveType为1时有效,2~10000,单位:ms
     int exjNum;             ///<实际扩展轴数量，只有透传时有效，非透传时需要设置为0
-    int ioDataNum;          ///<轨迹IO数量
 }PathData;
 
 typedef struct PathDownloadData  ///<下载轨迹数据
@@ -924,18 +879,10 @@ typedef struct PathDownloadData  ///<下载轨迹数据
     PathPara pathPara;     ///<轨迹参数
 }PathDownloadData;
 
-typedef struct PathControlPara ///< 轨迹控制参数
-{
-    int pathIndex;          ///< 轨迹索引：0~49
-    int runControl;         ///< 0-停止，1-启动，2-开启在线透传，3-开启离线透传
-    PathIOPara pathIOPara;  ///< IO配置参数
-}PathControlPara;
-
 typedef struct RecordPathPara  ///< 轨迹记录参数
 {
     int sampleTime;     ///<采样时间,recordControl为1时有效,单位:ms
     int recordControl;  ///<记录控制，0-停止，1-启动，2-暂停
-    PathIOPara pathIOPara; ///<IO配置参数
 }RecordPathPara;
 
 typedef struct PathRecordStatus  ///<轨迹记录状态
@@ -946,7 +893,7 @@ typedef struct PathRecordStatus  ///<轨迹记录状态
 
 typedef struct PathRunMsg  ///<轨迹运行状态
 {
-    int pathrunstatus;  ///< 0或1 0-轨迹控制停止 1-轨迹运行中
+    int pathrunstatus;  ///< 0或10001-轨迹控制停止 1-轨迹运行中
     int pointIndex;    ///<  当前运行轨迹索引
 }PathRunMsg;
 

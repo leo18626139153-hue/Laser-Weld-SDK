@@ -198,7 +198,7 @@ win32 {
 
     equals(SDK_ARCH, x86) {
         message("-- link cr_sdk: windows x86")
-        CRSDK_LIB_DIR = $$CRSDK_ROOT/windows/libs/x86
+        CRSDK_LIB_DIR = $$CRSDK_ROOT/libs/x86
         exists($$CRSDK_LIB_DIR/cr_sdk.lib) {
             LIBS += -L$$CRSDK_LIB_DIR -lcr_sdk
             DEPENDPATH += $$CRSDK_LIB_DIR

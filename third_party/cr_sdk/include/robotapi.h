@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#define CR_ROBOT_SDK_VERSION "v2.60a-rc3-full"
+#define CR_ROBOT_SDK_VERSION "v2.50d-full"
 
 /**
  * @brief   获取版本号
@@ -82,14 +82,6 @@ CRSDKAPI CRresult cr_get_SystemDateTime(RobotHandle robotHandle, char* systemDat
 CRSDKAPI CRresult cr_set_system_date_time(RobotHandle robotHandle, WorldTime systemDateTime);
 
 /**
- * @brief   读取控制柜上电时间
- * @param[in]    robotHandle    机械臂实例句柄
- * @param[out]   uptime         读取的控制柜上电时间
- * @return       CRresult       返回处理结果
- */
-CRSDKAPI CRresult cr_get_controller_uptime(RobotHandle robotHandle, ControllerUptime *uptime);
-
-/**
  * @brief   关闭机器人
  * @param[in]    robotHandle   机械臂实例句柄
  * @return       CRresult      返回处理结果
@@ -130,14 +122,6 @@ CRSDKAPI CRresult cr_disable(RobotHandle robotHandle);
  * @return       CRresult      返回处理结果
  */
 CRSDKAPI CRresult cr_FaultReset(RobotHandle robotHandle);
-
-/**
- * @brief   读取机器人报警状态
- * @param[in]    robotHandle   机械臂实例句柄
- * @param[out]   alarmState    报警状态,0-未报警,其他值为存在报警
- * @return       CRresult      返回处理结果
- */
-CRSDKAPI CRresult cr_get_alarm_state(RobotHandle robotHandle, int *alarmState);
 
 /**
  * @brief   获取机器人电源按钮是否被按下的状态
@@ -2317,7 +2301,7 @@ CRSDKAPI CRresult cr_compute_cs_plane(double *point1Pose,int p1Len,double *point
     * @param[in]   robotHandle      机械臂实例句柄
     * @param[in]   basePose         基座标系下的轴角位姿数据：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     * @param[in]   index            指定的工件坐标系索引
-    * @param[in]   exjPos           坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm或者°）
+    * @param[in]   exjPos           坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm / °）
     * @param[out]  poseInWorkpiece  工件坐标系下的位姿数据（轴角）：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     * @return      success/0 成功，其它失败
 */
@@ -2328,7 +2312,7 @@ CRSDKAPI CRresult cr_compute_pose_base_to_workpiece(RobotHandle robotHandle, dou
     * @param[in]   robotHandle      机械臂实例句柄
     * @param[in]   poseInWorkpiece  工件坐标系下的位姿数据（轴角）：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     * @param[in]   index            工件坐标系索引
-    * @param[in]   exjPos           坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm或者°）
+    * @param[in]   exjPos           坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm / °）
     * @param[out]  basePose         基坐标系下的位姿数据（轴角）：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     * @return      success/0 成功，其它失败
 */
@@ -2338,7 +2322,7 @@ CRSDKAPI CRresult cr_compute_pose_workpiece_to_base(RobotHandle robotHandle, dou
     * @brief       基坐标系下的tcp位姿转到世界坐标系下
     * @param[in]   robotHandle  机械臂实例句柄
     * @param[in]   basePose     基座标系下的轴角位姿数据：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
-    * @param[in]   exjPos       坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm或者°）
+    * @param[in]   exjPos       坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm / °）
     * @param[out]  poseInWorld  世界坐标系下的位姿数据（轴角）：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     * @return      success/0 成功，其它失败
 */
@@ -2348,7 +2332,7 @@ CRSDKAPI CRresult cr_compute_pose_base_to_world(RobotHandle robotHandle, double 
     * @brief       世界坐标系下的tcp位姿转到基坐标系下
     * @param[in]   robotHandle  机械臂实例句柄
     * @param[in]   poseInWorld  世界坐标系下的轴角位姿数据：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
-    * @param[in]   exjPos       坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm或者°）
+    * @param[in]   exjPos       坐标转换时对应的外部轴位置：exj1,exj2,exj3,exj4,exj5,exj6,exj7,exj8,exj9,exj10，输入NULL时使用当前外部轴位置（单位：mm / °）
     * @param[out]  poseInBase   基坐标系下的位姿数据（轴角）：x,y,z（单位：mm）;Rx,Ry,Rz（单位：°）
     * @return      success/0 成功，其它失败
 */
@@ -2448,13 +2432,8 @@ CRSDKAPI CRresult cr_script_popup_msg_set(RobotHandle robotHandle,VariableMsg *i
 */
 CRSDKAPI CRresult cr_script_popup_close(RobotHandle robotHandle);
 
-/**
- * @brief   读取控制柜缓存空间中轨迹数量
- * @param[in]    robotHandle   机械臂实例句柄
- * @param[out]   cacheNum      缓存空间中轨迹数量
- * @return       CRresult      返回处理结果
- */
-CRSDKAPI CRresult cr_path_movep_cache_get(RobotHandle robotHandle, int *cacheNum);
+///新增接口
+
 /**
  * @brief   读取控制柜当前存在的轨迹索引
  * @param[in]    robotHandle   机械臂实例句柄
@@ -2483,10 +2462,11 @@ CRSDKAPI CRresult cr_path_download(RobotHandle robotHandle,PathDownloadData path
 /**
  * @brief   轨迹控制
  * @param[in]    robotHandle    机械臂实例句柄
- * @param[in]    pathControlPara  轨迹运行参数
+ * @param[in]    pathIndex      轨迹索引：0~49
+ * @param[in]    runControl     0-停止，1-启动，2-开启实时透传，3-开启离线透传
  * @return       CRresult       返回处理结果
  */
-CRSDKAPI CRresult cr_path_action(RobotHandle robotHandle, PathControlPara pathControlPara);
+CRSDKAPI CRresult cr_path_action(RobotHandle robotHandle,int pathIndex,int runControl);
 
 /**
  * @brief   轨迹数据转换为轨迹文件

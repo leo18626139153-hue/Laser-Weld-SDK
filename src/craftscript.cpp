@@ -306,7 +306,16 @@ LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle,
                     return result;
                 }
                 // 外层生成作用域会恢复资源；旧缓降读取本次工艺的工作快照。
+                const bool legacySup = machineResource.laserHeadBrand == CQLASERPOWER_SDK
+                        && !ramp_control::Enabled(laserMachineHandle)
+                        && !laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand);
+                const int ratedLaserPower = legacySup
+                        ? (currentCraft->laserHeadPeakPower > 0 ? currentCraft->laserHeadPeakPower
+                           : machineResource.laserPowerParams.laserPower) : 0;
                 laser_parameters::UpdateCompilationResource(machineResource, *currentCraft);
+                // 普通超强自由通讯的起弧校验使用额定功率，映射和外控保留原快照语义。
+                if (legacySup)
+                    machineResource.laserPowerParams.laserPower = ratedLaserPower;
                 // 首次选择或运行中切换工艺都只写参数；出光动作由起收弧指令管理。
                 bodyScriptText += parameterScript;
             }

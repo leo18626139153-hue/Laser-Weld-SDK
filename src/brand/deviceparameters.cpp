@@ -563,6 +563,13 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
         if (result != SUCCESS_LASER_SDK)
             return fail(diagnostic, 0, "工艺超出默认设备型号的能力范围", result);
     }
+    const bool legacySup = !overrideConfiguration && resource.laserHeadBrand == CQLASERPOWER_SDK;
+    const int ratedLaserPower = legacySup
+            ? (craft.laserHeadPeakPower > 0 ? craft.laserHeadPeakPower : resource.laserPowerParams.laserPower) : 0;
+    if (legacySup && (ratedLaserPower <= 0 || ratedLaserPower > 65535
+            || craft.craftLaserPower > ratedLaserPower))
+        return fail(diagnostic, LASER_PARAM_WELD_POWER_SDK,
+                    "超强额定功率必须在1至65535范围内且不低于焊接功率", PARAMETER_OUT_OF_RANGE_LASER_SDK);
     std::vector<LaserParameterValueSdk> converted;
     LaserSdkResult result = BuildCraftValues(resource, prepared, converted, diagnostic);
     if (result != SUCCESS_LASER_SDK) return result;
@@ -570,7 +577,15 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource& resource,
     for (std::size_t i = 0; i < converted.size(); ++i)
     {
         LaserParameterValueSdk parameter = converted[i];
-        // 设备功率由设置页维护；保留峰值功率及开关光百分比的既有换算和校验。
+        // 普通超强区分额定功率和工艺峰值；开关光渐变由脚本调节峰值寄存器。
+        if (legacySup)
+        {
+            if (parameter.parameterId == LASER_PARAM_WELD_POWER_SDK) parameter.value = ratedLaserPower;
+            else if (parameter.parameterId == LASER_PARAM_HEAD_PEAK_POWER_SDK) parameter.value = craft.craftLaserPower;
+            else if (parameter.parameterId == LASER_PARAM_LASER_ON_POWER_SDK
+                    || parameter.parameterId == LASER_PARAM_LASER_OFF_POWER_SDK) parameter.value = 100;
+        }
+        // 设备功率由设置页维护时，工艺不再重复写入额定功率。
         if (devicePowerManaged && resource.laserHeadBrand == CQLASERPOWER_SDK
                 && parameter.parameterId == LASER_PARAM_WELD_POWER_SDK) continue;
         if (!writable(*active, parameter.parameterId)) continue;

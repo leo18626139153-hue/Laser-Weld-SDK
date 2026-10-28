@@ -109,6 +109,20 @@ std::map<unsigned, int> ParseWrites(const std::string& script)
     return writes;
 }
 
+// 默认超强自由通讯同时检查实际地址和数值，不把函数定义当成参数写入。
+std::map<unsigned, int> ParseLegacySupWrites(const std::string& script)
+{
+    std::map<unsigned, int> writes;
+    const std::regex pattern("write_value_port\\(\\s*0x[0-9a-fA-F]+\\s*,\\s*([0-9]+)\\s*,\\s*([0-9]+)\\s*,");
+    for (std::sregex_iterator it(script.begin(), script.end(), pattern), end; it != end; ++it)
+    {
+        const unsigned address = static_cast<unsigned>(std::stoul((*it)[1].str()));
+        CHECK(writes.count(address) == 0);
+        writes[address] = std::stoi((*it)[2].str());
+    }
+    return writes;
+}
+
 std::map<unsigned, unsigned> ParseSup26CraftBank(const std::string& script)
 {
     const std::string prefix = "-- SUP26AD_CRAFT_BANK_V1:";
@@ -977,7 +991,12 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
     CHECK(cl_machine_resource_update(handle, &resource) == SUCCESS_LASER_SDK);
 
     // 旧超强不通过 CO2 送丝，空拼接片段不能把 CO1 指令接到上一行 Lua 注释内。
-    // 公有旧起弧接口基线误将气/丝地址列入激光头参数，此处直接验证同一个 Lua renderer。
+    // 直接验证同一个 Lua renderer，普通超强起弧必须使用带功率缓升参数的入口。
+    resource.laserPowerParams.laserPower = craft.laserHeadPeakPower;
+    resource.laserHeadParams.laserHeadPeakPower = craft.craftLaserPower;
+    resource.laserPowerParams.laserPowerOpen = craft.craftLeadInPower;
+    resource.laserPowerParams.laserRampUpTime = craft.craftLeadInRampTime;
+    CHECK(cl_machine_resource_update(handle, &resource) == SUCCESS_LASER_SDK);
     CommuRS485* const rawRenderer = CommuRS485::GetInstance();
     for (unsigned action = 0; action < 2; ++action)
     {
@@ -987,7 +1006,7 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
         std::string rawBody;
         CHECK(rawRenderer->craft_script_arc_program_run_script_get(handle, arcSwitch, rawBody) == SUCCESS_LASER_SDK);
         const std::string rawScript = rawRenderer->loadLuaFunctionScriptOut(resource.laserHeadBrand) + rawBody;
-        CHECK(rawBody.find(action == 0 ? "arc_start()" : "arc_stop()") != std::string::npos);
+        CHECK(rawBody.find(action == 0 ? "if not sup_arc_start(" : "arc_stop()") != std::string::npos);
         std::istringstream lines(rawScript);
         std::string line;
         unsigned activeCo1Statements = 0;
@@ -1005,13 +1024,130 @@ void TestLegacyFullProgramPowerAndTimeoutReset()
     }
     CHECK(cl_machine_resource_release(handle) == SUCCESS_LASER_SDK);
 
-    // 欧斯睿普保留原 SDK 已有的旧超强兼容别名，不增加独立协议承诺。
+    // 欧斯睿普保留原有功率映射，不随普通超强此次修复改变板卡参数。
     std::string supScript, aliasScript;
     CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, supScript) == SUCCESS_LASER_SDK);
     resource.laserHeadBrand = OSRPLASERPOWER_SDK;
     CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, aliasScript) == SUCCESS_LASER_SDK);
-    CHECK(supScript == aliasScript);
+    const std::map<unsigned, int> supWrites = ParseLegacySupWrites(supScript);
+    const std::map<unsigned, int> aliasWrites = ParseLegacySupWrites(aliasScript);
+    CHECK(supWrites.at(560) == 3000 && supWrites.at(2) == 2000);
+    CHECK(aliasWrites.at(560) == 2000 && aliasWrites.at(2) == 1000);
+    CHECK(aliasWrites.at(561) == 50 && aliasWrites.at(563) == 75);
+    CHECK(aliasWrites.at(562) == 0 && aliasWrites.at(564) == 0);
 }
+/** @brief 普通超强默认额定、焊接峰值和板卡渐进参数分别使用正确的物理含义。 */
+void TestDefaultSupPowerSemantics()
+{
+    MachineResource resource = Resource(CQLASERPOWER_SDK);
+    CraftInfoLaserSdk craft = Craft();
+    std::string script;
+    CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
+    const std::map<unsigned, int> writes = ParseLegacySupWrites(script);
+    CHECK(writes.at(560) == 3000);
+    CHECK(writes.at(2) == 2000);
+    CHECK(writes.at(561) == 100 && writes.at(563) == 100);
+    CHECK(writes.at(562) == 0 && writes.at(564) == 0);
+    CHECK(script.find("set_configurable_digital_out") == std::string::npos);
+
+    // 老客户端没有工艺额定快照时，使用当前设备额定值，仍不能超出十六位范围。
+    craft.laserHeadPeakPower = 0;
+    resource.laserPowerParams.laserPower = 4000;
+    CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
+    CHECK(ParseLegacySupWrites(script).at(560) == 4000);
+    CHECK(ParseLegacySupWrites(script).at(2) == 2000);
+    const int ratedBoundaries[] = {1, 65535};
+    for (unsigned index = 0; index < sizeof(ratedBoundaries) / sizeof(ratedBoundaries[0]); ++index)
+    {
+        craft = Craft();
+        craft.laserHeadPeakPower = ratedBoundaries[index];
+        craft.craftLaserPower = ratedBoundaries[index];
+        craft.craftLeadInPower = 0;
+        craft.craftLeadOutPower = 0;
+        CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == SUCCESS_LASER_SDK);
+        CHECK(ParseLegacySupWrites(script).at(560) == ratedBoundaries[index]);
+        CHECK(ParseLegacySupWrites(script).at(2) == ratedBoundaries[index]);
+    }
+    const int invalidRatings[] = {-1, 0, 65536};
+    for (unsigned index = 0; index < sizeof(invalidRatings) / sizeof(invalidRatings[0]); ++index)
+    {
+        craft = Craft();
+        craft.laserHeadPeakPower = 0;
+        resource.laserPowerParams.laserPower = invalidRatings[index];
+        script = "unchanged";
+        CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == PARAMETER_OUT_OF_RANGE_LASER_SDK);
+        CHECK(script == "unchanged");
+    }
+    craft = Craft();
+    craft.laserHeadPeakPower = 65536;
+    script = "unchanged";
+    CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == PARAMETER_OUT_OF_RANGE_LASER_SDK);
+    CHECK(script == "unchanged");
+    craft.laserHeadPeakPower = 0;
+    resource.laserPowerParams.laserPower = craft.craftLaserPower - 1;
+    CHECK(lp::BuildDeviceCraftScript(resource, craft, nullptr, script) == PARAMETER_OUT_OF_RANGE_LASER_SDK);
+    CHECK(script == "unchanged");
+
+    // 显式配置保留调用方定义的焊接功率、起始峰值和渐进时间，不能套入默认板卡补偿。
+    resource = Resource(CQLASERPOWER_SDK);
+    craft = Craft();
+    lp::Configuration config;
+    CHECK(lp::BuildDefaultConfiguration(resource, config) == SUCCESS_LASER_SDK);
+    CHECK(lp::BuildDeviceCraftScript(resource, craft, &config, script) == SUCCESS_LASER_SDK);
+    const std::map<unsigned, int> mapped = ParseWrites(script);
+    CheckMappedScript(script);
+    CHECK(mapped.at(560) == 2000 && mapped.at(2) == 1000);
+    CHECK(mapped.at(561) == 50 && mapped.at(563) == 75);
+    CHECK(mapped.at(562) == 200 && mapped.at(564) == 1000);
+}
+
+/** @brief 默认超强正式起弧和独立缓升共用功率缓升，显式映射仍使用本地动作函数。 */
+void TestSupArcStartEntryPoints()
+{
+    MachineResource resource = Resource(CQLASERPOWER_SDK);
+    const CraftInfoLaserSdk craft = Craft();
+    LaserMachineHandle handle = -1;
+    CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
+    InstListData list;
+    list.listLocToTypeID[0] = std::make_pair(CRAFT_SELECT_INST_LASER_WELD_SDK, 0);
+    list.craftsMap[0] = craft;
+    InstListTransEnvironmentData environment = {};
+    environment.craftID = -1;
+    environment.prePointLoc = -1;
+    environment.policy.emitDeviceParameters = true;
+    std::string parameters;
+    CHECK(GetBasicCraftScript(handle, list, environment, parameters) == SUCCESS_LASER_SDK);
+    CHECK(parameters.find("if not sup_arc_start(") == std::string::npos);
+    const std::regex rampCall("if not sup_arc_start\\(1000,2000,200,100,51,0x[0-9A-Fa-f]+\\)");
+    typedef LaserSdkResult (*ScriptFunction)(LaserMachineHandle, char*, int*);
+    const ScriptFunction starts[] = {cl_get_arc_start_script, cl_get_arc_start_slow_script};
+    std::vector<char> output(1024 * 1024, '\0');
+    for (unsigned index = 0; index < sizeof(starts) / sizeof(starts[0]); ++index)
+    {
+        int size = static_cast<int>(output.size());
+        CHECK(starts[index](handle, output.data(), &size) == SUCCESS_LASER_SDK);
+        const std::string script(output.data());
+        CHECK(script.find("function sup_arc_start(") != std::string::npos);
+        CHECK(std::regex_search(script, rampCall));
+    }
+
+    lp::Configuration config;
+    CHECK(lp::BuildDefaultConfiguration(resource, config) == SUCCESS_LASER_SDK);
+    SetConfiguration(handle, config);
+    for (unsigned index = 0; index < sizeof(starts) / sizeof(starts[0]); ++index)
+    {
+        int size = static_cast<int>(output.size());
+        CHECK(starts[index](handle, output.data(), &size) == SUCCESS_LASER_SDK);
+        const std::string script(output.data());
+        CheckMappedTransport(script);
+        CHECK(script.find("function arc_start()") != std::string::npos);
+        const std::regex mappedCall("(^|\\n)\\s*arc_start\\(\\)\\s*(\\n|$)");
+        CHECK(std::regex_search(script, mappedCall));
+        CHECK(script.find("sup_arc_start") == std::string::npos);
+    }
+    CHECK(cl_machine_resource_release(handle) == SUCCESS_LASER_SDK);
+}
+
 /** @brief 设备维护模式只移除旧超强额定参数，覆盖单工艺、正式程序、准备和设置入口。 */
 void TestDeviceManagedPowerPolicy()
 {
@@ -1024,9 +1160,9 @@ void TestDeviceManagedPowerPolicy()
     CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
     CHECK(cl_machine_resource_init(&resource, &other) == SUCCESS_LASER_SDK);
     const std::regex ratedWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*560\\s*,");
-    const std::regex peakWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*2\\s*,\\s*1000\\s*,");
-    const std::regex onWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*561\\s*,\\s*50\\s*,");
-    const std::regex offWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*563\\s*,\\s*75\\s*,");
+    const std::regex peakWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*2\\s*,\\s*2000\\s*,");
+    const std::regex onWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*561\\s*,\\s*100\\s*,");
+    const std::regex offWrite("write_value_port\\(\\s*0x[0-9A-Fa-f]+\\s*,\\s*563\\s*,\\s*100\\s*,");
     CHECK(std::regex_search(OldCraftScript(handle, craft), ratedWrite));
     CHECK(cl_machine_device_power_managed_set(-1, true) == HANDLE_ERROR_LASER_SDK);
     CHECK(cl_machine_device_power_managed_set(handle, true) == SUCCESS_LASER_SDK);
@@ -1112,10 +1248,12 @@ int main()
         TestOldCraftFailureDoesNotMutateResource();
         TestFullInstructionAndControlPaths();
         TestLegacyFullProgramPowerAndTimeoutReset();
+        TestDefaultSupPowerSemantics();
+        TestSupArcStartEntryPoints();
         TestDeviceManagedPowerPolicy();
         CHECK(parameter_test_robot_calls == 0);
         std::cout << "PASS parameter pipeline: " << checks
-                  << " checks, 10 scenario groups, zero robot SDK calls" << std::endl;
+                  << " checks, 13 scenario groups, zero robot SDK calls" << std::endl;
         return 0;
     }
     catch (const std::exception& error)
