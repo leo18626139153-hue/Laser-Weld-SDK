@@ -13,11 +13,8 @@
 namespace laser_parameters {
 namespace {
 
-constexpr std::size_t kSup26CraftWordCount = 27;
-constexpr unsigned kSup26CraftPage1Begin = 60;
-constexpr unsigned kSup26CraftPage1End = 74;
-constexpr unsigned kSup26CraftPage2Begin = 90;
-constexpr unsigned kSup26CraftPage2End = 101;
+constexpr std::size_t kSup26CommonCraftWordCount = 18;
+constexpr std::size_t kSup26WireCraftWordCount = 4;
 constexpr double kMillisecondsPerSecond = 1000.0;
 constexpr double kPercentScale = 100.0;
 
@@ -176,10 +173,10 @@ void buildSup26Ad(Configuration &configuration) {
     add(configuration, LASER_PARAM_DUTY_CYCLE_SDK, "占空比", "%", 91, 0, 100);
     add(configuration, LASER_PARAM_PWM_HIGH_WORD_SDK, "脉冲频率高字", "", 92, 0, 65535);
     add(configuration, LASER_PARAM_PWM_LOW_WORD_SDK, "脉冲频率低字", "", 93, 0, 65535);
-    add(configuration, LASER_PARAM_WIRE_FEED_SPEED_SDK, "送丝速度", "cm/min", 94, 0, 600);
+    add(configuration, LASER_PARAM_WIRE_FEED_SPEED_SDK, "送丝速度", "cm/min", 94, 15, 600);
     add(configuration, LASER_PARAM_WIRE_FEED_SWITCH_SDK, "送丝开关", "", 95, 0, 1);
-    add(configuration, LASER_PARAM_WIRE_RETRACT_LENGTH_SDK, "回抽长度", "mm", 96, 0, 200);
-    add(configuration, LASER_PARAM_WIRE_FEED_LENGTH_SDK, "补丝长度", "mm", 97, 0, 200);
+    add(configuration, LASER_PARAM_WIRE_RETRACT_LENGTH_SDK, "回抽长度", "mm", 96, 0, 100);
+    add(configuration, LASER_PARAM_WIRE_FEED_LENGTH_SDK, "补丝长度", "mm", 97, 0, 100);
     add(configuration, LASER_PARAM_LASER_ON_POWER_SDK, "开光百分比", "%", 98, 0, 100, 1, LASER_PARAMETER_U16_SDK, LASER_PARAMETER_TRUNCATE_SDK);
     add(configuration, LASER_PARAM_RAMP_UP_TIME_SDK, "缓升时间", "ms", 99, 0, 2000);
     add(configuration, LASER_PARAM_LASER_OFF_POWER_SDK, "关光百分比", "%", 100, 0, 100, 1, LASER_PARAMETER_U16_SDK, LASER_PARAMETER_TRUNCATE_SDK);
@@ -303,22 +300,23 @@ double scanFrequency(const CraftInfoLaserSdk &craft) {
 }
 
 /** @brief 仅完整覆盖两页工艺写槽时输出原始字快照，不把部分参数冒充完整工艺。 */
-std::string sup26CraftBank(const WritePlan &plan) {
-    if (plan.operations.size() != kSup26CraftWordCount) {
+std::string sup26CraftBank(const WritePlan &plan, bool wireWelding) {
+    if (plan.operations.size() != (kSup26CommonCraftWordCount + (wireWelding ? kSup26WireCraftWordCount : 0))) {
         return std::string();
     }
     std::map<unsigned, uint16_t> words;
     for (const WriteOperation &operation : plan.operations) {
         const unsigned address = operation.address;
         if (operation.words.size() != 1 ||
-            !((address >= kSup26CraftPage1Begin && address <= kSup26CraftPage1End) || (address >= kSup26CraftPage2Begin && address <= kSup26CraftPage2End)) ||
+            !((address >= 60 && address <= 68) || (address >= 70 && address <= 74) || (address >= 90 && address <= 93) ||
+                (wireWelding && address >= 94 && address <= 97)) ||
             !words.insert(std::make_pair(address, operation.words[0])).second) {
             return std::string();
         }
     }
     std::ostringstream output;
     output.imbue(std::locale::classic());
-    output << "-- SUP26AD_CRAFT_BANK_V1:";
+    output << "-- SUP26AD_CRAFT_BANK_V2:" << (wireWelding ? "WIRE:" : "SELF:");
     bool first = true;
     for (const auto &word : words) {
         if (!first) {
@@ -333,22 +331,22 @@ std::string sup26CraftBank(const WritePlan &plan) {
 
 } // 匿名命名空间
 
-void CompleteSup26SelfWeldCraftValues(const MachineResource &resource, std::vector<LaserParameterValueSdk> &values) {
-    if (resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK || resource.weldingProcessType != SELF_WELDING_LASERSDK) {
+void FilterSup26CraftValues(const MachineResource &resource, std::vector<LaserParameterValueSdk> &values) {
+    if (resource.laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK) {
         return;
     }
-    const unsigned wireIds[] = {
-        LASER_PARAM_WIRE_FEED_SPEED_SDK, LASER_PARAM_WIRE_FEED_SWITCH_SDK, LASER_PARAM_WIRE_RETRACT_LENGTH_SDK, LASER_PARAM_WIRE_FEED_LENGTH_SDK};
-    for (const LaserParameterValueSdk &parameter : values) {
-        for (unsigned id : wireIds) {
-            if (parameter.parameterId == id) {
-                return;
-            }
+    // 固定设置由上位机一次初始化；自融下发计划完全排除送丝参数，不能补零占位。
+    for (auto item = values.begin(); item != values.end();) {
+        const unsigned id = item->parameterId;
+        const bool fixed = id == LASER_PARAM_EXPERT_MODE_SDK || id == LASER_PARAM_LASER_ON_POWER_SDK || id == LASER_PARAM_LASER_OFF_POWER_SDK ||
+            id == LASER_PARAM_RAMP_UP_TIME_SDK || id == LASER_PARAM_RAMP_DOWN_TIME_SDK;
+        const bool wire = directWireFeeder(id) || id == LASER_PARAM_WIRE_FEED_SWITCH_SDK || id == LASER_PARAM_START_WIRE_FEED_SPEED_SDK ||
+            id == LASER_PARAM_STOP_WIRE_FEED_SPEED_SDK;
+        if (fixed || (resource.weldingProcessType == SELF_WELDING_LASERSDK && wire)) {
+            item = values.erase(item);
+        } else {
+            ++item;
         }
-    }
-    // 首站仍发送全部映射；自熔完整工艺必须显式清零四项，禁止复用旧送丝值。
-    for (unsigned id : wireIds) {
-        value(values, id, 0);
     }
 }
 
@@ -500,6 +498,13 @@ LaserSdkResult BuildDeviceParametersScript(const MachineResource &resource, cons
         }
         active = &defaults;
     }
+    if (resource.laserHeadBrand == CQ_SUP26AD_LASERPOWER_SDK) {
+        std::vector<LaserParameterValueSdk> permitted(values);
+        FilterSup26CraftValues(resource, permitted);
+        if (permitted.size() != values.size()) {
+            return fail(diagnostic, 0, "当前焊接方式不允许下发该送丝参数，固定设置由上位机初始化", PARAMETER_ERROR_LASER_SDK);
+        }
+    }
     WritePlan plan;
     // 编译器统一完成能力、范围、缩放、舍入及地址重叠校验，输出层不再解释业务值。
     const LaserSdkResult result = CompileWritePlan(*active, values, plan, diagnostic);
@@ -517,7 +522,7 @@ LaserSdkResult BuildDeviceParametersScript(const MachineResource &resource, cons
     }
     try {
         if (resource.laserHeadBrand == CQ_SUP26AD_LASERPOWER_SDK) {
-            pendingScript.insert(0, sup26CraftBank(plan));
+            pendingScript.insert(0, sup26CraftBank(plan, resource.weldingProcessType == WIRE_WELDING_LASERSDK));
         }
         script.swap(pendingScript);
     } catch (const std::bad_alloc &) {
@@ -615,7 +620,7 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource &resource, const Cra
         }
         selected.push_back(parameter);
     }
-    CompleteSup26SelfWeldCraftValues(resource, selected);
+    FilterSup26CraftValues(resource, selected);
     return BuildDeviceParametersScript(resource, overrideConfiguration, selected, script, diagnostic);
 }
 

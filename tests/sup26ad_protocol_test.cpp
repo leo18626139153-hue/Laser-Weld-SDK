@@ -46,8 +46,11 @@ int main() {
         std::string txt(b.data());
         assert(txt.find("write_value_port") == std::string::npos);
         assert(txt.find("write_int16_register(60, 10)") != std::string::npos);
-        assert(txt.find("write_int16_register(99, 200)") != std::string::npos);
-        assert(txt.find("write_int16_register(101, 1000)") != std::string::npos);
+        assert(txt.find("-- SUP26AD_CRAFT_BANK_V2:WIRE:") != std::string::npos);
+        assert(txt.find("write_int16_register(69,") == std::string::npos);
+        assert(txt.find("write_int16_register(94, 60)") != std::string::npos);
+        assert(txt.find("write_int16_register(99,") == std::string::npos);
+        assert(txt.find("write_int16_register(101,") == std::string::npos);
         std::ofstream("sup26-craft.lua") << txt;
         n = b.size();
         result = cl_get_arc_start_slow_script(h, b.data(), &n);

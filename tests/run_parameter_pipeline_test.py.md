@@ -127,7 +127,7 @@ def compile_and_run(mirror, build_root, compiler, test_name, build_dll=False,
         if build_dll:
             # 真实 DLL 链接使用原始机器人导入库，不使用回归失败桩。
             if import_library is None:
-                import_library = mirror.parent / "laserWeldSDK" / "third_party" / "cr_sdk" / "windows" / "libs" / "x64" / "cr_sdk.lib"
+                import_library = mirror.parent / "laserWeldSDK" / "third_party" / "cr_sdk" / "libs" / "x64" / "cr_sdk.lib"
             if not import_library.exists():
                 raise RuntimeError("真实 DLL 链接缺少机器人 SDK 导入库: " + str(import_library))
             dll_target = target / "runtime-dll"
@@ -196,7 +196,7 @@ def main():
             raise RuntimeError("指定源码目录缺少 MD 镜像文件: " + str(mirror / name))
     test_root = mirror if (mirror / "tests" / (args.test + "-cpp.md")).is_file() else default_mirror
     library = args.robot_sdk_library.resolve() if args.robot_sdk_library else (
-        default_mirror.parent / "laserWeldSDK" / "third_party" / "cr_sdk" / "windows" / "libs" / "x64" / "cr_sdk.lib")
+        default_mirror.parent / "laserWeldSDK" / "third_party" / "cr_sdk" / "libs" / "x64" / "cr_sdk.lib")
     if args.compiler == "all":
         compilers = ["msvc", "mingw"]
     elif args.compiler == "auto":

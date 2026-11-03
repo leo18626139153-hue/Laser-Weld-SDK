@@ -808,6 +808,8 @@ LaserSdkResult BuildStageScript(LaserMachineHandle handle, const MachineResource
             envelope[i].parameterId = ids[i];
             envelope[i].value = values[i];
         }
+        // SUP26AD固定百分比和渐进时间由上位机设置一次，独立起弧也不能重复写入。
+        laser_parameters::FilterSup26CraftValues(resource, envelope);
         laser_parameters::WritePlan plan;
         result = laser_parameters::CompileWritePlan(context.parameters, envelope, plan);
         if (result != SUCCESS_LASER_SDK) {
@@ -928,7 +930,7 @@ LaserSdkResult BuildCraftScript(LaserMachineHandle handle, const MachineResource
             selected.push_back(parameter);
         }
     }
-    laser_parameters::CompleteSup26SelfWeldCraftValues(resource, selected);
+    laser_parameters::FilterSup26CraftValues(resource, selected);
     // 旧超强工艺仍设置初始峰值，但新实际运行功率只写快速峰值，保持额定功率不动。
     if (legacy) {
         LaserParameterValueSdk power = {};

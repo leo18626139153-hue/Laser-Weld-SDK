@@ -266,12 +266,17 @@ void EmitFixture(std::ostream &output, LaserHeadBrandSdk brand, const char *name
     const CraftInfoLaserSdk craft = Craft();
     const std::string parameters = CraftScript(handle, craft);
     if (brand == CQ_SUP26AD_LASERPOWER_SDK) {
-        CHECK(parameters.find("-- SUP26AD_CRAFT_BANK_V1:") != std::string::npos);
-        CHECK(parameters.find(",95=0,") != std::string::npos);
+        CHECK(parameters.find(wire ? "-- SUP26AD_CRAFT_BANK_V2:WIRE:" : "-- SUP26AD_CRAFT_BANK_V2:SELF:") != std::string::npos);
+        CHECK(parameters.find("write_int16_register(69,") == std::string::npos);
+        CHECK(parameters.find("write_int16_register(98,") == std::string::npos);
+        CHECK(parameters.find("write_int16_register(99,") == std::string::npos);
+        CHECK(parameters.find("write_int16_register(100,") == std::string::npos);
+        CHECK(parameters.find("write_int16_register(101,") == std::string::npos);
+        CHECK(!wire || parameters.find(",95=0,") != std::string::npos);
         if (!wire) {
-            CHECK(parameters.find(",94=0,") != std::string::npos);
-            CHECK(parameters.find(",96=0,") != std::string::npos);
-            CHECK(parameters.find(",97=0,") != std::string::npos);
+            CHECK(parameters.find("94=") == std::string::npos);
+            CHECK(parameters.find("96=") == std::string::npos);
+            CHECK(parameters.find("97=") == std::string::npos);
         }
     }
     const std::string program = Program(handle, craft, true);

@@ -629,7 +629,7 @@ LaserSdkResult Sup26AdProtocolAdapter::checkCraft(const CraftInfoLaserSdk &craft
         craftInfo.craftPreGasTime > kSup26MaximumGasDelayMs || craftInfo.craftPostGasTime < 0 || craftInfo.craftPostGasTime > kSup26MaximumGasDelayMs ||
         craftInfo.craftLeadInRampTime < 0 || craftInfo.craftLeadInRampTime > kSup26MaximumRampTimeMs || craftInfo.craftLeadOutRampDistance < 0 ||
         craftInfo.craftWeldingWireFeed < 0 || craftInfo.craftWeldingWireFeed > 600 || craftInfo.craftRetractionLength < 0 ||
-        craftInfo.craftRetractionLength > 200 || craftInfo.craftEndLoopbackLength < 0 || craftInfo.craftEndLoopbackLength > 200 ||
+        craftInfo.craftRetractionLength > 100 || craftInfo.craftEndLoopbackLength < 0 || craftInfo.craftEndLoopbackLength > 100 ||
         !std::isfinite(craftInfo.craftWeldingSpeed) || craftInfo.craftWeldingSpeed <= 0.0) {
         return LaserSdkResult::PARAMETER_OUT_OF_RANGE_LASER_SDK;
     }

@@ -31,6 +31,10 @@ local function create_world(fixture, quantum, red_light_state)
         local manual_gas_address = fixture.legacy and 49 or (fixture.powerAddress == 63 and 94 or 103)
         check(not (kind == "write" and address == manual_gas_address),
               fixture.name .. " 新外控阶段不应独立写手动气阀开关")
+        if fixture.powerAddress == 90 and kind == "write" then
+            check(address ~= 69 and not (address >= 98 and address <= 101),
+                  fixture.name .. " 工艺/起收弧不得重复写入上位机固定设置")
+        end
         world.events[#world.events + 1] = { time = world.now, kind = kind,
                                          address = address, value = value,
                                          active_wire_stop = not (fixture.powerAddress == 90
@@ -234,9 +238,7 @@ local function check_no_wire(fixture, world)
     if fixture.wire then return end
     for _, item in ipairs(world.events) do
         check(not (item.kind == "do" and item.address == 2), fixture.name .. " 自熔焊操作 CO2")
-        local safe_sup26_zero = fixture.powerAddress == 90 and item.kind == "write"
-            and item.value == 0 and item.address >= 94 and item.address <= 97
-        check(safe_sup26_zero or not (item.kind == "write" and
+        check(not (item.kind == "write" and
               (item.address == fixture.wireAddress
                or (fixture.legacy and (item.address == 50 or item.address == 260 or item.address == 261))
                or (fixture.powerAddress == 90 and (item.address == 95 or item.address == 96 or item.address == 97))
@@ -575,10 +577,9 @@ local function run_program_case(fixture)
         equal(last_write(parameters, 68), 0, fixture.name .. " 宝辰鑫板卡缓升未关闭")
         equal(last_write(parameters, 69), 0, fixture.name .. " 宝辰鑫板卡缓降未关闭")
     elseif fixture.powerAddress == 90 then
-        equal(last_write(parameters, 98), 100, fixture.name .. " 超强开光比例旁路")
-        equal(last_write(parameters, 100), 100, fixture.name .. " 超强关光比例旁路")
-        equal(last_write(parameters, 99), 0, fixture.name .. " 超强板卡缓升未关闭")
-        equal(last_write(parameters, 101), 0, fixture.name .. " 超强板卡缓降未关闭")
+        for _, address in ipairs({69, 98, 99, 100, 101}) do
+            equal(#parameters:writes(address), 0, fixture.name .. " 不得下发固定设置 " .. tostring(address))
+        end
     else
         equal(last_write(parameters, 561), 100, fixture.name .. " 旧超强开光比例旁路")
         equal(last_write(parameters, 563), 100, fixture.name .. " 旧超强关光比例旁路")
