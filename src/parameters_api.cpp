@@ -1,4 +1,5 @@
 #include "cl_api.h"
+#include "trmcontrol.h"
 #include "parametercontext.h"
 #include "internaldatadefine.h"
 #include "brandadapter.h"
@@ -46,6 +47,10 @@ LaserSdkResult cl_parameters_configuration_set(LaserMachineHandle handle, const 
             setDiagnostic(diagnostic, HANDLE_ERROR_LASER_SDK);
             return HANDLE_ERROR_LASER_SDK;
         }
+        if (machineResourcesMap.find(handle)->second.laserHeadBrand == TRM_LASERPOWER_SDK) {
+            setDiagnostic(diagnostic, PARAM_TYPE_ERROR_LASER_SDK);
+            return PARAM_TYPE_ERROR_LASER_SDK;
+        }
         // 先检查元素头，拒绝布局过小的调用方，避免复制后才发现 ABI 不匹配。
         for (unsigned int i = 0; i < descriptorCount; ++i) {
             if (descriptors[i].structSize < sizeof(LaserParameterDescriptorSdk)) {
@@ -85,7 +90,10 @@ LaserSdkResult cl_parameters_configuration_get(LaserMachineHandle handle, LaserP
     try {
         laser_parameters::Configuration configuration;
         // 先取得完整有效配置，再统一返回两个输出数组的容量要求。
-        const LaserSdkResult result = laser_parameters::GetMachineConfiguration(handle, configuration);
+        const auto machine = machineResourcesMap.find(handle);
+        const bool trm = machine != machineResourcesMap.end() && machine->second.laserHeadBrand == TRM_LASERPOWER_SDK;
+        const LaserSdkResult result = trm ? trm_control::GetParameterConfiguration(handle, configuration)
+                                          : laser_parameters::GetMachineConfiguration(handle, configuration);
         if (result != SUCCESS_LASER_SDK) {
             return result;
         }
@@ -153,12 +161,17 @@ LaserSdkResult cl_parameters_script_get(LaserMachineHandle handle, const LaserPa
             parameterValues.assign(values, values + valueCount);
         }
         std::string body;
-        const LaserSdkResult result = laser_parameters::BuildMachineParameterScript(handle, resource, parameterValues, body, diagnostic);
+        const bool trm = resource.laserHeadBrand == TRM_LASERPOWER_SDK;
+        const LaserSdkResult result = trm ? trm_control::BuildParameterScript(handle, parameterValues, body, diagnostic)
+                                          : laser_parameters::BuildMachineParameterScript(handle, resource, parameterValues, body, diagnostic);
         if (result != SUCCESS_LASER_SDK) {
+            if (trm && diagnostic != nullptr && diagnostic->result == SUCCESS_LASER_SDK) {
+                setDiagnostic(diagnostic, result);
+            }
             return result;
         }
         // 类型及地址校验成功后才装配兼容初始化；最后一步才写调用方缓冲区。
-        const std::string script = standaloneParameterScript(handle, resource, body);
+        const std::string script = trm ? body : standaloneParameterScript(handle, resource, body);
         const LaserSdkResult copied = strToChar(scripts, scriptLen, script);
         if (copied != SUCCESS_LASER_SDK) {
             setDiagnostic(diagnostic, copied);

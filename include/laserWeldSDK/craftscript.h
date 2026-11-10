@@ -22,4 +22,8 @@
 LaserSdkResult GetBasicCraftScript(LaserMachineHandle laserMachineHandle, const InstListData &instListData, InstListTransEnvironmentData &environment,
     std::string &bodyScriptText);
 
+/** @brief 使用独立设备快照编译轨迹及可选设备动作。 */
+LaserSdkResult GetBasicCraftScriptWithResource(LaserMachineHandle handle, MachineResource &resource, const InstListData &list,
+    InstListTransEnvironmentData &environment, std::string &body);
+
 #endif // CRAFTSCRIPT_H

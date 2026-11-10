@@ -3,6 +3,7 @@
 
 #include "cl_basedefine.h"
 #include <vector>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <random>
@@ -79,11 +80,20 @@ struct InstListData {
  * 轨迹模拟与实焊使用同一套指令规划和轨迹拆分，仅通过策略决定是否下发设备控制。
  * 后续如需开放带参数模拟，只需调整策略，不再修改指令解释器。
  */
+struct CraftScriptActions {
+    std::map<int, std::string> select; ///< 按指令ID选择已编译的工艺。
+    std::string start;                 ///< 校验出光并开始渐变。
+    std::string motionReady;           ///< 运动前等待实际出光或中止。
+    std::string down;                  ///< 在合成点启动异步缓降。
+    std::string finish;                ///< 真实轨迹终点收弧。
+};
+
 struct ScriptGenerationPolicy {
-    bool emitDeviceParameters;    ///< 是否下发激光器、送丝机和激光头参数
-    bool emitArcControl;          ///< 是否下发起弧、收弧控制
-    bool emitRampDownControl;     ///< 是否下发降功率控制
-    bool useWeldMotionParameters; ///< 是否使用工艺焊接速度和加速度
+    bool emitDeviceParameters;                         ///< 是否下发激光器、送丝机和激光头参数
+    bool emitArcControl;                               ///< 是否下发起弧、收弧控制
+    bool emitRampDownControl;                          ///< 是否下发降功率控制
+    bool useWeldMotionParameters;                      ///< 是否使用工艺焊接速度和加速度
+    const CraftScriptActions *deviceActions = nullptr; ///< 新品牌预编译动作，默认沿用兼容路径
 };
 
 enum RoadCraftType {

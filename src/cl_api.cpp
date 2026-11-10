@@ -7,6 +7,7 @@
 #include "clmath.h"
 #include "brandadapter.h"
 #include "parametercontext.h"
+#include "trmcontrol.h"
 #include <functional>
 #include <thread>
 #include <chrono>
@@ -88,7 +89,8 @@ LaserSdkResult cl_machine_resource_init(const MachineResource *laserMachineResou
         return PARAMETER_ERROR_LASER_SDK;
     }
     if (laserMachineResource->laserHeadBrand != CQLASERPOWER_SDK && laserMachineResource->laserHeadBrand != OSRPLASERPOWER_SDK &&
-        laserMachineResource->laserHeadBrand != BCXLASERPOWER_SDK && laserMachineResource->laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK) {
+        laserMachineResource->laserHeadBrand != BCXLASERPOWER_SDK && laserMachineResource->laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK &&
+        laserMachineResource->laserHeadBrand != TRM_LASERPOWER_SDK) {
         return PARAM_TYPE_ERROR_LASER_SDK;
     }
     // 设置随机数种子
@@ -110,7 +112,8 @@ LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineH
         return PARAMETER_ERROR_LASER_SDK;
     }
     if (laserMachineResource->laserHeadBrand != CQLASERPOWER_SDK && laserMachineResource->laserHeadBrand != OSRPLASERPOWER_SDK &&
-        laserMachineResource->laserHeadBrand != BCXLASERPOWER_SDK && laserMachineResource->laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK) {
+        laserMachineResource->laserHeadBrand != BCXLASERPOWER_SDK && laserMachineResource->laserHeadBrand != CQ_SUP26AD_LASERPOWER_SDK &&
+        laserMachineResource->laserHeadBrand != TRM_LASERPOWER_SDK) {
         return PARAM_TYPE_ERROR_LASER_SDK;
     }
     if (machineResourcesMap.count(laserMachineHandle) == 0) {
@@ -119,6 +122,12 @@ LaserSdkResult cl_machine_resource_update(const LaserMachineHandle laserMachineH
     if (machineResourcesMap[laserMachineHandle].laserHeadBrand != laserMachineResource->laserHeadBrand) {
         laser_parameters::ReleaseMachineConfiguration(laserMachineHandle);
         ramp_control::ReleaseConfig(laserMachineHandle);
+    }
+    const MachineResource &previous = machineResourcesMap[laserMachineHandle];
+    if (previous.laserHeadBrand != laserMachineResource->laserHeadBrand || previous.robotHandle != laserMachineResource->robotHandle ||
+        previous.commuType != laserMachineResource->commuType || previous.weldingProcessType != laserMachineResource->weldingProcessType ||
+        previous.laserPowerParams.laserPower != laserMachineResource->laserPowerParams.laserPower) {
+        trm_control::Release(laserMachineHandle);
     }
     machineResourcesMap[laserMachineHandle] = *laserMachineResource;
     return SUCCESS_LASER_SDK;
@@ -145,6 +154,7 @@ LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachine
     laser_parameters::ReleaseMachineConfiguration(laserMachineHandle);
     laser_parameters::ReleaseMachineDevicePowerPolicy(laserMachineHandle);
     ramp_control::ReleaseConfig(laserMachineHandle);
+    trm_control::Release(laserMachineHandle);
     machineResourcesMap.erase(laserMachineHandle);
     return SUCCESS_LASER_SDK;
 }
@@ -160,6 +170,10 @@ LaserSdkResult cl_machine_device_power_managed_set(const LaserMachineHandle lase
 }
 
 LaserSdkResult cl_ramp_control_config_set(LaserMachineHandle laserMachineHandle, const LaserRampControlConfigSdk *config) {
+    const auto machine = machineResourcesMap.find(laserMachineHandle);
+    if (machine != machineResourcesMap.end() && machine->second.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     try {
         return ramp_control::SetConfig(laserMachineHandle, config);
     } catch (const std::bad_alloc &) {
@@ -197,6 +211,9 @@ LaserSdkResult cl_craft_arc_script_get(LaserMachineHandle laserMachineHandle, co
     const std::unordered_map<int, MachineResource>::const_iterator it = machineResourcesMap.find(laserMachineHandle);
     if (it == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
+    }
+    if (it->second.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
     }
     if (!ramp_control::Enabled(laserMachineHandle)) {
         return PARAMETER_ERROR_LASER_SDK;
@@ -252,6 +269,9 @@ LaserSdkResult cl_get_arc_start_script(const LaserMachineHandle laserMachineHand
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     if (ramp_control::Enabled(laserMachineHandle)) {
         return externalArcScript(laserMachineHandle, machineResource, SWITCH_ON_LASER_SDK, false, scripts, scriptLen);
     }
@@ -346,6 +366,9 @@ LaserSdkResult cl_get_arc_stop_script(const LaserMachineHandle laserMachineHandl
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     if (ramp_control::Enabled(laserMachineHandle)) {
         return externalArcScript(laserMachineHandle, machineResource, SWITCH_OFF_LASER_SDK, false, scripts, scriptLen);
     }
@@ -450,6 +473,9 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     // 通讯实例统一按资源类型选择，避免各接口采用不同的路由规则。
     CommuBase *curCommuFunction = NULL;
     LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
@@ -500,8 +526,8 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
 }
 
 //指令列表转换
-LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachineHandle, LaserWeldStartData weldStartData, bool isWeld, char *scripts,
-    int *scriptLen) {
+static LaserSdkResult compileInstructionProgram(LaserMachineHandle laserMachineHandle, const LaserWeldStartData &weldStartData, bool isWeld, char *scripts,
+    int *scriptLen, MachineResource *trmResource, const LaserTrmProfileSdk *trmProfile, const LaserTrmCraftSdk *trmCrafts) {
     if (scriptLen == NULL) {
         return PARAMETER_ERROR_LASER_SDK;
     }
@@ -523,6 +549,11 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         return PARAMETER_ERROR_LASER_SDK;
     }
 
+    CraftScriptActions trmActions;
+    trmActions.start = "if not trm_start_selected(false) then trm_fault() return end\n";
+    trmActions.motionReady = "if not trm_motion_ready() then trm_fault() return end\n";
+    trmActions.down = "if not trm_motion_ready() or not trm_down() then trm_fault() return end\n";
+    trmActions.finish = "if not trm_finish() then trm_fault() return end\n";
     InstListData instListData;
     for (int instLoc = 0; instLoc < weldStartData.instNum; ++instLoc) {
         const int rawType = weldStartData.instList[instLoc * kInstructionFieldCount];
@@ -543,7 +574,16 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
             if (dataListLoc < 0 || dataListLoc >= weldStartData.craftNum) {
                 return INSTLIST_ERROR_LASER_SDK;
             }
-            instListData.craftsMap.emplace(typeID, weldStartData.craftInfoList[dataListLoc]);
+            const CraftInfoLaserSdk &craft = weldStartData.craftInfoList[dataListLoc];
+            instListData.craftsMap.emplace(typeID, craft);
+            if (trmResource != nullptr && isWeld) {
+                std::string definition;
+                const LaserSdkResult result = trm_control::BuildCraft(*trmResource, *trmProfile, craft, trmCrafts[dataListLoc], definition);
+                if (result != SUCCESS_LASER_SDK) {
+                    return result;
+                }
+                trmActions.select.emplace(typeID, "if not trm_apply(" + definition + ") then trm_fault() return end\n");
+            }
         } else if (instType == LINE_POINT_INST_LASER_WELD_SDK || instType == CIRCLE_POINT_INST_LASER_WELD_SDK || instType == JOINT_POINT_INST_LASER_WELD_SDK ||
             instType == SAFE_POINT_MOVEJ_INST_LASER_WELD_SDK) {
             if (dataListLoc < 0 || dataListLoc >= weldStartData.pointsNum) {
@@ -564,30 +604,32 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
         }
     }
 
-    CommuBase *craftCommu = NULL;
-    LaserSdkResult result = craft_script_commu_class_get(laserMachineHandle, craftCommu);
-    if (result != SUCCESS_LASER_SDK || craftCommu == NULL) {
-        return result == SUCCESS_LASER_SDK ? COMMU_ERROR_LASER_SDK : result;
+    CommuBase *craftCommu = nullptr;
+    if (trmResource == nullptr) {
+        const LaserSdkResult result = craft_script_commu_class_get(laserMachineHandle, craftCommu);
+        if (result != SUCCESS_LASER_SDK || craftCommu == nullptr) {
+            return result == SUCCESS_LASER_SDK ? COMMU_ERROR_LASER_SDK : result;
+        }
     }
-
-    MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    struct ScriptGenerationScope {
+    MachineResource &machineResource = trmResource != nullptr ? *trmResource : machineResourcesMap[laserMachineHandle];
+    struct LegacyScriptGenerationScope {
         MachineResource &resource;
         MachineResource snapshot;
-        CommuBase &commu;
+        CommuBase *commu;
 
-        ScriptGenerationScope(MachineResource &machineResource, CommuBase &commuFunction)
-            : resource(machineResource), snapshot(machineResource), commu(commuFunction) {
-            // 上一次失败调用可能留下未输出函数，本次生成必须从空缓存开始。
-            commu.resetPendingScriptFragments();
+        LegacyScriptGenerationScope(MachineResource &source, CommuBase *commuFunction) : resource(source), snapshot(source), commu(commuFunction) {
+            if (commu != nullptr) {
+                commu->resetPendingScriptFragments();
+            }
         }
 
-        ~ScriptGenerationScope() {
-            // 脚本生成是纯编译过程，不允许长度查询或失败调用改变焊机资源状态。
-            resource = snapshot;
-            commu.resetPendingScriptFragments();
+        ~LegacyScriptGenerationScope() {
+            if (commu != nullptr) {
+                resource = snapshot;
+                commu->resetPendingScriptFragments();
+            }
         }
-    } generationScope(machineResource, *craftCommu);
+    } generationScope(machineResource, craftCommu);
 
     InstListTransEnvironmentData environment;
     environment.craftID = -1;
@@ -598,8 +640,9 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     environment.policy.emitRampDownControl = isWeld;
     environment.policy.useWeldMotionParameters = isWeld;
 
+    environment.policy.deviceActions = trmResource != nullptr && isWeld ? &trmActions : nullptr;
     std::string bodyScriptText;
-    result = GetBasicCraftScript(laserMachineHandle, instListData, environment, bodyScriptText);
+    LaserSdkResult result = GetBasicCraftScriptWithResource(laserMachineHandle, machineResource, instListData, environment, bodyScriptText);
     if (result != SUCCESS_LASER_SDK) {
         return result;
     }
@@ -636,7 +679,13 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
 
     std::string script;
-    if (ramp_control::Enabled(laserMachineHandle) && isWeld) {
+    if (trmResource != nullptr) {
+        script = strWriteInt32RegReplace(INT32_REG_NORMAL_RUN_ALL_SCRIPT_LOC, 0);
+        if (isWeld) {
+            script += trm_control::BuildRuntime(*trmProfile) + trm_control::BuildProtection() +
+                "if not trm_session_init() then trm_fault() return end\ntrm_watch()\n";
+        }
+    } else if (ramp_control::Enabled(laserMachineHandle) && isWeld) {
         std::string runtime;
         result = ramp_control::BuildRuntimeScript(laserMachineHandle, machineResource, runtime);
         if (result != SUCCESS_LASER_SDK) {
@@ -651,6 +700,12 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     script += signalStepPointLocListScript;
     script += strWriteInt32RegReplace(INT32_REG_WELD_MODE_660, isWeld ? 2 : 1);
     script += bodyScriptText;
+    if (trmResource != nullptr) {
+        // 只有完整完成才允许工件队列前进，实焊失败路径在动作内退出。
+        script += strWriteInt32RegReplace(INT32_REG_PROGRAM_STOP_ARC_END_614, 0);
+        script += strWriteInt32RegReplace(INT32_REG_SINGLE_STEP_RUN_616, 0);
+        script += strWriteInt32RegReplace(INT32_REG_NORMAL_RUN_ALL_SCRIPT_LOC, 1);
+    }
 
     // scripts为nullptr是合法长度查询；strToChar保证容量不足时不写缓冲区。
     //脚本赋值
@@ -660,12 +715,50 @@ LaserSdkResult cl_craft_inst_list_script_get(const LaserMachineHandle laserMachi
     }
     return bufferResult;
 }
+LaserSdkResult cl_craft_inst_list_script_get(LaserMachineHandle handle, LaserWeldStartData data, bool isWeld, char *scripts, int *scriptLen) {
+    const auto machine = machineResourcesMap.find(handle);
+    if (machine != machineResourcesMap.end() && machine->second.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        if (isWeld) {
+            return PARAM_TYPE_ERROR_LASER_SDK;
+        }
+        return cl_trm_program_script_get(handle, &data, nullptr, 0, false, scripts, scriptLen);
+    }
+    return compileInstructionProgram(handle, data, isWeld, scripts, scriptLen, nullptr, nullptr, nullptr);
+}
+
+LaserSdkResult cl_trm_program_script_get(LaserMachineHandle handle, const LaserWeldStartData *data, const LaserTrmCraftSdk *crafts, unsigned craftCount,
+    bool isWeld, char *scripts, int *scriptLen) {
+    if (data == nullptr || scriptLen == nullptr ||
+        (isWeld && (data->craftNum < 0 || craftCount != static_cast<unsigned>(data->craftNum) || (craftCount != 0 && crafts == nullptr)))) {
+        return PARAMETER_ERROR_LASER_SDK;
+    }
+    try {
+        MachineResource resource;
+        LaserTrmProfileSdk profile;
+        const LaserSdkResult result = trm_control::Snapshot(handle, resource, profile);
+        if (result != SUCCESS_LASER_SDK) {
+            return result;
+        }
+        if (isWeld && !trm_control::CanWeld(resource, profile, TRM_CAP_AUTOMATIC_WELD_SDK)) {
+            return COMMU_ERROR_LASER_SDK;
+        }
+        return compileInstructionProgram(handle, *data, isWeld, scripts, scriptLen, &resource, &profile, crafts);
+    } catch (const std::bad_alloc &) {
+        return MEMORY_ERROR_LASER_SDK;
+    } catch (...) {
+        return OTHER_ERROR_LASER_SDK;
+    }
+}
+
 LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle laserMachineHandle, char *scripts, int *scriptLen) {
     //句柄
     if (machineResourcesMap.find(laserMachineHandle) == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     if (ramp_control::Enabled(laserMachineHandle)) {
         // 暂停、停止先取消阶段任务，不能让旧后台任务在关光之后重新写入功率或送丝。
         const std::string handlers = R"(
@@ -829,6 +922,9 @@ LaserSdkResult cl_get_arc_start_slow_script(const LaserMachineHandle laserMachin
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     if (ramp_control::Enabled(laserMachineHandle)) {
         return externalArcScript(laserMachineHandle, machineResource, SWITCH_ON_LASER_SDK, false, scripts, scriptLen);
     }
@@ -1000,6 +1096,9 @@ LaserSdkResult cl_get_arc_stop_slow_script(const LaserMachineHandle laserMachine
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     if (ramp_control::Enabled(laserMachineHandle)) {
         return externalArcScript(laserMachineHandle, machineResource, SWITCH_OFF_LASER_SDK, true, scripts, scriptLen);
     }
@@ -1163,6 +1262,9 @@ LaserSdkResult cl_craft_device_status_modify(const LaserMachineHandle laserMachi
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
 
     if (laser_parameters::UsesMappedParameters(laserMachineHandle, machineResource.laserHeadBrand)) {
         try {
@@ -1284,6 +1386,9 @@ LaserSdkResult cl_message_generate(const LaserMachineHandle laserMachineHandle, 
             return HANDLE_ERROR_LASER_SDK;
         }
 
+        if (machineResourcesMap.find(laserMachineHandle)->second.laserHeadBrand == TRM_LASERPOWER_SDK) {
+            return PARAM_TYPE_ERROR_LASER_SDK;
+        }
         // 缓冲区和长度由调用方维护，必须在写入或回填所需容量前检查。
         if (message == NULL || length == NULL) {
             return PARAMETER_ERROR_LASER_SDK;
@@ -1367,6 +1472,9 @@ LaserSdkResult cl_write_message_to_bool_register(const LaserMachineHandle laserM
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     std::vector<int> tmpValue;
     for (unsigned int i = 0; i < registerNums; ++i) {
         tmpValue.push_back(message[i]);
@@ -1382,6 +1490,9 @@ LaserSdkResult cl_write_message_to_Int16_register(const LaserMachineHandle laser
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
     std::vector<unsigned int> tmpValue;
     for (unsigned int i = 0; i < registerNums; ++i) {
         tmpValue.push_back(*(unsigned short *)&message[i * 2]);
@@ -1421,6 +1532,9 @@ LaserSdkResult cl_write_state_monitor_message_to_Int32_register(const LaserMachi
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
+    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        return PARAM_TYPE_ERROR_LASER_SDK;
+    }
 
     int32_t register_values[] = {
         18875145,   // int32Reg_854

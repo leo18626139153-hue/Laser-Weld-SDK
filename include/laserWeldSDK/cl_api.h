@@ -4,6 +4,7 @@
 #include "cl_basedefine.h"
 #include "parameterdefine.h"
 #include "rampcontroldefine.h"
+#include "trmdefine.h"
 #include "robotapi.h"
 #include <stdint.h>
 
@@ -31,6 +32,30 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** @brief 安装按句柄独立的已验收特尔码映射档案；capabilities=0时取消授权。 */
+LASERWELDSDK_EXPORT LaserSdkResult cl_trm_profile_set(LaserMachineHandle handle, const LaserTrmProfileSdk *profile);
+/** @brief 获取当前档案。未配置时返回有效版本及零能力。 */
+LASERWELDSDK_EXPORT LaserSdkResult cl_trm_profile_get(LaserMachineHandle handle, LaserTrmProfileSdk *profile);
+/** @brief 校验特尔码工艺。配置缺失时只检查已知数值范围和关系。 */
+LASERWELDSDK_EXPORT LaserSdkResult cl_trm_craft_validate(LaserMachineHandle handle, const CraftInfoLaserSdk *craft, const LaserTrmCraftSdk *values);
+/** @brief 生成只下发工艺的脚本。scripts为空时查询所需容量，包含结尾零字符。 */
+LASERWELDSDK_EXPORT LaserSdkResult cl_trm_craft_script_get(LaserMachineHandle handle, const CraftInfoLaserSdk *craft, const LaserTrmCraftSdk *values,
+    char *scripts, int *scriptLen);
+/**
+ * @brief 从稳定工艺快照生成实焊或轨迹模拟主体，实焊已包含事件保护。
+ * @param[in] crafts 与data的craftInfoList同下标。模拟时允许空数组。
+ * @param[in] craftCount 实焊时与data的craftNum相等。
+ * @note 脚本由调用方装入控制器程序外壳。scripts为空时查询容量，含结尾零字符。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_trm_program_script_get(LaserMachineHandle handle, const LaserWeldStartData *data, const LaserTrmCraftSdk *crafts,
+    unsigned craftCount, bool isWeld, char *scripts, int *scriptLen);
+/**
+ * @brief 生成独立动作或手动会话主体。点焊启动需要完整工艺，手动会话允许仅检气。
+ * @note 手动会话在同一程序内消费650检气、653点焊请求；复位与退出须等待安全关光。
+ */
+LASERWELDSDK_EXPORT LaserSdkResult cl_trm_action_script_get(LaserMachineHandle handle, LaserTrmActionSdk action, const CraftInfoLaserSdk *craft,
+    const LaserTrmCraftSdk *values, char *scripts, int *scriptLen);
 
 /**
  * @brief LaserSdkResult     获取当前焊接SDK版本号

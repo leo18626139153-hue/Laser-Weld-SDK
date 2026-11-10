@@ -10,10 +10,11 @@ typedef int LaserMachineHandle;
 
 //激光头品牌
 enum LaserHeadBrandSdk {
-    CQLASERPOWER_SDK = 0,         ///< 超强伟业
-    OSRPLASERPOWER_SDK = 1,       ///< 欧斯睿普
-    BCXLASERPOWER_SDK = 2,        ///< 宝辰鑫
-    CQ_SUP26AD_LASERPOWER_SDK = 3 ///< 超强伟业 SUP26AD 板卡
+    CQLASERPOWER_SDK = 0,          ///< 超强伟业
+    OSRPLASERPOWER_SDK = 1,        ///< 欧斯睿普
+    BCXLASERPOWER_SDK = 2,         ///< 宝辰鑫
+    CQ_SUP26AD_LASERPOWER_SDK = 3, ///< 超强伟业 SUP26AD 板卡
+    TRM_LASERPOWER_SDK = 4         ///< 特尔码 LWHxxS
 };
 
 // 接口调用结果
