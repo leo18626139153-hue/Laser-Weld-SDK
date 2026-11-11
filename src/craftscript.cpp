@@ -125,18 +125,17 @@ LaserSdkResult appendRampDownControl(LaserMachineHandle laserMachineHandle, cons
 
 LaserSdkResult appendStraightRampDownTrajectory(LaserMachineHandle laserMachineHandle, const MachineResource &machineResource, CommuBase &craftCommu,
     const ScriptGenerationPolicy &policy, const PointDataLaserSdk &startPoint, const PointDataLaserSdk &endPoint, double rampDownDistance, double speed,
-    double acc, std::string &bodyScriptText) {
+    double acc, double transitionRadius, std::string &bodyScriptText) {
     double rampDownPoint[6] = {0};
     LaserSdkResult result = getStraightLineSlowUpPoint(startPoint.pose, endPoint.pose, rampDownDistance, rampDownPoint);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK) {
         return result;
     }
 
-    // 降功率点是内部合成点，不写到达寄存器；两段边界半径必须为0，保证机器人经过触发点。
     if (policy.deviceActions != nullptr) {
         bodyScriptText += policy.deviceActions->motionReady;
     }
-    bodyScriptText += strMoveLReplace(doubleArray2Str(rampDownPoint, 6), std::to_string(speed), std::to_string(acc), "0");
+    bodyScriptText += strMoveLReplace(doubleArray2Str(rampDownPoint, 6), std::to_string(speed), std::to_string(acc), std::to_string(transitionRadius));
     result = appendRampDownControl(laserMachineHandle, machineResource, craftCommu, policy, bodyScriptText);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK) {
         return result;
@@ -144,13 +143,14 @@ LaserSdkResult appendStraightRampDownTrajectory(LaserMachineHandle laserMachineH
     if (policy.deviceActions != nullptr) {
         bodyScriptText += policy.deviceActions->motionReady;
     }
-    bodyScriptText += strMoveLReplace(doubleArray2Str(endPoint.pose, 6), std::to_string(speed), std::to_string(acc), "0");
+    bodyScriptText += strMoveLReplace(doubleArray2Str(endPoint.pose, 6), std::to_string(speed), std::to_string(acc),
+        std::to_string(machineResource.robotParams.weldPointTransitionRadius));
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 
 LaserSdkResult appendCircleRampDownTrajectory(LaserMachineHandle laserMachineHandle, const MachineResource &machineResource, CommuBase &craftCommu,
     const ScriptGenerationPolicy &policy, const PointDataLaserSdk &startPoint, const PointDataLaserSdk &transitionPoint, const PointDataLaserSdk &endPoint,
-    double rampDownDistance, double speed, double acc, std::string &bodyScriptText) {
+    double rampDownDistance, double speed, double acc, double transitionRadius, std::string &bodyScriptText) {
     double stopMappingPoint[3] = {0};
     double firstTransitionPoint[6] = {0};
     double firstTransitionJoint[6] = {0};
@@ -173,7 +173,7 @@ LaserSdkResult appendCircleRampDownTrajectory(LaserMachineHandle laserMachineHan
         bodyScriptText += policy.deviceActions->motionReady;
     }
     bodyScriptText += strMoveCReplace(doubleArray2Str(firstTransitionPoint, 6), doubleArray2Str(firstTransitionJoint, 6), doubleArray2Str(rampDownPoint, 6),
-        doubleArray2Str(rampDownJoint, 6), std::to_string(speed), std::to_string(acc), "0", "0");
+        doubleArray2Str(rampDownJoint, 6), std::to_string(speed), std::to_string(acc), std::to_string(transitionRadius), "0");
     result = appendRampDownControl(laserMachineHandle, machineResource, craftCommu, policy, bodyScriptText);
     if (result != LaserSdkResult::SUCCESS_LASER_SDK) {
         return result;
@@ -182,7 +182,8 @@ LaserSdkResult appendCircleRampDownTrajectory(LaserMachineHandle laserMachineHan
         bodyScriptText += policy.deviceActions->motionReady;
     }
     bodyScriptText += strMoveCReplace(doubleArray2Str(secondTransitionPoint, 6), doubleArray2Str(secondTransitionJoint, 6),
-        doubleArray2Str(originalEndPoint, 6), doubleArray2Str(originalEndJoint, 6), std::to_string(speed), std::to_string(acc), "0", "0");
+        doubleArray2Str(originalEndPoint, 6), doubleArray2Str(originalEndJoint, 6), std::to_string(speed), std::to_string(acc),
+        std::to_string(machineResource.robotParams.weldPointTransitionRadius), "0");
     return LaserSdkResult::SUCCESS_LASER_SDK;
 }
 }
@@ -307,19 +308,17 @@ LaserSdkResult GetBasicCraftScriptWithResource(LaserMachineHandle laserMachineHa
                 }
                 const double speed = useWeldMotion ? currentCraft->craftWeldingSpeed : robotParams.emptyRunTCPSpeed;
                 const double acc = useWeldMotion ? robotParams.weldTCPAcc : robotParams.emptyRunTCPAcc;
-                double transitionRadius = robotParams.emptyPointTransitionRadius;
+                double transitionRadius = environment.isWelding ? robotParams.weldPointTransitionRadius : robotParams.emptyPointTransitionRadius;
                 const bool hasLegacyMarker = hasLegacyRampDownMarker(instListData, instLoc);
                 const bool splitRampDown = shouldSplitRampDownTrajectory(instListData, instLoc);
                 if (splitRampDown && (!environment.isWelding || currentCraft == NULL)) {
                     return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
                 }
-                if (environment.isWelding && !splitRampDown && !isInstructionType(instListData, instLoc + 1, ARC_END_INST_LASER_WELD_SDK)) {
+                if (environment.isWelding && (!splitRampDown || currentCraft->craftLeadOutRampDistance > 0)) {
                     result = CalBlendingRadius(speed, acc, &transitionRadius);
                     if (result != LaserSdkResult::SUCCESS_LASER_SDK) {
                         return result;
                     }
-                } else if (environment.isWelding) {
-                    transitionRadius = 0.0;
                 }
 
                 if (!environment.policy.emitArcControl) {
@@ -332,7 +331,7 @@ LaserSdkResult GetBasicCraftScriptWithResource(LaserMachineHandle laserMachineHa
                         return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
                     }
                     result = appendStraightRampDownTrajectory(laserMachineHandle, machineResource, *craftCommu, environment.policy, *startPoint, *endPoint,
-                        currentCraft->craftLeadOutRampDistance, speed, acc, bodyScriptText);
+                        currentCraft->craftLeadOutRampDistance, speed, acc, transitionRadius, bodyScriptText);
                     if (result != LaserSdkResult::SUCCESS_LASER_SDK) {
                         return result;
                     }
@@ -382,19 +381,17 @@ LaserSdkResult GetBasicCraftScriptWithResource(LaserMachineHandle laserMachineHa
                 }
                 const double speed = useWeldMotion ? currentCraft->craftWeldingSpeed : robotParams.emptyRunTCPSpeed;
                 const double acc = useWeldMotion ? robotParams.weldTCPAcc : robotParams.emptyRunTCPAcc;
-                double transitionRadius = robotParams.emptyPointTransitionRadius;
+                double transitionRadius = environment.isWelding ? robotParams.weldPointTransitionRadius : robotParams.emptyPointTransitionRadius;
                 const bool hasLegacyMarker = hasLegacyRampDownMarker(instListData, circleEndLoc);
                 const bool splitRampDown = shouldSplitRampDownTrajectory(instListData, circleEndLoc);
                 if (splitRampDown && (!environment.isWelding || currentCraft == NULL)) {
                     return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
                 }
-                if (environment.isWelding && !splitRampDown && !isInstructionType(instListData, circleEndLoc + 1, ARC_END_INST_LASER_WELD_SDK)) {
+                if (environment.isWelding && (!splitRampDown || currentCraft->craftLeadOutRampDistance > 0)) {
                     result = CalBlendingRadius(speed, acc, &transitionRadius);
                     if (result != LaserSdkResult::SUCCESS_LASER_SDK) {
                         return result;
                     }
-                } else if (environment.isWelding) {
-                    transitionRadius = 0.0;
                 }
 
                 if (!environment.policy.emitArcControl) {
@@ -407,7 +404,7 @@ LaserSdkResult GetBasicCraftScriptWithResource(LaserMachineHandle laserMachineHa
                         return LaserSdkResult::INSTLIST_ERROR_LASER_SDK;
                     }
                     result = appendCircleRampDownTrajectory(laserMachineHandle, machineResource, *craftCommu, environment.policy, *startPoint, *transitionPoint,
-                        *endPoint, currentCraft->craftLeadOutRampDistance, speed, acc, bodyScriptText);
+                        *endPoint, currentCraft->craftLeadOutRampDistance, speed, acc, transitionRadius, bodyScriptText);
                     if (result != LaserSdkResult::SUCCESS_LASER_SDK) {
                         return result;
                     }

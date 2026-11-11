@@ -1,7 +1,9 @@
 #include "cl_api.h"
+#include "clmath.h"
 #include "common/parametercompiler.h"
 #include "common/rampcontrol.h"
 #include "brand/deviceparameters.h"
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -144,11 +146,11 @@ std::string CraftScript(LaserMachineHandle handle, const CraftInfoLaserSdk &craf
 }
 
 /** @brief 使用公共程序入口生成含真实收弧轨迹的实际 Lua。 */
-std::string Program(LaserMachineHandle handle, const CraftInfoLaserSdk &craft, bool weld) {
+std::string Program(LaserMachineHandle handle, const CraftInfoLaserSdk &craft, bool weld, double endX = 10.0) {
     PointDataLaserSdk points[2] = {};
     points[0].pointType = LINE_POINT_WELD_SDK;
     points[1].pointType = LINE_POINT_WELD_SDK;
-    points[1].pose[0] = 10;
+    points[1].pose[0] = endX;
     int instructions[] = {CRAFT_SELECT_INST_LASER_WELD_SDK, 0, LINE_POINT_INST_LASER_WELD_SDK, 0, ARC_START_INST_LASER_WELD_SDK, 0,
         LINE_POINT_INST_LASER_WELD_SDK, 1, ARC_END_INST_LASER_WELD_SDK, 0};
     LaserWeldStartData start = {};
@@ -165,6 +167,60 @@ std::string Program(LaserMachineHandle handle, const CraftInfoLaserSdk &craft, b
     CHECK(cl_craft_inst_list_script_get(handle, start, weld, nullptr, &required) == SUCCESS_LASER_SDK);
     CHECK(required == static_cast<int>(std::strlen(buffer.data())) + 1);
     return std::string(buffer.data());
+}
+
+/** @brief 检查弧焊交融算法和新旧限幅接口。 */
+void TestBlendingRadiusLimits() {
+    double radius = 0;
+    CHECK(CalBlendingRadius(10, 200, 10, &radius) == SUCCESS_LASER_SDK);
+    CHECK(std::abs(radius - 0.810569) < 1e-6);
+    CHECK(CalBlendingRadius(10, 200, 0.5, &radius) == SUCCESS_LASER_SDK && radius == 0.5);
+    CHECK(CalBlendingRadius(100, 1000, 0, &radius) == SUCCESS_LASER_SDK && radius > 10);
+    const double unlimited = radius;
+    CHECK(CalBlendingRadius(100, 1000, -1, &radius) == SUCCESS_LASER_SDK && radius == unlimited);
+    CHECK(CalBlendingRadius(100, 1000, &radius) == SUCCESS_LASER_SDK && radius == 10);
+
+    CHECK(CalBlendingRadius(10, 200, 10, nullptr) == PARAMETER_ERROR_LASER_SDK);
+    CHECK(CalBlendingRadius(0, 200, 10, &radius) == PARAMETER_ERROR_LASER_SDK);
+    CHECK(CalBlendingRadius(10, -1, 10, &radius) == PARAMETER_ERROR_LASER_SDK);
+    CHECK(CalBlendingRadius(std::numeric_limits<double>::infinity(), 200, 10, &radius) == PARAMETER_ERROR_LASER_SDK);
+    CHECK(CalBlendingRadius(10, 200, std::numeric_limits<double>::quiet_NaN(), &radius) == PARAMETER_ERROR_LASER_SDK);
+}
+
+std::vector<double> MoveLineRadii(const std::string &script) {
+    std::vector<double> radii;
+    for (std::size_t move = script.find("movel("); move != std::string::npos; move = script.find("movel(", move + 1)) {
+        const std::size_t end = script.find(')', move);
+        CHECK(end != std::string::npos);
+        const std::size_t radius = script.rfind(',', end);
+        CHECK(radius != std::string::npos && radius > move);
+        radii.push_back(std::stod(script.substr(radius + 1, end - radius - 1)));
+    }
+    return radii;
+}
+
+/** @brief 从公共接口生成的 Lua 验证缓降分段和真实终点的半径。 */
+void TestRampDownBlendingRadius() {
+    MachineResource resource = Resource(CQ_SUP26AD_LASERPOWER_SDK, true);
+    resource.robotParams.emptyPointTransitionRadius = 2.0;
+    resource.robotParams.weldPointTransitionRadius = 4.0;
+    LaserMachineHandle handle = -1;
+    CHECK(cl_machine_resource_init(&resource, &handle) == SUCCESS_LASER_SDK);
+    const LaserRampControlConfigSdk enabled = Enabled();
+    CHECK(cl_ramp_control_config_set(handle, &enabled) == SUCCESS_LASER_SDK);
+    CraftInfoLaserSdk craft = Craft();
+    craft.craftLeadOutRampDistance = 20;
+    const auto normal = MoveLineRadii(Program(handle, craft, true, 100));
+    CHECK(normal.size() == 3 && normal[0] == 2.0 && normal[1] > 0 && normal[1] < 10 && normal[2] == 4.0);
+
+    craft.craftWeldingSpeed = 100;
+    const auto limited = MoveLineRadii(Program(handle, craft, true, 100));
+    CHECK(limited.size() == 3 && limited[1] == 10 && limited[2] == 4.0);
+
+    craft.craftLeadOutRampDistance = 0;
+    const auto unsplit = MoveLineRadii(Program(handle, craft, true, 100));
+    CHECK(unsplit.size() == 2 && unsplit[1] == 4.0);
+    CHECK(cl_machine_resource_release(handle) == SUCCESS_LASER_SDK);
 }
 
 void Literal(std::ostream &output, const char *key, const std::string &value) {
@@ -320,6 +376,8 @@ void EmitFixture(std::ostream &output, LaserHeadBrandSdk brand, const char *name
 
 int main() {
     try {
+        TestBlendingRadiusLimits();
+        TestRampDownBlendingRadius();
         TestConfiguration();
         std::ofstream fixtures("generated_sequence_fixtures.lua.md", std::ios::binary);
         CHECK(fixtures.good());

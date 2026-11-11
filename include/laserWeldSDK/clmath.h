@@ -45,6 +45,15 @@ void vecCross(double xdir[3], double ydir[3], double result[3]);
 //计算交融半径
 LaserSdkResult CalBlendingRadius(double vMax, double aMax, double *r);
 
+/**
+ * @brief 以固定参考轨迹估算交融半径。
+ * @param vMax 速度，单位 mm/s。
+ * @param aMax 加速度，单位 mm/s²。
+ * @param rLimit 额外半径上限，单位 mm。非正值不启用额外限幅。
+ * @param r 成功时写入半径，单位 mm。
+ */
+LaserSdkResult CalBlendingRadius(double vMax, double aMax, double rLimit, double *r);
+
 //向量归一化
 void normalizeVector(double Fn[3]);
 

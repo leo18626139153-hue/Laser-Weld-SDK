@@ -52,6 +52,14 @@ void normalizeVector(double Fn[3]) {
 
 //计算交融半径
 LaserSdkResult CalBlendingRadius(double vMax, double aMax, double *r) {
+    constexpr double kMaximumBlendRadiusMm = 10.0;
+    return CalBlendingRadius(vMax, aMax, kMaximumBlendRadiusMm, r);
+}
+
+LaserSdkResult CalBlendingRadius(double vMax, double aMax, double rLimit, double *r) {
+    if (r == nullptr || !std::isfinite(vMax) || !std::isfinite(aMax) || !std::isfinite(rLimit) || vMax <= 0.0 || aMax <= 0.0) {
+        return PARAMETER_ERROR_LASER_SDK;
+    }
     // 半径估算沿用控制器的固定参考轨迹和前瞻窗口，避免随实际线段长度改变结果。
     constexpr double kReferencePathLengthMm = 500.0;
     constexpr double kLookAheadTimeSeconds = 0.002;
@@ -59,7 +67,6 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double *r) {
     constexpr double kVelocityPercentage = 100.0;
     constexpr double kJerkPercentage = 100.0;
     constexpr double kJerkAccelerationFactor = 8.0;
-    constexpr double kMaximumBlendRadiusMm = 10.0;
     vMax = vMax * kVelocityPercentage / kFullPercentage;
     aMax = aMax * std::sqrt(kVelocityPercentage / kFullPercentage);
     double jMax = aMax * kJerkPercentage / kFullPercentage * kJerkAccelerationFactor;
@@ -161,13 +168,16 @@ LaserSdkResult CalBlendingRadius(double vMax, double aMax, double *r) {
         radius = kReferencePathLengthMm;
     }
 
+    if (!std::isfinite(radius) || radius < 0.0) {
+        return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+    }
     // 7. 约束处理
     if (radius > kReferencePathLengthMm / 2.0) {
         radius = kReferencePathLengthMm / 2.0;
     }
     // 8. 最终约束处理
-    if (radius > kMaximumBlendRadiusMm) {
-        radius = kMaximumBlendRadiusMm;
+    if (rLimit > 0.0 && radius > rLimit) {
+        radius = rLimit;
     }
 
     *r = radius;
