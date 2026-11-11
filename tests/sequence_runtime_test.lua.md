@@ -22,7 +22,7 @@ end
 local function create_world(fixture, quantum, red_light_state)
     local world = { now = 0, events = {}, tasks = {}, next_id = 0, quantum = quantum or 1,
                     registers = {}, chars = {}, outputs = {[0] = red_light_state == nil and true or red_light_state},
-                    handlers = {}, position = {0,0,0,0,0,0} }
+                    handlers = {}, event_tasks = {}, position = {0,0,0,0,0,0} }
     local env = {}
     for key, value in pairs(_G) do env[key] = value end
     env._G = env
@@ -63,12 +63,15 @@ local function create_world(fixture, quantum, red_light_state)
         local chosen
         for _, item in pairs(self.tasks) do
             if item.alive and item.wake <= target and
+                    (not item.event_id or (self.active_event == item.event_id and not item.waiting)) and
                     (not chosen or item.wake < chosen.wake or
                      (item.wake == chosen.wake and item.id < chosen.id)) then chosen = item end
         end
         if not chosen then return false end
         self.now = math.max(self.now, chosen.wake)
+        self.running_task = chosen
         local ok, duration = coroutine.resume(chosen.co)
+        self.running_task = nil
         check(ok, fixture.name .. " " .. chosen.name .. ": " .. tostring(duration))
         if coroutine.status(chosen.co) == "dead" then chosen.alive = false
         elseif chosen.alive then chosen.wake = self.now + (tonumber(duration) or 1) end
@@ -83,7 +86,31 @@ local function create_world(fixture, quantum, red_light_state)
         end
         self.now = math.max(self.now, target)
     end
+    -- 按原常驻事件结构复用同一任务，避免每次新建回调掩盖提前退出。
+    function world:activate_event(id)
+        local item = assert(self.event_tasks[id], "缺少事件任务 " .. tostring(id))
+        check(item.alive, fixture.name .. " 事件任务已经退出: " .. tostring(id))
+        self.active_event = id
+        if item.waiting then
+            item.waiting = false
+            item.wake = self.now
+        end
+        return item
+    end
+    function world:dispatch(id)
+        local item = self:activate_event(id)
+        local cycle = item.cycles or 0
+        local limit, count = self.now + 120000, 0
+        while item.alive and (item.cycles or 0) == cycle do
+            check(self:step(limit), fixture.name .. " 事件任务被无限阻塞: " .. tostring(id))
+            count = count + 1
+            check(count < 100000, fixture.name .. " 事件任务未收敛: " .. tostring(id))
+        end
+    end
     function world:invoke(fn, ...)
+        for id, handler in pairs(self.handlers) do
+            if handler == fn then return self:dispatch(id) end
+        end
         local args = {...}
         local returns
         local id = self:add_task(function() returns = {fn(unpack(args))} end, "主调用")
@@ -124,6 +151,14 @@ local function create_world(fixture, quantum, red_light_state)
     end
     env.print = function() end
     env.wait = wait_ms
+    env.sync = function()
+        local item = world.running_task
+        if not item or not item.event_id then return wait_ms(1) end
+        -- 一轮事件停在 sync；只有再次分发才继续，避免虚拟时间推进反复写设备。
+        item.cycles = (item.cycles or 0) + 1
+        item.waiting = true
+        return coroutine.yield(0)
+    end
     env.get_systime = function()
         return {math.floor(world.now / 1000), math.floor((world.now % 1000) * 1000)}
     end
@@ -137,8 +172,13 @@ local function create_world(fixture, quantum, red_light_state)
     end
     env.task_kill = env.task_delete
     env.sys_event_register = function(id, handler)
+        check(world.handlers[id] == nil, fixture.name .. " 重复注册事件 " .. tostring(id))
         world.handlers[id] = handler
-        return id
+        local task_id = world:add_task(handler, "事件任务 " .. tostring(id))
+        local item = world.tasks[task_id]
+        item.event_id = id
+        world.event_tasks[id] = item
+        return task_id
     end
     env.write_integer_register = function(address, value)
         world.registers[address] = value
@@ -743,6 +783,102 @@ local function run_pause_resume_cases(fixture)
     local w0 = fixture.wire and 30 * fixture.wireMultiplier or nil
     local w1 = fixture.wire and 60 * fixture.wireMultiplier or nil
     local w2 = fixture.wire and 20 * fixture.wireMultiplier or nil
+    local repeated = fresh(fixture)
+    repeated:load(fixture.protection, fixture.name .. " persistent event protection")
+    local registrations = {
+        {1, "stop_func", "sysEvent_stop_func_1_Result"},
+        {2, "pause_func", "sysEvent_pause_func_2_Result"},
+        {3, "resume_func", "sysEvent_resume_func_3_Result"}
+    }
+    local registered = 0
+    for _ in pairs(repeated.event_tasks) do registered = registered + 1 end
+    equal(registered, 3, fixture.name .. " 系统事件必须且只能注册停止、暂停、继续三条")
+    for _, entry in ipairs(registrations) do
+        equal(repeated.handlers[entry[1]], repeated.env[entry[2]],
+              fixture.name .. " 注册事件函数名不符合控制器约定")
+        equal(repeated.env[entry[3]], repeated.event_tasks[entry[1]].id,
+              fixture.name .. " 注册结果未保存对应事件任务句柄: " .. entry[3])
+    end
+    repeated:invoke(repeated.env.cl_ramp_start, 1000, 2000, w0, w1, 5000, 0)
+    repeated:advance(200)
+    local pause_task, resume_task = repeated.event_tasks[2], repeated.event_tasks[3]
+    local pause_co, resume_co = pause_task.co, resume_task.co
+    for round = 1, 3 do
+        repeated:invoke(repeated.handlers[2])
+        equal(repeated.outputs[1], false, fixture.name .. " 第" .. round .. "轮暂停未关光")
+        local snapshot, paused_token = repeated.env.cl_ramp_ctx.resume, repeated.env.cl_ramp_ctx.token
+        check(snapshot ~= nil, fixture.name .. " 暂停未保存恢复快照")
+        repeated:invoke(repeated.handlers[2])
+        equal(repeated.env.cl_ramp_ctx.resume, snapshot, fixture.name .. " 重复暂停覆盖恢复快照")
+        equal(repeated.env.cl_ramp_ctx.token, paused_token, fixture.name .. " 重复暂停重复取消阶段")
+        local on_count = count_laser_on(repeated)
+        repeated:invoke(repeated.handlers[3])
+        equal(repeated.outputs[1], true, fixture.name .. " 第" .. round .. "轮第一次继续未恢复出光")
+        equal(count_laser_on(repeated), on_count + 1, fixture.name .. " 一次继续重复开启激光")
+        local phase, token = repeated.env.cl_ramp_ctx.phase, repeated.env.cl_ramp_ctx.token
+        local created = repeated.background_created or 0
+        repeated:invoke(repeated.handlers[3])
+        equal(repeated.env.cl_ramp_ctx.phase, phase, fixture.name .. " 重复继续重建阶段")
+        equal(repeated.env.cl_ramp_ctx.token, token, fixture.name .. " 重复继续更换有效阶段")
+        equal(repeated.background_created or 0, created, fixture.name .. " 重复继续重建后台任务")
+        equal(count_laser_on(repeated), on_count + 1, fixture.name .. " 重复继续重新开光")
+        equal(pause_task.co, pause_co, fixture.name .. " 暂停重新创建了事件协程")
+        equal(resume_task.co, resume_co, fixture.name .. " 继续重新创建了事件协程")
+        check(pause_task.alive and resume_task.alive, fixture.name .. " 暂停/继续事件协程提前退出")
+        equal(pause_task.cycles, round * 2, fixture.name .. " 暂停未继续原有事件协程")
+        equal(resume_task.cycles, round * 2, fixture.name .. " 继续未继续原有事件协程")
+        repeated:advance(100)
+    end
+    repeated:invoke(repeated.env.cl_ramp_finish, 500, w2, 0)
+    check_no_wire(fixture, repeated)
+    pass_group(fixture, "fixed registration names and three cycles reuse persistent pause/resume tasks")
+
+    -- 本地状态落后于真实输出时，暂停仍必须强制关光。
+    local inactive = fresh(fixture)
+    inactive:load(fixture.protection, fixture.name .. " inactive pause safety")
+    inactive.env.cl_ramp_ctx.on = false
+    inactive.outputs[1] = true
+    inactive:invoke(inactive.handlers[2])
+    equal(inactive.outputs[1], false, fixture.name .. " on=false 时暂停遗漏真实激光输出")
+    equal(inactive.env.cl_ramp_ctx.resume, nil, fixture.name .. " 空闲暂停伪造恢复快照")
+    check_no_wire(fixture, inactive)
+    pass_group(fixture, "pause forces laser off even when runtime already reports inactive")
+
+    -- 继续回调停在准备等待中再切换事件，下一次继续仍运行原协程，不能靠第二次点击补救。
+    for _, interruption in ipairs({"pause", "stop"}) do
+        local pending = fresh(fixture)
+        pending:load(fixture.protection, fixture.name .. " interrupted resume protection")
+        pending:invoke(pending.env.cl_ramp_start, 1000, 2000, w0, w1, 5000, 0)
+        pending:advance(200)
+        pending:invoke(pending.handlers[2])
+        local on_count = count_laser_on(pending)
+        local resume_co = pending.event_tasks[3].co
+        pending:activate_event(3)
+        pending:advance(25)
+        equal(pending.env.cl_ramp_ctx.resuming, true, fixture.name .. " 未进入可被抢占的继续准备等待")
+        equal(pending.outputs[1], false, fixture.name .. " 继续准备等待中提前开光")
+        pending:invoke(pending.handlers[interruption == "pause" and 2 or 1])
+        equal(pending.outputs[1], false, fixture.name .. " 继续等待被抢占后仍开光")
+        local power_count, wire_count = #pending:writes(fixture.powerAddress), #pending:writes(fixture.wireAddress)
+        pending:invoke(pending.handlers[3])
+        equal(pending.event_tasks[3].co, resume_co, fixture.name .. " 抢占后继续重建事件协程")
+        if interruption == "pause" then
+            equal(pending.outputs[1], true, fixture.name .. " 继续等待中再暂停后，第一次继续未恢复出光")
+            equal(count_laser_on(pending), on_count + 1, fixture.name .. " 抢占后的继续重复开光")
+            pending:advance(1500)
+            equal(count_laser_on(pending), on_count + 1, fixture.name .. " 旧继续调用随后重复开光")
+            pending:invoke(pending.env.cl_ramp_finish, 500, w2, 0)
+        else
+            pending:advance(10000)
+            equal(pending.outputs[1], false, fixture.name .. " 继续等待中停止后旧调用重新开光")
+            equal(count_laser_on(pending), on_count, fixture.name .. " 停止后继续恢复了激光")
+            equal(#pending:writes(fixture.powerAddress), power_count, fixture.name .. " 停止后继续恢复功率写入")
+            equal(#pending:writes(fixture.wireAddress), wire_count, fixture.name .. " 停止后继续恢复送丝写入")
+        end
+        check_no_wire(fixture, pending)
+        pass_group(fixture, "persistent resume waiting is preempted by " .. interruption)
+    end
+
     for _, phase in ipairs({"up", "steady", "down"}) do
         local world = fresh(fixture)
         world:load(fixture.protection, fixture.name .. " resumable protection")

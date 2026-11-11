@@ -762,7 +762,12 @@ LaserSdkResult cl_craft_end_arc_subprogram_script_get(const LaserMachineHandle l
     if (ramp_control::Enabled(laserMachineHandle)) {
         // 暂停、停止先取消阶段任务，不能让旧后台任务在关光之后重新写入功率或送丝。
         const std::string handlers = R"(
+local cl_ramp_event_paused = false
+local cl_ramp_event_stopped = false
 function cl_ramp_emergency_stop()
+    cl_ramp_event_stopped = true
+    cl_ramp_event_paused = false
+    set_configurable_digital_out(1, false)
     local interrupted = read_boolean_register(611) or read_integer_register(614) == 1
     if cl_ramp_abort ~= nil then cl_ramp_abort()
     else
@@ -772,17 +777,43 @@ function cl_ramp_emergency_stop()
     write_integer_register(614, 0)
     if interrupted then write_integer_register(674, 1) end
 end
-cl_ramp_stop_event = sys_event_register(1, cl_ramp_emergency_stop)
-function cl_ramp_pause_handler()
-    if cl_ramp_pause ~= nil then cl_ramp_pause() end
-    write_integer_register(614, 0)
+function stop_func()
+    cl_ramp_emergency_stop()
 end
-function cl_ramp_resume_handler()
-    if cl_ramp_resume ~= nil then cl_ramp_resume() end
-    if read_boolean_register(611) then write_integer_register(614, 1) end
+sysEvent_stop_func_1_Result = sys_event_register(1, stop_func)
+function pause_func()
+    while(true)
+    do
+        -- 事件任务保持原有循环；关光不依赖渐变状态，快照每次暂停只保存一次。
+        set_configurable_digital_out(1, false)
+        if not cl_ramp_event_stopped and not cl_ramp_event_paused then
+            cl_ramp_event_paused = true
+            if cl_ramp_pause ~= nil then cl_ramp_pause() end
+        end
+        write_bool_register(600, 1)
+        write_integer_register(821, 0)
+        write_integer_register(614, 0)
+        if cl_ramp_event_stopped or cl_ramp_event_paused then sync() end
+    end
 end
-cl_ramp_pause_event = sys_event_register(2, cl_ramp_pause_handler)
-cl_ramp_resume_event = sys_event_register(3, cl_ramp_resume_handler)
+sysEvent_pause_func_2_Result = sys_event_register(2, pause_func)
+function resume_func()
+    while(true)
+    do
+        write_bool_register(600, 0)
+        if not cl_ramp_event_stopped and cl_ramp_event_paused then
+            -- 先消费本次意图，恢复中的等待若被新暂停打断，保留新一轮的暂停标志。
+            cl_ramp_event_paused = false
+            if cl_ramp_resume ~= nil then cl_ramp_resume() end
+        end
+        write_integer_register(821, 0)
+        if not cl_ramp_event_stopped and not cl_ramp_event_paused
+                and read_boolean_register(611) then write_integer_register(614, 1) end
+        -- 旧恢复调用可能跨暂停续栈，先处理新快照，避免再次点击继续才能恢复。
+        if cl_ramp_event_stopped or not cl_ramp_event_paused then sync() end
+    end
+end
+sysEvent_resume_func_3_Result = sys_event_register(3, resume_func)
 )";
         return strToChar(scripts, scriptLen, handlers);
     }
