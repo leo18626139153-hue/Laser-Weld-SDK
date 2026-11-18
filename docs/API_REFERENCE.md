@@ -17,7 +17,7 @@ int len = sizeof(version);
 cl_sdk_version_get(version, &len);
 
 // 2. 初始化焊机资源
-MachineResource resource = {0};
+MachineResource resource{};
 resource.commuType = RS485_2_LASER_SDK;
 resource.laserHeadBrand = CQLASERPOWER_SDK;
 // ... 填充寄存器地址 ...
@@ -80,6 +80,8 @@ typedef int LaserMachineHandle;  // 焊机资源句柄
 | 0 | `CQLASERPOWER_SDK` | 超强伟业 |
 | 1 | `OSRPLASERPOWER_SDK` | 欧斯睿普 |
 | 2 | `BCXLASERPOWER_SDK` | 宝辰鑫 |
+| 3 | `CQ_SUP26AD_LASERPOWER_SDK` | 超强伟业 SUP26AD |
+| 4 | `TRM_LASERPOWER_SDK` | 特尔码 |
 
 ### 2.4 通讯形式 `CommuTypeLaserSdk`
 
@@ -425,7 +427,11 @@ LaserSdkResult cl_parse_modbus_to_int32_register(
 | `laserHeadParams` | `CgxiLaserHeadLaserSdk` | 激光头参数 |
 | `wireFeederParams` | `CgxiWireFeederLaserSdk` | 送丝机参数 |
 | `robotParams` | `CgxiRobotLaserSdk` | 机械臂参数 |
-| *(寄存器地址字段)* | `unsigned int` | 50+ 个 Modbus 寄存器地址映射 |
+| *(寄存器地址字段)* | `int` | 默认值 `-1` 表示未配置。地址 `0` 有效。 |
+
+特尔码工艺使用上位机提供的本地 Int16 槽位，按当次工艺赋值给 `laserHeadParams.laserPower` 并写入 `laserPowerLoc`。地址为 `-1` 时跳过对应工艺项。完整字段表见 [激光焊工艺参数生成](PARAMETER_PIPELINE.md)。
+
+上位机编译使用的头文件、链接库和 SDK 运行库须具有一致的结构布局。
 
 ### 8.2 `CraftInfoLaserSdk` — 焊接工艺参数
 
