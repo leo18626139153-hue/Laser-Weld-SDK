@@ -473,9 +473,6 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
         return HANDLE_ERROR_LASER_SDK;
     }
     MachineResource &machineResource = machineResourcesMap[laserMachineHandle];
-    if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
-        return PARAM_TYPE_ERROR_LASER_SDK;
-    }
     // 通讯实例统一按资源类型选择，避免各接口采用不同的路由规则。
     CommuBase *curCommuFunction = NULL;
     LaserSdkResult commuRes = craft_script_commu_class_get(laserMachineHandle, curCommuFunction);
@@ -512,6 +509,10 @@ LaserSdkResult cl_craft_weld_status_init(const LaserMachineHandle laserMachineHa
 
         checkCrSdkResultOrThrow(cr_set_int32RegValue(machineResource.robotHandle, INT32_REG_COMMU_TIMEOUT_821, 1, &intVal));
 
+        if (machineResource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+            // 特尔码的16位槽属于设备工艺和控制字，复位仅清理上层机器人状态。
+            return SUCCESS_LASER_SDK;
+        }
         checkCrSdkResultOrThrow(cr_set_int16RegValue(machineResource.robotHandle, INT_REG_WRITE_PARAMETER_62, 1, &intVal));
         checkCrSdkResultOrThrow(cr_set_int16RegValue(machineResource.robotHandle, INT_REG_WRITE_PARAMETER_63, 1, &intVal));
         checkCrSdkResultOrThrow(cr_set_int16RegValue(machineResource.robotHandle, INT_REG_WRITE_PARAMETER_64, 1, &intVal));
