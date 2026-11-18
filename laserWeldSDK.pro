@@ -145,7 +145,6 @@ SOURCES += \
     src/brand/deviceparameters.cpp \
     src/common/parametercontext.cpp \
     src/common/rampcontrol.cpp \
-    src/parameters_api.cpp \
     src/brand/trmcontrol.cpp
 # 头.文.件
 HEADERS += \
