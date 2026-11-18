@@ -6,6 +6,12 @@
 #include "lasermodbusrtubuilder.h"
 #include <vector>
 
+struct LaserParameterDiagnosticSdk;
+namespace laser_parameters {
+struct Configuration;
+LaserSdkResult BuildDefaultConfiguration(const MachineResource &resource, Configuration &configuration, LaserParameterDiagnosticSdk *diagnostic);
+}
+
 using ParamMap = LaserModbusRtuBuilder::ParamMap;
 
 /**
@@ -201,6 +207,15 @@ public:
      */
     virtual bool controlsWireThroughDigitalOutput() const {
         return false;
+    }
+
+private:
+    friend LaserSdkResult laser_parameters::BuildDefaultConfiguration(const MachineResource &resource, laser_parameters::Configuration &configuration,
+        LaserParameterDiagnosticSdk *diagnostic);
+
+    /** @brief 从既有焊机资源构建品牌工艺映射，供 SDK 内部写计划使用。 */
+    virtual LaserSdkResult buildResourceCraftConfiguration(const MachineResource &, laser_parameters::Configuration &) const {
+        return PARAM_TYPE_ERROR_LASER_SDK;
     }
 };
 

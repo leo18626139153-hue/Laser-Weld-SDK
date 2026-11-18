@@ -167,6 +167,7 @@ typedef struct CgxiLaserHeadLaserSdk {
     int laserHeadLowPulseFrequency;  ///< 脉冲频率 低位
     int laserHeadHighPulseFrequency; ///< 脉冲频率 高位 //如果脉冲频率高低位地址相同则默认采用低位来做脉冲频率参数
     int laserHeadScanSpeed;          ///< 扫描速度 0~3000mm/s	整型
+    int laserPower = 0;              ///< 当次工艺的目标激光功率，单位 W。
     double laserHeadScanWidth;       ///< 扫描宽度 0.1~5mm 	浮点型
     double laserHeadScanHeight;      ///< 扫描高度 0.1~5mm	浮点型
 } CgxiLaserHeadLaserSdk;
@@ -223,86 +224,72 @@ typedef struct MachineResource {
     LaserHeadBrandSdk laserHeadBrand;      ///< 激光头品牌
     RobotHandle robotHandle;               ///< 机器人句柄
     WeldingProcessType weldingProcessType; ///< 焊接工艺类型
-    /* 读---------- 输入状态地址 ---------- */
-    //送丝机参数
-    unsigned int wireFeederOvercurrentLoc; ///< 送丝机过流告警地址 (1:告警 2:正常) 0x0112 → ​​274​
-    unsigned int wireFeederStatusLoc;      ///< 送丝机运行状态地址 (0:停止 1:运行) 0x0115 → ​​277
-    //激光头参数
-    unsigned int laserHeadStatusLoc; ///< 激光头系统状态地址 (0:出光（未使能） 1:出光（未使能）)  0x2000 → ​​8192​
-    unsigned int globalAlarmLoc;     ///< 总报警状态地址 0x2001 → ​​8193​
-    unsigned int infAlarmLoc;        ///< 报警信息地址 0x2002 → ​​8194​
-    //
-    unsigned int wireFeederConnectedLoc; ///< 送丝机连接状态地址 (0:断开 1:已连接) 0x042e → ​​1070​
-    unsigned int laserTriggerSignalLoc;  ///< 激光器扳机信号地址 (0:异常 1:正常)  0x0409 → ​​1033​
-    unsigned int laserAlarmSignalLoc;    ///< 激光器报警信号地址 (0:异常 1:正常)  0x040a → ​​1034​
-    unsigned int safetyLockInputLoc;     ///< 安全地锁信号地址 (0:异常 1:正常) 0x040b → ​​1035​
-    unsigned int chillerAlarmInputLoc;
-    unsigned int airPressureAlarmLoc;  ///<  气压报警信号地址 (0:异常 1:正常) 0x040d → ​​1037​
-    unsigned int wireFeedOutputLoc;    ///<  送丝输出信号地址 (0:关闭 1:送丝) 0x040e → ​​1038​
-    unsigned int pwmOutputLoc;         ///<  PWM输出信号地址 (0:无输出 1:有输出) 0x040f → ​​1039​
-    unsigned int laserEnableOutputLoc; ///<  激光使能输出信号地址 (0:无输出 1:有输出) 0x0410 → ​​1040​
-    unsigned int gasValveOutputLoc;    ///<  气阀输出信号地址 (0:无输出 1:有输出) 0x0411 → ​​1041​
-    unsigned int dacVoltageLoc;        ///<  DAC模拟量输出电压地址 (0:无输出 1:有输出) 0x0412 → ​​1042
+    // 地址由上层按品牌和协议配置，-1 表示未配置，0 是有效地址。
     /* 读|写------ 激光头 - 图案工艺参数 ------ */
-    unsigned int laserHeadScanSpeedLoc;      ///<  扫描速度地址 0x0000 0
-    unsigned int laserHeadScanWidthLoc;      ///<  扫描宽度地址 0x0001 1
-    unsigned int laserHeadPeakPowerLoc;      ///<  峰值功率 0x0002 2
-    unsigned int laserHeadDutyCycleLoc;      ///<  占空比地址 0x0003 3
-    unsigned int laserHeadFrequencyHighLoc;  ///<  脉冲频率 : 31~16位地址 0x0004  4
-    unsigned int laserHeadFrequencyLowLoc;   ///<  脉冲频率 : 15~0位地址  0x0005  5
-    unsigned int laserHeadScanHeightLoc;     ///<  扫描高度地址 0x0006 6
-    unsigned int laserHeadRotationAngleLoc;  ///<  旋转角度地址 0x0007 7
-    unsigned int laserHeadPatternIdLoc;      ///<  图形切换地址 0x0030 48
-    unsigned int gasValveSignalLoc;          ///<  送气信号开关地址 0x0031 → ​​49​ 激光头厂家内控地址
-    unsigned int wireFeedSignalLoc;          ///<  送丝信号开关地址 0x0032 → ​​50 激光头厂家内控地址
-    unsigned int laserHeadPeakPowerQuickLoc; ///<  峰值功率 0x0033 51 快速写入峰值功率
+    int laserHeadScanSpeedLoc = -1;      ///<  扫描速度地址 0x0000 0
+    int laserHeadScanWidthLoc = -1;      ///<  扫描宽度地址 0x0001 1
+    int laserHeadPeakPowerLoc = -1;      ///<  峰值功率 0x0002 2
+    int laserHeadDutyCycleLoc = -1;      ///<  占空比地址 0x0003 3
+    int laserHeadFrequencyHighLoc = -1;  ///<  脉冲频率 : 31~16位地址 0x0004  4
+    int laserHeadFrequencyLowLoc = -1;   ///<  脉冲频率 : 15~0位地址  0x0005  5
+    int laserHeadScanHeightLoc = -1;     ///<  扫描高度地址 0x0006 6
+    int laserHeadRotationAngleLoc = -1;  ///<  旋转角度地址 0x0007 7
+    int laserHeadPatternIdLoc = -1;      ///<  图形切换地址 0x0030 48
+    int gasValveSignalLoc = -1;          ///<  送气信号开关地址 0x0031 → ​​49​ 激光头厂家内控地址
+    int wireFeedSignalLoc = -1;          ///<  送丝信号开关地址 0x0032 → ​​50 激光头厂家内控地址
+    int laserHeadPeakPowerQuickLoc = -1; ///<  峰值功率 0x0033 51 快速写入峰值功率
 
     /* 写---------- 焊接工艺 ---------- */
-    unsigned int weldingModeLoc; ///< 焊接模式地址 0x0202  ​​514​
+    int weldingModeLoc = -1; ///< 焊接模式地址 0x0202  ​​514​
     /* 读|写 ------   激光器 ---------- */
-    unsigned int laserPowerLoc;       ///<  激光器功率地址 0x0230 560
-    unsigned int laserOnPowerLoc;     ///<  开光功率地址 0x0231 561
-    unsigned int laserOnRampTimeLoc;  ///<  开光渐进时间地址 0x0232 562
-    unsigned int laserOffPowerLoc;    ///<  关光功率地址 0x0233 563
-    unsigned int laserOffRampTimeLoc; ///<  关光渐进时间地址 0x0234 564
-    unsigned int gasONDelayLoc;       ///<  开气延时地址 0x0235 565
-    unsigned int gasOffDelayLoc;      ///<  关气延时地址 0x0236 566
-    unsigned int wireOutDelayLoc;     ///<  延时送丝地址 0x0237 567
+    int laserPowerLoc = -1;       ///< 激光功率写地址，按品牌映射由上层填写。
+    int laserOnPowerLoc = -1;     ///<  开光功率地址 0x0231 561
+    int laserOnRampTimeLoc = -1;  ///<  开光渐进时间地址 0x0232 562
+    int laserOffPowerLoc = -1;    ///<  关光功率地址 0x0233 563
+    int laserOffRampTimeLoc = -1; ///<  关光渐进时间地址 0x0234 564
+    int gasONDelayLoc = -1;       ///<  开气延时地址 0x0235 565
+    int gasOffDelayLoc = -1;      ///<  关气延时地址 0x0236 566
+    int wireOutDelayLoc = -1;     ///<  延时送丝地址 0x0237 567
 
-    unsigned int laserHeadYOffsetLoc; ///<  Y轴偏移地址 0x0239 569
-    unsigned int laserHeadXOffsetLoc; ///<  X轴偏移地址 0x023b 571
-    unsigned int laserHeadYScaleLoc;  ///<  Y轴放大地址 0x0238 568
-    unsigned int laserHeadXScaleLoc;  ///<  X轴放大地址 0x023a 570
+    int laserHeadYOffsetLoc = -1; ///<  Y轴偏移地址 0x0239 569
+    int laserHeadXOffsetLoc = -1; ///<  X轴偏移地址 0x023b 571
+    int laserHeadYScaleLoc = -1;  ///<  Y轴放大地址 0x0238 568
+    int laserHeadXScaleLoc = -1;  ///<  X轴放大地址 0x023a 570
 
-    unsigned int spotWeldTypeLoc;     ///<  点焊类型地址 0x0242 578
-    unsigned int spotWeldDurationLoc; ///<  焊持续时间地址 0x0243 579
-    unsigned int spotWeldIntervalLoc; ///<  点焊间隔时间地址 0x0244 580
+    int spotWeldTypeLoc = -1;     ///<  点焊类型地址 0x0242 578
+    int spotWeldDurationLoc = -1; ///<  焊持续时间地址 0x0243 579
+    int spotWeldIntervalLoc = -1; ///<  点焊间隔时间地址 0x0244 580
     /* 读|写---------- 温度监控 ---------- */
-    unsigned int driverTempLoc;           ///<  驱动器温度值地址 0x023f 575
-    unsigned int protectiveWindowTempLoc; ///<  保护镜温度值地址 0x0240 576
-    unsigned int collimatorTempLoc;       ///<  准直镜温度值地址 0x0241 577
-    /* 读|写--------- 系统报警 ---------- */
-    unsigned int laserAlarmCodeLoc;       ///<  激光器报警代码地址 (0 低电平，正常 || 1 高电平，报警) 0x023c → ​​572​
-    unsigned int waterCoolerAlarmCodeLoc; ///<  水冷机报警代码地址 (0 低电平，正常 || 1 高电平，报警) 0x023d → ​​573​
-    unsigned int airPressureAlarmCodeLoc; ///<  气压报警代码地址 (0 低电平，正常 || 1 高电平，报警).0x023e → ​​574​
+    int driverTempLoc = -1;           ///<  驱动器温度值地址 0x023f 575
+    int protectiveWindowTempLoc = -1; ///<  保护镜温度值地址 0x0240 576
+    int collimatorTempLoc = -1;       ///<  准直镜温度值地址 0x0241 577
 
     /* 读|写---------- 送丝机参数 ---------- */
-    unsigned int autoWireFeedSpeedLoc;       ///<  自动送丝速度地址 0x0100 256
-    unsigned int manualWireFeedSpeedLoc;     ///<  手动送丝速度地址 0x0101 257
-    unsigned int manualWireRetractSpeedLoc;  ///<  手动抽丝速度地址 0x0102 258
-    unsigned int wireRetractLengthLoc;       ///<  抽丝长度地址 0x0104 260
-    unsigned int wireFeedLengthLoc;          ///<  补丝长度地址 0x0105 261
-    unsigned int wireFeedBackDelayLoc;       ///<  补丝延迟时间地址 0x0106 262
-    unsigned int manualWireFeedSwitchLoc;    ///<  手动送丝使能地址 (0 停 1 运行)  0x0140  320
-    unsigned int manualWireRetractSwitchLoc; ///<  手动抽丝使能地址 (0 停 1 运行)  0x0141  321
+    int wireFeederStatusLoc = -1;        ///< 送丝机运行状态地址（0 停止、1 运行）。
+    int autoWireFeedSpeedLoc = -1;       ///<  自动送丝速度地址 0x0100 256
+    int manualWireFeedSpeedLoc = -1;     ///<  手动送丝速度地址 0x0101 257
+    int manualWireRetractSpeedLoc = -1;  ///<  手动抽丝速度地址 0x0102 258
+    int wireRetractLengthLoc = -1;       ///<  抽丝长度地址 0x0104 260
+    int wireFeedLengthLoc = -1;          ///<  补丝长度地址 0x0105 261
+    int wireFeedBackDelayLoc = -1;       ///<  补丝延迟时间地址 0x0106 262
+    int manualWireFeedSwitchLoc = -1;    ///<  手动送丝使能地址 (0 停 1 运行)  0x0140  320
+    int manualWireRetractSwitchLoc = -1; ///<  手动抽丝使能地址 (0 停 1 运行)  0x0141  321
 
-    unsigned int breakWireFeedingModeLoc; ///< 断丝模式地址 0x010D  (控制回抽速度)
-    unsigned int delayWireFeedingLoc;     ///< 运行状态地址 0x0115
+    int breakWireFeedingModeLoc = -1; ///< 断丝模式地址 0x010D  (控制回抽速度)
 
     CgxiLaserHeadLaserSdk laserHeadParams;   ///< 激光头参数
     CgxiLaserPowerLaserSdk laserPowerParams; ///< 激光器参数
     CgxiWireFeederLaserSdk wireFeederParams; ///< 送丝机参数
     CgxiRobotLaserSdk robotParams;           ///< 机械臂参数
+
+    bool devicePowerManaged = false; ///< 设备额定功率由上层配置并维护。
+    bool rampControlEnabled = false; ///< 启用 SDK 功率与送丝缓升缓降。
+    int rampUpdatePeriodMs = 100;    ///< 缓升缓降更新周期，单位 ms。
+    int rampSettleTimeMs = 50;       ///< 阶段切换前的稳定等待时间，单位 ms。
+    int rampTimeoutMs = 2000;        ///< 缓升缓降动作超时，单位 ms。
+    int controlWriteLoc = -1;        ///< 设备控制字的本地 Int16 写地址，-1 表示未配置。
+    int controlReadLoc = -1;         ///< 设备控制反馈的本地 Int16 读地址，-1 表示未配置。
+    int controlTimeoutMs = 2000;     ///< 设备控制反馈超时，单位 ms。
 } MachineResource;
 
 //工艺-材质

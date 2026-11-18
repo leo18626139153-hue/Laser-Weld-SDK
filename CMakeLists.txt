@@ -77,7 +77,6 @@ set(SOURCES
     src/common/parameterscript.cpp
     src/brand/deviceparameters.cpp
     src/common/parametercontext.cpp
-    src/brand/trmcontrol.cpp
 )
 
 # ============================================================

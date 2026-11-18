@@ -144,8 +144,7 @@ SOURCES += \
     src/common/parameterscript.cpp \
     src/brand/deviceparameters.cpp \
     src/common/parametercontext.cpp \
-    src/common/rampcontrol.cpp \
-    src/brand/trmcontrol.cpp
+    src/common/rampcontrol.cpp
 # 头.文.件
 HEADERS += \
     include/laserWeldSDK/brand/brandadapter.h \
@@ -164,9 +163,7 @@ HEADERS += \
     include/laserWeldSDK/brand/deviceparameters.h \
     include/laserWeldSDK/common/parametercontext.h \
     include/laserWeldSDK/common/rampcontrol.h \
-    include/laserWeldSDK/rampcontroldefine.h \
-    include/laserWeldSDK/trmdefine.h \
-    include/laserWeldSDK/brand/trmcontrol.h
+    include/laserWeldSDK/rampcontroldefine.h
 
 # cr_sdk 头文件（不参与编译，仅用于 IDE 索引）
 HEADERS += \

@@ -2,9 +2,6 @@
 #define CL_API_H
 
 #include "cl_basedefine.h"
-#include "parameterdefine.h"
-#include "rampcontroldefine.h"
-#include "trmdefine.h"
 #include "robotapi.h"
 #include <stdint.h>
 
@@ -22,7 +19,7 @@
 #endif
 #endif
 
-#define LASERWELDSDK_VERSION "v1.2.3-6"
+#define LASERWELDSDK_VERSION "v1.2.3-7"
 
 /**
  * @warning SDK当前不支持同一进程内并发调用。调用方必须串行化所有接口，
@@ -32,30 +29,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/** @brief 安装按句柄独立的已验收特尔码映射档案；capabilities=0时取消授权。 */
-LASERWELDSDK_EXPORT LaserSdkResult cl_trm_profile_set(LaserMachineHandle handle, const LaserTrmProfileSdk *profile);
-/** @brief 获取当前档案。未配置时返回有效版本及零能力。 */
-LASERWELDSDK_EXPORT LaserSdkResult cl_trm_profile_get(LaserMachineHandle handle, LaserTrmProfileSdk *profile);
-/** @brief 校验特尔码工艺。配置缺失时只检查已知数值范围和关系。 */
-LASERWELDSDK_EXPORT LaserSdkResult cl_trm_craft_validate(LaserMachineHandle handle, const CraftInfoLaserSdk *craft, const LaserTrmCraftSdk *values);
-/** @brief 生成只下发工艺的脚本。scripts为空时查询所需容量，包含结尾零字符。 */
-LASERWELDSDK_EXPORT LaserSdkResult cl_trm_craft_script_get(LaserMachineHandle handle, const CraftInfoLaserSdk *craft, const LaserTrmCraftSdk *values,
-    char *scripts, int *scriptLen);
-/**
- * @brief 从稳定工艺快照生成实焊或轨迹模拟主体，实焊已包含事件保护。
- * @param[in] crafts 与data的craftInfoList同下标。模拟时允许空数组。
- * @param[in] craftCount 实焊时与data的craftNum相等。
- * @note 脚本由调用方装入控制器程序外壳。scripts为空时查询容量，含结尾零字符。
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_trm_program_script_get(LaserMachineHandle handle, const LaserWeldStartData *data, const LaserTrmCraftSdk *crafts,
-    unsigned craftCount, bool isWeld, char *scripts, int *scriptLen);
-/**
- * @brief 生成独立动作或手动会话主体。点焊启动需要完整工艺，手动会话允许仅检气。
- * @note 手动会话在同一程序内消费650检气、653点焊请求；复位与退出须等待安全关光。
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_trm_action_script_get(LaserMachineHandle handle, LaserTrmActionSdk action, const CraftInfoLaserSdk *craft,
-    const LaserTrmCraftSdk *values, char *scripts, int *scriptLen);
 
 /**
  * @brief LaserSdkResult     获取当前焊接SDK版本号
@@ -95,54 +68,6 @@ LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_get(const LaserMachineHan
  * @return LaserSdkResult                处理结果
  */
 LASERWELDSDK_EXPORT LaserSdkResult cl_machine_resource_release(const LaserMachineHandle laserMachineHandle);
-
-/**
- * @brief 声明激光器功率由设备设置维护，工艺和起弧准备不得覆盖旧超强激光器功率。
- * @param[in] laserMachineHandle 已初始化的焊机句柄。
- * @param[in] managed true时旧超强工艺及起弧准备不写laserPowerLoc；设备设置接口仍可写入。
- * @return 成功、无效句柄或内存错误；仅改变脚本编译策略，不执行设备通信。
- * @note 新句柄默认false以兼容既有调用方；普通资源更新和参数配置重置保留此策略，释放句柄时清理。
- *       不改变工艺峰值功率、开关光百分比及其校验，也不改变MachineResource结构布局。
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_machine_device_power_managed_set(const LaserMachineHandle laserMachineHandle, bool managed);
-
-/**
- * @brief 显式启用或禁用 SDK 功率与送丝阶段外控；不改变既有资源结构及默认行为。
- * @param[in] laserMachineHandle 已注册的焊机句柄。
- * @param[in] config 版本化配置，structSize 和 version 必须有效；SDK 深复制配置。
- * @return 成功、句柄、版本、范围或型号能力错误；失败保留原配置，不执行通讯。
- * @note 启用后工艺三档自动送丝速度统一为 mm/s；静态和动态写入均在品牌出口换算。
- *       更改配置后重新生成全部工艺及程序脚本。板卡动态响应及断丝时序需实机验收。
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_set(LaserMachineHandle laserMachineHandle, const LaserRampControlConfigSdk *config);
-/**
- * @brief 获取外控配置；未设置时 enabled=0，默认周期100ms、稳定50ms、超时2000ms。
- * @param[in] laserMachineHandle 已注册的焊机句柄。
- * @param[in,out] config 调用前填写 structSize；成功后返回当前版本的完整副本。
- * @return 成功、无效句柄或缓冲结构错误；失败不写出部分配置。
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_get(LaserMachineHandle laserMachineHandle, LaserRampControlConfigSdk *config);
-/**
- * @brief 清除句柄外控策略并恢复旧默认行为；不影响已经在控制器执行的旧程序。
- * @param[in] laserMachineHandle 已注册的焊机句柄。
- * @return 成功或无效句柄；调用后须重新生成脚本。
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_ramp_control_config_reset(LaserMachineHandle laserMachineHandle);
-
-/**
- * @brief 以显式工艺快照生成同一外控阶段脚本，供手动按下、松开及点焊入口使用。
- * @param[in] laserMachineHandle 已注册且已经启用外控配置的句柄。
- * @param[in] craft 当前工艺；只读使用，不临时更新全局 MachineResource。
- * @param[in] arcSwitch ON生成起弧，OFF按rampDownOnly选择降功率点或正常终点。
- * @param[in] rampDownOnly OFF且true只启动并行缓降，OFF且false立即正常截止并停丝。
- * @param[out] scripts 输出包含共同运行时的完整Lua；为空仅查询所需长度。
- * @param[in,out] scriptLen 输入容量及输出所需字节数，包含结尾空字符。
- * @return 成功、工艺校验、句柄、容量错误；未显式启用外控时返回参数错误。
- * @note 起弧同时包含该工艺的参数准备；缓降和终点不会重新下发全部工艺。
- *       失败不写输出或修改资源；三档送丝输入均为mm/s，自熔焊不访问送丝设备。
- */
-LASERWELDSDK_EXPORT LaserSdkResult cl_craft_arc_script_get(LaserMachineHandle laserMachineHandle, const CraftInfoLaserSdk *craft, SwitchTypeLaserSdk arcSwitch,
-    bool rampDownOnly, char *scripts, int *scriptLen);
 
 /*
 *************激光焊功能接口*************

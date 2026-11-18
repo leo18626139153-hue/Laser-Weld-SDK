@@ -17,6 +17,8 @@ constexpr std::size_t kSup26CommonCraftWordCount = 18;
 constexpr std::size_t kSup26WireCraftWordCount = 4;
 constexpr double kMillisecondsPerSecond = 1000.0;
 constexpr double kPercentScale = 100.0;
+constexpr double kMmPerSecondToMPerMinute = 0.06;
+constexpr std::size_t kTermaCraftWordCount = 6;
 
 /**
  * @brief 在调用方诊断结构容量有效时填写结果，不越界访问旧结构。
@@ -43,7 +45,7 @@ bool isLegacySupBrand(LaserHeadBrandSdk brand) {
 
 /** @brief 仅接纳已有设备策略和原有兼容别名，未知品牌不猜测地址。 */
 bool supportedBrand(LaserHeadBrandSdk brand) {
-    return isLegacySupBrand(brand) || brand == BCXLASERPOWER_SDK || brand == CQ_SUP26AD_LASERPOWER_SDK;
+    return isLegacySupBrand(brand) || brand == BCXLASERPOWER_SDK || brand == CQ_SUP26AD_LASERPOWER_SDK || brand == TRM_LASERPOWER_SDK;
 }
 
 /**
@@ -356,7 +358,12 @@ LaserSdkResult BuildDefaultConfiguration(const MachineResource &resource, Config
     }
     Configuration candidate;
     // 先构建临时配置并完整校验，避免错误地址表替换调用方正在使用的配置。
-    if (resource.laserHeadBrand == BCXLASERPOWER_SDK) {
+    if (resource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        const LaserSdkResult result = GetBrandProtocolAdapter(resource.laserHeadBrand).buildResourceCraftConfiguration(resource, candidate);
+        if (result != SUCCESS_LASER_SDK) {
+            return fail(diagnostic, 0, "特尔码工艺地址不在控制器 Int16 槽位范围内或通讯类型无效", result);
+        }
+    } else if (resource.laserHeadBrand == BCXLASERPOWER_SDK) {
         buildBcx(candidate);
     } else if (resource.laserHeadBrand == CQ_SUP26AD_LASERPOWER_SDK) {
         buildSup26Ad(candidate);
@@ -374,6 +381,32 @@ LaserSdkResult BuildCraftValues(const MachineResource &resource, const CraftInfo
     LaserParameterDiagnosticSdk *diagnostic) {
     if (!supportedBrand(resource.laserHeadBrand)) {
         return fail(diagnostic, 0, "设备品牌未提供已验证的工艺转换");
+    }
+    if (resource.laserHeadBrand == TRM_LASERPOWER_SDK) {
+        std::vector<LaserParameterValueSdk> candidate;
+        if (resource.laserPowerLoc != -1) {
+            value(candidate, LASER_PARAM_WELD_POWER_SDK, resource.laserHeadParams.laserPower);
+        }
+        if (resource.laserHeadFrequencyLowLoc != -1) {
+            if (craft.laserHeadHighPulseFrequency != 0) {
+                return fail(diagnostic, LASER_PARAM_PWM_FREQUENCY_SDK, "特尔码激光频率只使用十六位值", PARAMETER_OUT_OF_RANGE_LASER_SDK);
+            }
+            value(candidate, LASER_PARAM_PWM_FREQUENCY_SDK, craft.laserHeadLowPulseFrequency);
+        }
+        if (resource.laserHeadDutyCycleLoc != -1) {
+            value(candidate, LASER_PARAM_DUTY_CYCLE_SDK, craft.laserHeadDutyCycle);
+        }
+        if (resource.autoWireFeedSpeedLoc != -1) {
+            value(candidate, LASER_PARAM_WIRE_FEED_SPEED_SDK, craft.craftWeldingWireFeed);
+        }
+        if (resource.laserHeadScanSpeedLoc != -1) {
+            value(candidate, LASER_PARAM_SCAN_FREQUENCY_SDK, craft.craftScanSpeed);
+        }
+        if (resource.laserHeadScanWidthLoc != -1) {
+            value(candidate, LASER_PARAM_SCAN_WIDTH_SDK, craft.craftScanWidth);
+        }
+        values.swap(candidate);
+        return SUCCESS_LASER_SDK;
     }
     if (!std::isfinite(craft.craftWeldingSpeed) || craft.craftWeldingSpeed <= 0.0 || craft.craftLeadOutRampDistance < 0) {
         return fail(diagnostic, LASER_PARAM_RAMP_DOWN_TIME_SDK, "缓降计算需要正焊接速度及非负距离", PARAMETER_OUT_OF_RANGE_LASER_SDK);
@@ -524,6 +557,19 @@ LaserSdkResult BuildDeviceParametersScript(const MachineResource &resource, cons
         if (resource.laserHeadBrand == CQ_SUP26AD_LASERPOWER_SDK) {
             pendingScript.insert(0, sup26CraftBank(plan, resource.weldingProcessType == WIRE_WELDING_LASERSDK));
         }
+        if (resource.laserHeadBrand == TRM_LASERPOWER_SDK && plan.operations.size() == kTermaCraftWordCount) {
+            std::ostringstream seed;
+            seed.imbue(std::locale::classic());
+            seed << "-- TERMA_CRAFT_SEED_V1:";
+            for (std::size_t i = 0; i < plan.operations.size(); ++i) {
+                if (i != 0) {
+                    seed << ",";
+                }
+                seed << plan.operations[i].address << "=" << plan.operations[i].words[0];
+            }
+            seed << "\n";
+            pendingScript.insert(0, seed.str());
+        }
         script.swap(pendingScript);
     } catch (const std::bad_alloc &) {
         return fail(diagnostic, 0, "完整工艺快照生成内存不足", MEMORY_ERROR_LASER_SDK);
@@ -555,14 +601,17 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource &resource, const Cra
         }
         active = &defaults;
     }
-    // 基础工艺项必须可写；型号不具备的可选项或可选只读项不会被自动下发。
-    const unsigned required[] = {LASER_PARAM_WELD_POWER_SDK, LASER_PARAM_DUTY_CYCLE_SDK, LASER_PARAM_SCAN_WIDTH_SDK};
-    for (std::size_t i = 0; i < sizeof(required) / sizeof(required[0]); ++i) {
-        if (!writable(*active, required[i])) {
-            return fail(diagnostic, required[i], "工艺配置缺少必要的功率、占空比或扫描宽度参数");
+    const bool terma = resource.laserHeadBrand == TRM_LASERPOWER_SDK;
+    if (!terma) {
+        // 旧型号保留功率、占空比和扫描宽度的必填配置。
+        const unsigned required[] = {LASER_PARAM_WELD_POWER_SDK, LASER_PARAM_DUTY_CYCLE_SDK, LASER_PARAM_SCAN_WIDTH_SDK};
+        for (unsigned id : required) {
+            if (!writable(*active, id)) {
+                return fail(diagnostic, id, "工艺配置缺少必要的功率、占空比或扫描宽度参数");
+            }
         }
     }
-    if (!overrideConfiguration) {
+    if (!overrideConfiguration && !terma) {
         // 默认型号保留原校验；显式配置允许调用方以描述定义新的地址、范围和编码。
         const LaserSdkResult result = GetBrandProtocolAdapter(resource.laserHeadBrand).checkCraft(prepared);
         if (result != SUCCESS_LASER_SDK) {
@@ -582,6 +631,9 @@ LaserSdkResult BuildDeviceCraftScript(const MachineResource &resource, const Cra
     std::vector<LaserParameterValueSdk> selected;
     for (std::size_t i = 0; i < converted.size(); ++i) {
         LaserParameterValueSdk parameter = converted[i];
+        if (terma && parameter.parameterId == LASER_PARAM_WIRE_FEED_SPEED_SDK) {
+            parameter.value *= kMmPerSecondToMPerMinute;
+        }
         // 普通超强区分额定功率和工艺峰值；开关光渐变由脚本调节峰值寄存器。
         if (legacySup) {
             if (parameter.parameterId == LASER_PARAM_WELD_POWER_SDK) {

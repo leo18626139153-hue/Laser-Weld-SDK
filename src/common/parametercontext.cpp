@@ -4,7 +4,6 @@
 #include "rampcontrol.h"
 #include <map>
 #include <mutex>
-#include <set>
 
 namespace laser_parameters {
 namespace {
@@ -12,7 +11,6 @@ namespace {
 constexpr double kMillisecondsPerSecond = 1000.0;
 
 std::map<LaserMachineHandle, Configuration> configurations;
-std::set<LaserMachineHandle> devicePowerManaged;
 std::mutex configurationMutex;
 
 /** @brief 在配置锁内生成独立副本，编译过程不持有内部容器引用或长时间占锁。 */
@@ -85,27 +83,9 @@ void ReleaseMachineConfiguration(LaserMachineHandle handle) {
     configurations.erase(handle);
 }
 
-LaserSdkResult SetMachineDevicePowerManaged(LaserMachineHandle handle, bool managed) {
-    if (machineResourcesMap.find(handle) == machineResourcesMap.end()) {
-        return HANDLE_ERROR_LASER_SDK;
-    }
-    std::lock_guard<std::mutex> lock(configurationMutex);
-    if (managed) {
-        devicePowerManaged.insert(handle);
-    } else {
-        devicePowerManaged.erase(handle);
-    }
-    return SUCCESS_LASER_SDK;
-}
-
 bool IsMachineDevicePowerManaged(LaserMachineHandle handle) {
-    std::lock_guard<std::mutex> lock(configurationMutex);
-    return devicePowerManaged.find(handle) != devicePowerManaged.end();
-}
-
-void ReleaseMachineDevicePowerPolicy(LaserMachineHandle handle) {
-    std::lock_guard<std::mutex> lock(configurationMutex);
-    devicePowerManaged.erase(handle);
+    const auto machine = machineResourcesMap.find(handle);
+    return machine != machineResourcesMap.end() && machine->second.devicePowerManaged;
 }
 
 bool UsesMappedParameters(LaserMachineHandle handle, LaserHeadBrandSdk brand) {
@@ -115,7 +95,7 @@ bool UsesMappedParameters(LaserMachineHandle handle, LaserHeadBrandSdk brand) {
             return true;
         }
     }
-    return brand == BCXLASERPOWER_SDK || brand == CQ_SUP26AD_LASERPOWER_SDK;
+    return brand == BCXLASERPOWER_SDK || brand == CQ_SUP26AD_LASERPOWER_SDK || brand == TRM_LASERPOWER_SDK;
 }
 
 LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle, const MachineResource &resource, const CraftInfoLaserSdk &craft, std::string &script,
@@ -123,14 +103,16 @@ LaserSdkResult BuildMachineCraftScript(LaserMachineHandle handle, const MachineR
     if (machineResourcesMap.find(handle) == machineResourcesMap.end()) {
         return HANDLE_ERROR_LASER_SDK;
     }
-    // 显式外控使用独立单位及包络策略，旧调用方继续沿原编译路径。
+    MachineResource snapshot = resource;
+    snapshot.laserHeadParams.laserPower = craft.craftLaserPower;
+    // 实焊外控与独立工艺下发使用同一份当次工艺快照。
     if (ramp_control::Enabled(handle)) {
-        return ramp_control::BuildCraftScript(handle, resource, craft, script);
+        return ramp_control::BuildCraftScript(handle, snapshot, craft, script);
     }
     Configuration configured;
     const bool hasOverride = copyOverride(handle, configured);
     // 品牌换算、参数编码和脚本输出均只使用本次局部副本。
-    return BuildDeviceCraftScript(resource, craft, hasOverride ? &configured : nullptr, script, diagnostic, IsMachineDevicePowerManaged(handle));
+    return BuildDeviceCraftScript(snapshot, craft, hasOverride ? &configured : nullptr, script, diagnostic, snapshot.devicePowerManaged);
 }
 
 LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle, const MachineResource &resource, const std::vector<LaserParameterValueSdk> &values,
@@ -146,7 +128,9 @@ LaserSdkResult BuildMachineParameterScript(LaserMachineHandle handle, const Mach
 void UpdateCompilationResource(MachineResource &resource, const CraftInfoLaserSdk &craft) {
     // 兼容旧控制生成器：只更新本次编译的工作快照，不表示板卡已经执行。
     CgxiLaserPowerLaserSdk &power = resource.laserPowerParams;
-    power.laserPower = craft.craftLaserPower;
+    if (resource.laserHeadBrand != TRM_LASERPOWER_SDK) {
+        power.laserPower = craft.craftLaserPower;
+    }
     power.laserPowerOpen = craft.craftLeadInPower;
     power.laserPowerClose = craft.craftLeadOutPower;
     power.laserRampUpTime = craft.craftLeadInRampTime;
@@ -163,6 +147,7 @@ void UpdateCompilationResource(MachineResource &resource, const CraftInfoLaserSd
     power.weldMode = craft.craftweldMode;
     CgxiLaserHeadLaserSdk &head = resource.laserHeadParams;
     // 旧缓升缓降生成器把此字段作为目标功率；额定限制已由参数编译器单独校验。
+    head.laserPower = craft.craftLaserPower;
     head.laserHeadPeakPower = craft.craftLaserPower;
     head.laserHeadScanSpeed = craft.craftScanSpeed;
     head.laserHeadScanWidth = craft.craftScanWidth;

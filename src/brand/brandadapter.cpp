@@ -1,6 +1,8 @@
 #include "brandadapter.h"
 #include "brand/deviceparameters.h"
 #include <cmath>
+#include <cstring>
+#include <limits>
 
 namespace {
 
@@ -823,6 +825,117 @@ std::string BcxOmniProtocolAdapter::buildInitLuaFunc() const {
 
 namespace {
 
+/** @brief 特尔码工艺使用上位机配置的控制器 Int16 映射槽。 */
+class TermaProtocolAdapter final : public BrandProtocolAdapter {
+public:
+    LaserHeadBrandSdk brand() const override {
+        return TRM_LASERPOWER_SDK;
+    }
+
+    BrandProtocolProfile profile() const override {
+        return {};
+    }
+
+    LaserSdkResult checkCraft(const CraftInfoLaserSdk &) const override {
+        // 工艺范围由本次实际映射的参数描述校验。
+        return SUCCESS_LASER_SDK;
+    }
+
+    bool hasRegister(BrandRegisterRole) const override {
+        return false;
+    }
+
+    BrandRegisterInfo registerInfo(BrandRegisterRole) const override {
+        return makeRegister(INVALID_REGISTER_ADDR, INVALID_REGISTER_ADDR, int16Reg, 1.0, false);
+    }
+
+    bool allowWireFeederWrite(WeldingProcessType, BrandRegisterRole) const override {
+        return false;
+    }
+
+    int wireFeederRunStatusValue(WeldingProcessType) const override {
+        return 0;
+    }
+
+    std::vector<BrandRegisterRole> craftWireFeederRoles(WeldingProcessType) const override {
+        return {};
+    }
+
+    bool buildConfigureMachineBodyScript(const MachineResource &resource, const CraftInfoLaserSdk &craftInfo, std::string &scriptBody) const override {
+        MachineResource snapshot = resource;
+        snapshot.laserHeadParams.laserPower = craftInfo.craftLaserPower;
+        return laser_parameters::BuildDeviceCraftScript(snapshot, craftInfo, nullptr, scriptBody) == SUCCESS_LASER_SDK;
+    }
+
+    bool shouldGenerateWireFeederScript(WeldingProcessType) const override {
+        return false;
+    }
+
+    void BeginNewSession() override {
+    }
+
+    std::string buildInitLuaFunc() const override {
+        return {};
+    }
+
+    bool usesMappedSlaveRegisters() const override {
+        return true;
+    }
+
+private:
+    LaserSdkResult buildResourceCraftConfiguration(const MachineResource &resource, laser_parameters::Configuration &configuration) const override {
+        if (resource.commuType != RS485_2_LASER_SDK) {
+            return PARAM_TYPE_ERROR_LASER_SDK;
+        }
+
+        const auto addLocalWord = [&configuration](int address, unsigned id, const char *name, const char *unit, double minimum, double maximum,
+                                      double scale) -> bool {
+            if (address == -1) {
+                return true;
+            }
+            if (address < 0 || address >= CR6_INT16_REG_NUM) {
+                return false;
+            }
+            LaserParameterDescriptorSdk descriptor = {};
+            descriptor.structSize = sizeof(descriptor);
+            descriptor.parameterId = id;
+            descriptor.dataType = LASER_PARAMETER_U16_SDK;
+            descriptor.wordOrder = LASER_PARAMETER_HIGH_FIRST_SDK;
+            descriptor.rounding = LASER_PARAMETER_NEAREST_SDK;
+            descriptor.flags = LASER_PARAMETER_WRITABLE_SDK;
+            descriptor.minimum = minimum;
+            descriptor.maximum = maximum;
+            descriptor.scale = scale;
+            std::strcpy(descriptor.name, name);
+            std::strcpy(descriptor.unit, unit);
+            configuration.descriptors.push_back(descriptor);
+
+            LaserParameterBindingSdk binding = {};
+            binding.structSize = sizeof(binding);
+            binding.parameterId = id;
+            binding.writeAddress = static_cast<unsigned>(address);
+            binding.readAddress = LASER_PARAMETER_INVALID_ADDRESS_SDK;
+            configuration.bindings.push_back(binding);
+            return true;
+        };
+
+        constexpr double kMaxWireSpeed = 6.0;    ///< 送丝速度上限，单位 m/min。
+        constexpr double kWireScale = 100.0;     ///< 送丝速度使用百分之一 m/min 表示。
+        constexpr double kScanWidthScale = 10.0; ///< 扫描宽度使用十分之一 mm 表示。
+        constexpr double kMaxPowerWord = (std::numeric_limits<uint16_t>::max)();
+        // 工艺功率使用单字编码，与设备额定功率分开。
+        if (!addLocalWord(resource.laserPowerLoc, LASER_PARAM_WELD_POWER_SDK, "激光功率", "W", 0, kMaxPowerWord, 1) ||
+            !addLocalWord(resource.laserHeadFrequencyLowLoc, LASER_PARAM_PWM_FREQUENCY_SDK, "激光频率", "Hz", 2, 5000, 1) ||
+            !addLocalWord(resource.laserHeadDutyCycleLoc, LASER_PARAM_DUTY_CYCLE_SDK, "激光占空比", "%", 0, 100, 1) ||
+            !addLocalWord(resource.autoWireFeedSpeedLoc, LASER_PARAM_WIRE_FEED_SPEED_SDK, "送丝速度", "m/min", 0, kMaxWireSpeed, kWireScale) ||
+            !addLocalWord(resource.laserHeadScanSpeedLoc, LASER_PARAM_SCAN_FREQUENCY_SDK, "扫描频率", "Hz", 0, 500, 1) ||
+            !addLocalWord(resource.laserHeadScanWidthLoc, LASER_PARAM_SCAN_WIDTH_SDK, "扫描宽度", "mm", 0, 15, kScanWidthScale)) {
+            return PARAMETER_OUT_OF_RANGE_LASER_SDK;
+        }
+        return SUCCESS_LASER_SDK;
+    }
+};
+
 /**
  * @brief 原 SDK 已有的欧斯睿普兼容别名，仅沿用超强地址和工艺策略。
  * 保留已有调用行为，不代表欧斯睿普独立协议或新增设备已完成验证。
@@ -843,6 +956,7 @@ const BrandProtocolAdapter &GetBrandProtocolAdapter(LaserHeadBrandSdk brand) {
     static const Sup26AdProtocolAdapter sup26AdAdapter;
     static const OsrpProtocolAdapter osrpAdapter;
     static const BcxOmniProtocolAdapter bcxAdapter;
+    static const TermaProtocolAdapter termaAdapter;
     switch (brand) {
         case LaserHeadBrandSdk::CQLASERPOWER_SDK:
             return supAdapter;
@@ -852,6 +966,8 @@ const BrandProtocolAdapter &GetBrandProtocolAdapter(LaserHeadBrandSdk brand) {
             return bcxAdapter;
         case LaserHeadBrandSdk::CQ_SUP26AD_LASERPOWER_SDK:
             return sup26AdAdapter;
+        case LaserHeadBrandSdk::TRM_LASERPOWER_SDK:
+            return termaAdapter;
         default:
             return supAdapter;
     }
