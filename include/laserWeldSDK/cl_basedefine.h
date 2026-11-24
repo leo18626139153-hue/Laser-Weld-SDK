@@ -79,8 +79,7 @@ enum LaserSdkResult {
     ROBOT_MODE_ERROR_CRSDK_LASER_SDK = 117,    ///< 当前状态不能执行该操作
     MOVE_ERROR_CRSDK_LASER_SDK = 118,          ///< 移动阻塞运动时,返回的移动状态错误
     FORCECTRL_WRONGPARA_CRSDK_LASER_SDK = 119, /// 力控SDK参数设置错误：包括参数长度错误、payload为负数
-    FORCECTRL_INVAILDCMD_CRSDK_LASER_SDK =
-        120, /// 力控SDK无效的指令：包括forceEna等于1,0以外的值forcebasetype除0以外的值 forcectrltype除1,0以外  auto/mannual 1,0以外的值
+    FORCECTRL_INVAILDCMD_CRSDK_LASER_SDK = 120, /// 力控SDK无效的指令：包括forceEna等于1,0以外的值forcebasetype除0以外的值 forcectrltype除1,0以外  auto/mannual 1,0以外的值
     FORCECTRL_PARABLOCKED_CRSDK_LASER_SDK = 121,   /// 力控SDK freedrive模式下部分参数失效被屏蔽
     FORCECTRL_CMDBLOCKED_CRSDK_LASER_SDK = 122,    /// 力控SDK 已在力控模式下时禁止再打开力控
     FORCECTRL_CONFIGBLOCKED_CRSDK_LASER_SDK = 123, /// 力控SDK 机器人运动时或已在力控模式下时禁止下发配置
@@ -93,6 +92,7 @@ enum LaserSdkResult {
 //通讯形式
 enum CommuTypeLaserSdk {
     RS485_2_LASER_SDK = 0, //RS485
+    MODBUSRTU = 1,
     //SIMULATE_LASER_SDK = 1    //模拟量通讯
     //ETHERCAT_LASER_SDK = 2,   //EtherCAT通讯
 };
